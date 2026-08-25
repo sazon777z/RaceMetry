@@ -2,13 +2,13 @@
  * ============================================================================
  *                          DRAGon TELEMETRY METER
  *                 Профессиональный автомобильный измеритель динамики
- *                     (Аналог Dragy, RaceLogic, RaceBox)
+ *                   (Bluetooth BLE / Web App / Dragy-style)
  * ============================================================================
  * Платформа: ESP32-S3 Super Mini
  * Сенсоры: u-blox M10Q (UBX 10-18Hz), MPU-9250 (IMU 200Hz)
- * Экран: 1.47" IPS ST7789 SPI (320x172)
+ * Связь: Bluetooth Low Energy 5.0 (Nordic UART Service)
  * Индикатор: WS2812B RGB
- * Органы управления: 2 кнопки
+ * Органы управления: 2 кнопки (опционально) + полное управление по BLE
  * ============================================================================
  */
 
@@ -18,7 +18,7 @@
 #include "GpsEngine.h"
 #include "ImuEngine.h"
 #include "TelemetryEngine.h"
-#include "DisplayEngine.h"
+#include "BleEngine.h"
 #include "LedController.h"
 #include "ButtonManager.h"
 #include "StorageManager.h"
@@ -27,7 +27,7 @@
 GpsEngine       gpsEngine;
 ImuEngine       imuEngine;
 TelemetryEngine telemetryEngine;
-DisplayEngine   displayEngine;
+BleEngine       bleEngine;
 LedController   ledController;
 ButtonManager   buttonManager;
 StorageManager  storageManager;
@@ -38,7 +38,7 @@ DeviceSettings  deviceSettings;
 // Потокобезопасная синхронизация между ядрами (FreeRTOS Mutex)
 portMUX_TYPE stateMutex = portMUX_INITIALIZER_UNLOCKED;
 
-// Локальные копии данных для безопасной передачи в поток отрисовки
+// Локальные копии данных для безопасной передачи между ядрами
 GpsData         safeGpsData;
 ImuData         safeImuData;
 RaceState       safeRaceState;
@@ -46,11 +46,14 @@ RaceDiscipline  safeDiscipline;
 RunRecord       safeCurrentRun;
 RunRecord       safeLastRun;
 float           safeLiveTimeSec = 0.0f;
+float           safeLiveDistanceM = 0.0f;
+float           safeLiveSpeedKmh = 0.0f;
+float           safeLiveSlopePct = 0.0f;
 bool            newRunSaved = false;
 
 // Прототипы задач FreeRTOS
 void TelemetryTask(void* parameter);
-void UiTask(void* parameter);
+void CommTask(void* parameter);
 void runUcenterBridgeMode();
 
 void setup() {
@@ -61,7 +64,7 @@ void setup() {
 
     Serial.begin(115200);
     delay(500);
-    Serial.println("\n[DRAGon] Initializing Pro Telemetry System...");
+    Serial.println("\n[DRAGon] Initializing Pro BLE Telemetry System...");
 
     // 1. Инициализация хранилища NVS (настройки и рекорды)
     storageManager.begin();
@@ -75,13 +78,7 @@ void setup() {
     // 3. Инициализация кнопок управления
     buttonManager.begin(PIN_BTN_LEFT, PIN_BTN_RIGHT);
 
-    // 4. Инициализация дисплея IPS ST7789
-    displayEngine.begin();
-    displayEngine.setBrightness(deviceSettings.displayBrightness);
-    displayEngine.setScreen((AppScreen)deviceSettings.defaultScreen);
-    Serial.println("[DRAGon] Display initialized");
-
-    // 5. Инициализация инерциального датчика MPU-9250 (I2C)
+    // 4. Инициализация инерциального датчика MPU-9250 (I2C)
     if (!imuEngine.begin(PIN_I2C_SDA, PIN_I2C_SCL, I2C_FREQUENCY)) {
         Serial.println("[DRAGon] WARNING: MPU-9250 not detected!");
     } else {
@@ -89,12 +86,61 @@ void setup() {
         Serial.println("[DRAGon] IMU MPU-9250 ready");
     }
 
-    // 6. Инициализация GPS u-blox M10Q (Hardware UART1)
+    // 5. Инициализация GPS u-blox M10Q (Hardware UART1)
     gpsEngine.begin(Serial1, GPS_BAUDRATE_TARGET);
     Serial.println("[DRAGon] GPS M10Q configured with UBX 10-18Hz");
 
-    // 7. Инициализация гоночного ядра телеметрии
+    // 6. Инициализация гоночного ядра телеметрии
     telemetryEngine.begin(deviceSettings);
+
+    // 7. Инициализация BLE Сервера (Nordic UART Service)
+    bleEngine.begin(BLE_DEVICE_NAME);
+    bleEngine.setCommandHandler([](const String& cmd, const String& val) {
+        Serial.printf("[DRAGon CMD] cmd: %s, val: %s\n", cmd.c_str(), val.c_str());
+
+        if (cmd == "arm") {
+            telemetryEngine.arm();
+        } else if (cmd == "reset") {
+            telemetryEngine.reset();
+        } else if (cmd == "set_disc") {
+            int disc = val.toInt();
+            if (disc >= 0 && disc <= 6) {
+                telemetryEngine.setDiscipline((RaceDiscipline)disc);
+            }
+        } else if (cmd == "set_rollout") {
+            deviceSettings.use1FootRollout = (val == "true" || val == "1");
+            telemetryEngine.updateSettings(deviceSettings);
+            storageManager.saveSettings(deviceSettings);
+        } else if (cmd == "set_units") {
+            deviceSettings.metricUnits = (val == "true" || val == "1" || val == "metric");
+            storageManager.saveSettings(deviceSettings);
+        } else if (cmd == "calibrate_imu") {
+            ledController.setMode(LedMode::CALIBRATING);
+            imuEngine.calibrateZero(600);
+            imuEngine.getOffsets(deviceSettings.imuOffsetGx, deviceSettings.imuOffsetGy, deviceSettings.imuOffsetGz);
+            storageManager.saveSettings(deviceSettings);
+            bleEngine.sendDeviceInfo(deviceSettings, storageManager.getSavedRunsCount(), gpsEngine.isReadyForRace(), safeGpsData.numSats);
+        } else if (cmd == "get_history") {
+            uint8_t count = storageManager.getSavedRunsCount();
+            for (uint8_t i = 0; i < count; i++) {
+                RunRecord r;
+                if (storageManager.getRunRecord(i, r)) {
+                    bleEngine.sendRunRecord(r);
+                    delay(15);
+                }
+            }
+        } else if (cmd == "clear_history") {
+            storageManager.clearAllRuns();
+            bleEngine.sendDeviceInfo(deviceSettings, 0, gpsEngine.isReadyForRace(), safeGpsData.numSats);
+        } else if (cmd == "get_info") {
+            bleEngine.sendDeviceInfo(deviceSettings, storageManager.getSavedRunsCount(), gpsEngine.isReadyForRace(), safeGpsData.numSats);
+            PersonalBests pb;
+            storageManager.getPersonalBests(pb);
+            bleEngine.sendPersonalBests(pb);
+        } else if (cmd == "ping") {
+            bleEngine.sendJson("{\"t\":\"pong\"}\n");
+        }
+    });
 
     // 8. Запуск высокоприоритетной задачи телеметрии на ЯДРЕ 0
     xTaskCreatePinnedToCore(
@@ -107,10 +153,10 @@ void setup() {
         0                     // Ядро 0
     );
 
-    // 9. Запуск задачи графического интерфейса и кнопок на ЯДРЕ 1
+    // 9. Запуск коммуникационной задачи BLE на ЯДРЕ 1
     xTaskCreatePinnedToCore(
-        UiTask,               // Функция задачи
-        "UiTask",             // Имя
+        CommTask,             // Функция задачи
+        "CommTask",           // Имя
         8192,                 // Стек (байт)
         NULL,                 // Параметры
         1,                    // Приоритет
@@ -118,7 +164,7 @@ void setup() {
         1                     // Ядро 1
     );
 
-    Serial.println("[DRAGon] System started successfully!");
+    Serial.println("[DRAGon] BLE System started successfully!");
 }
 
 /**
@@ -134,8 +180,7 @@ void TelemetryTask(void* parameter) {
 
     for (;;) {
         // Проверка режима моста U-Center
-        if (displayEngine.getScreen() == AppScreen::UCENTER_BRIDGE || GPS_BRIDGE_MODE) {
-            // Прозрачный двунаправленный аппаратный проброс: USB CDC <-> UART1 GPS
+        if (GPS_BRIDGE_MODE) {
             while (Serial.available() > 0) {
                 Serial1.write(Serial.read());
             }
@@ -148,13 +193,13 @@ void TelemetryTask(void* parameter) {
             continue;
         }
 
-        // 1. Потоковый разбор бинарных пакетов UBX GPS (Стандартный режим)
-        bool newGpsPvt = gpsEngine.update();
+        // 1. Потоковый разбор бинарных пакетов UBX GPS (10-18 Гц)
+        gpsEngine.update();
 
-        // 2. Скоростной опрос акселерометра MPU-9250
+        // 2. Скоростной опрос акселерометра MPU-9250 (200 Гц)
         imuEngine.update();
 
-        // 3. Обработка телеметрии
+        // 3. Обработка математики заезда
         telemetryEngine.process(gpsEngine.getData(), imuEngine.getData());
 
         // 4. Управление светодиодной индикацией WS2812B
@@ -211,7 +256,7 @@ void TelemetryTask(void* parameter) {
         }
         prevRaceState = curState;
 
-        // 6. Синхронизация данных со снимком для Ядра 1 (UI)
+        // 6. Синхронизация данных со снимком для Ядра 1 (BLE)
         portENTER_CRITICAL(&stateMutex);
         safeGpsData = gpsEngine.getData();
         safeImuData = imuEngine.getData();
@@ -220,6 +265,9 @@ void TelemetryTask(void* parameter) {
         safeCurrentRun = telemetryEngine.getCurrentRun();
         safeLastRun = telemetryEngine.getLastRun();
         safeLiveTimeSec = telemetryEngine.getCurrentTimeSec();
+        safeLiveDistanceM = telemetryEngine.getCurrentDistanceM();
+        safeLiveSpeedKmh = telemetryEngine.getCurrentSpeedKmh();
+        safeLiveSlopePct = telemetryEngine.getCurrentSlopePct();
         portEXIT_CRITICAL(&stateMutex);
 
         vTaskDelayUntil(&xLastWakeTime, xFrequency);
@@ -228,12 +276,14 @@ void TelemetryTask(void* parameter) {
 
 /**
  * ============================================================================
- * ЯДРО 1: ГРАФИЧЕСКИЙ ИНТЕРФЕЙС, КНОПКИ И ВЗАИМОДЕЙСТВИЕ
+ * ЯДРО 1: BLUETOOTH LOW ENERGY, КНОПКИ И ОБРАБОТКА ДАННЫХ
  * ============================================================================
  */
-void UiTask(void* parameter) {
+void CommTask(void* parameter) {
+    const TickType_t xFrequency = pdMS_TO_TICKS(1000 / BLE_TELEMETRY_RATE_HZ); // 15 Гц
     TickType_t xLastWakeTime = xTaskGetTickCount();
-    const TickType_t xFrequency = pdMS_TO_TICKS(25); // ~40 FPS отрисовка экрана
+
+    bool wasConnected = false;
 
     for (;;) {
         // 1. Опрос кнопок
@@ -241,65 +291,36 @@ void UiTask(void* parameter) {
         ButtonEvent evLeft = buttonManager.getLeftEvent();
         ButtonEvent evRight = buttonManager.getRightEvent();
 
-        // 2. Обработка событий кнопок
-        // Кнопка 1 (Left)
+        // Обработка кнопки 1 (Left: Клик = Взведение, Длинное = Смена дисциплины)
         if (evLeft == ButtonEvent::CLICK) {
-            displayEngine.nextScreen();
+            telemetryEngine.arm();
         } else if (evLeft == ButtonEvent::LONG_PRESS) {
-            // Переключение режима/дисциплины
             uint8_t nextDisc = ((uint8_t)telemetryEngine.getDiscipline() + 1) % 6;
             telemetryEngine.setDiscipline((RaceDiscipline)nextDisc);
         }
 
-        // Кнопка 2 (Right)
+        // Обработка кнопки 2 (Right: Клик = Сброс, Длинное = Калибровка IMU)
         if (evRight == ButtonEvent::CLICK) {
-            if (displayEngine.getScreen() == AppScreen::RUN_RESULTS) {
-                // Возврат на драг-экран
-                displayEngine.setScreen(AppScreen::DRAG_RACE);
-            } else if (displayEngine.getScreen() == AppScreen::SETTINGS) {
-                // Переключение 1-Foot Rollout
-                deviceSettings.use1FootRollout = !deviceSettings.use1FootRollout;
-                telemetryEngine.updateSettings(deviceSettings);
-                storageManager.saveSettings(deviceSettings);
-            } else {
-                // Принудительное взведение/сброс
-                telemetryEngine.arm();
-            }
+            telemetryEngine.reset();
         } else if (evRight == ButtonEvent::LONG_PRESS) {
-            if (displayEngine.getScreen() == AppScreen::SETTINGS) {
-                // Калибровка нуля акселерометра MPU-9250
-                ledController.setMode(LedMode::CALIBRATING);
-                imuEngine.calibrateZero(600);
-                imuEngine.getOffsets(deviceSettings.imuOffsetGx, deviceSettings.imuOffsetGy, deviceSettings.imuOffsetGz);
-                storageManager.saveSettings(deviceSettings);
-            } else {
-                telemetryEngine.reset();
-            }
+            ledController.setMode(LedMode::CALIBRATING);
+            imuEngine.calibrateZero(600);
+            imuEngine.getOffsets(deviceSettings.imuOffsetGx, deviceSettings.imuOffsetGy, deviceSettings.imuOffsetGz);
+            storageManager.saveSettings(deviceSettings);
         }
 
-        // Если заезд только что завершился — автоматически переключаем на экран результатов!
-        static uint32_t finishSummaryShowTime = 0;
-        static bool inAutoSummary = false;
+        // 2. Обновление состояния BLE
+        bleEngine.update();
+        bool isConnected = bleEngine.isConnected();
 
-        if (newRunSaved) {
-            newRunSaved = false;
-            inAutoSummary = true;
-            finishSummaryShowTime = millis();
-            displayEngine.setScreen(AppScreen::RUN_RESULTS);
+        // Если только что подключились — отправляем инфо о приборе и рекорды
+        if (isConnected && !wasConnected) {
+            bleEngine.sendDeviceInfo(deviceSettings, storageManager.getSavedRunsCount(), gpsEngine.isReadyForRace(), safeGpsData.numSats);
+            PersonalBests pb;
+            storageManager.getPersonalBests(pb);
+            bleEngine.sendPersonalBests(pb);
         }
-
-        // Автоматический возврат с экрана результатов через 7 секунд
-        if (inAutoSummary && (millis() - finishSummaryShowTime >= AUTO_SUMMARY_DURATION_MS)) {
-            inAutoSummary = false;
-            if (displayEngine.getScreen() == AppScreen::RUN_RESULTS) {
-                displayEngine.setScreen(AppScreen::DRAG_RACE);
-            }
-        }
-
-        // Если пользователь сам нажал кнопку во время авто-показа — сбрасываем флаг
-        if (evLeft != ButtonEvent::NONE || evRight != ButtonEvent::NONE) {
-            inAutoSummary = false;
-        }
+        wasConnected = isConnected;
 
         // 3. Получение безопасной копии данных
         GpsData localGps;
@@ -309,6 +330,10 @@ void UiTask(void* parameter) {
         RunRecord localCurr;
         RunRecord localLast;
         float localLiveTime;
+        float localDistanceM;
+        float localSpeedKmh;
+        float localSlopePct;
+        bool localNewRunSaved = false;
 
         portENTER_CRITICAL(&stateMutex);
         localGps = safeGpsData;
@@ -318,31 +343,43 @@ void UiTask(void* parameter) {
         localCurr = safeCurrentRun;
         localLast = safeLastRun;
         localLiveTime = safeLiveTimeSec;
+        localDistanceM = safeLiveDistanceM;
+        localSpeedKmh = safeLiveSpeedKmh;
+        localSlopePct = safeLiveSlopePct;
+        if (newRunSaved) {
+            localNewRunSaved = true;
+            newRunSaved = false;
+        }
         portEXIT_CRITICAL(&stateMutex);
 
-        PersonalBests personalBests;
-        storageManager.getPersonalBests(personalBests);
+        // 4. Трансляция телеметрии по BLE
+        if (isConnected) {
+            // Живая телеметрия
+            bleEngine.sendLiveTelemetry(
+                localGps,
+                localImu,
+                localState,
+                localDisc,
+                localLiveTime,
+                localDistanceM,
+                localSpeedKmh,
+                localSlopePct
+            );
 
-        // 4. Отрисовка графического интерфейса
-        displayEngine.render(
-            displayEngine.getScreen(),
-            localGps,
-            localImu,
-            localState,
-            localDisc,
-            localCurr,
-            localLast,
-            personalBests,
-            deviceSettings,
-            localLiveTime
-        );
+            // Если только что завершился заезд — отправляем полный отчет и обновленные рекорды
+            if (localNewRunSaved) {
+                bleEngine.sendRunRecord(localLast);
+                PersonalBests pb;
+                storageManager.getPersonalBests(pb);
+                bleEngine.sendPersonalBests(pb);
+            }
+        }
 
         vTaskDelayUntil(&xLastWakeTime, xFrequency);
     }
 }
 
 void loop() {
-    // Вся работа выполняется задачами FreeRTOS на Core 0 и Core 1
     vTaskDelay(pdMS_TO_TICKS(1000));
 }
 
@@ -354,52 +391,37 @@ void loop() {
 void runUcenterBridgeMode() {
     Serial.begin(115200);
 
-    // Буфер 8 КБ для предотвращения любых потерь и переполнений
     Serial1.setRxBufferSize(8192);
-    
-    // Начальная скорость по умолчанию для u-blox M10 (38400 бод)
     uint32_t currentGpsBaud = 38400;
     Serial1.begin(currentGpsBaud, SERIAL_8N1, PIN_GPS_RX, PIN_GPS_TX);
 
-    // Кнопка для ручного переключения скорости прямо с прибора
     pinMode(PIN_BTN_LEFT, INPUT_PULLUP);
 
-    // Индикация и экран
     ledController.begin(PIN_WS2812);
     ledController.setMode(LedMode::RUNNING);
 
-    displayEngine.begin();
-    displayEngine.setScreen(AppScreen::UCENTER_BRIDGE);
-
     uint8_t chunkBuf[512];
-    uint32_t lastUiUpdate = 0;
-    uint32_t totalRx = 0, totalTx = 0;
     bool lastBtnState = HIGH;
 
     for (;;) {
-        // 1. Сверхбыстрый блочный проброс PC -> GPS
         int availPC = Serial.available();
         if (availPC > 0) {
             int toRead = min(availPC, (int)sizeof(chunkBuf));
             int readBytes = Serial.readBytes(chunkBuf, toRead);
             if (readBytes > 0) {
                 Serial1.write(chunkBuf, readBytes);
-                totalTx += readBytes;
             }
         }
 
-        // 2. Сверхбыстрый блочный проброс GPS -> PC
         int availGPS = Serial1.available();
         if (availGPS > 0) {
             int toRead = min(availGPS, (int)sizeof(chunkBuf));
             int readBytes = Serial1.readBytes(chunkBuf, toRead);
             if (readBytes > 0) {
                 Serial.write(chunkBuf, readBytes);
-                totalRx += readBytes;
             }
         }
 
-        // 3. Обработка Кнопки 10 (переключение скорости 38400 -> 115200 -> 460800)
         bool btnState = (digitalRead(PIN_BTN_LEFT) == LOW);
         if (btnState && !lastBtnState) {
             if (currentGpsBaud == 38400) currentGpsBaud = 115200;
@@ -410,16 +432,6 @@ void runUcenterBridgeMode() {
             delay(100);
         }
         lastBtnState = btnState;
-
-        // 4. Отрисовка статуса на дисплее (раз в 150 мс, не замедляя UART)
-        if (millis() - lastUiUpdate >= 150) {
-            lastUiUpdate = millis();
-            _renderBridgeUi(currentGpsBaud, totalRx, totalTx);
-            ledController.update();
-        }
+        ledController.update();
     }
-}
-
-static void _renderBridgeUi(uint32_t baud, uint32_t rx, uint32_t tx) {
-    displayEngine.renderBridge(baud, rx, tx);
 }

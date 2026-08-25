@@ -25,7 +25,7 @@ bool StorageManager::loadSettings(DeviceSettings& settings) {
         settings.imuOffsetGx = 0.0f;
         settings.imuOffsetGy = 0.0f;
         settings.imuOffsetGz = 0.0f;
-        settings.defaultScreen = (uint8_t)AppScreen::DASHBOARD_LIVE;
+        settings.defaultScreen = 0;
         saveSettings(settings);
         return true;
     }

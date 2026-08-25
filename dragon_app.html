@@ -1,0 +1,1589 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>DRAGon — Профессиональная Телеметрия</title>
+    <meta name="theme-color" content="#0d0f14">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <style>
+        :root {
+            --bg-primary: #0a0c10;
+            --bg-card: #12151d;
+            --bg-card-hover: #1a1e29;
+            --accent-cyan: #00ffcc;
+            --accent-green: #00e676;
+            --accent-red: #ff3366;
+            --accent-gold: #ffb300;
+            --accent-blue: #2979ff;
+            --text-primary: #f0f4f8;
+            --text-secondary: #8a99ad;
+            --text-muted: #536173;
+            --border-color: #1e2430;
+            --radius-sm: 8px;
+            --radius-md: 14px;
+            --radius-lg: 20px;
+            --shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+            --glow-cyan: 0 0 20px rgba(0, 255, 204, 0.3);
+            --glow-green: 0 0 20px rgba(0, 230, 118, 0.3);
+            --glow-red: 0 0 20px rgba(255, 51, 102, 0.3);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
+            background-image: radial-gradient(circle at 50% 0%, #171d2b 0%, #0a0c10 70%);
+        }
+
+        /* Top Header */
+        header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 18px;
+            background: rgba(18, 21, 29, 0.85);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border-color);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .brand-logo {
+            font-size: 22px;
+            font-weight: 900;
+            letter-spacing: 1px;
+            background: linear-gradient(135deg, #00ffcc, #2979ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .brand-badge {
+            font-size: 10px;
+            font-weight: 700;
+            padding: 2px 7px;
+            border-radius: 6px;
+            background: rgba(0, 255, 204, 0.15);
+            color: var(--accent-cyan);
+            border: 1px solid rgba(0, 255, 204, 0.3);
+        }
+
+        .ble-btn {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: #182030;
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+            padding: 8px 14px;
+            border-radius: var(--radius-md);
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .ble-btn:hover {
+            background: #222c42;
+            border-color: var(--accent-cyan);
+        }
+
+        .ble-btn.connected {
+            background: rgba(0, 230, 118, 0.15);
+            color: var(--accent-green);
+            border-color: var(--accent-green);
+            box-shadow: var(--glow-green);
+        }
+
+        .ble-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--accent-red);
+        }
+
+        .ble-btn.connected .ble-dot {
+            background: var(--accent-green);
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(0.95); opacity: 0.8; }
+            50% { transform: scale(1.3); opacity: 1; }
+            100% { transform: scale(0.95); opacity: 0.8; }
+        }
+
+        /* Status Bar (GPS / Satellites / State) */
+        .status-strip {
+            display: flex;
+            align-items: center;
+            justify-content: space-around;
+            padding: 8px 14px;
+            background: rgba(14, 17, 24, 0.6);
+            border-bottom: 1px solid var(--border-color);
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .status-item strong {
+            color: var(--text-primary);
+        }
+
+        /* Navigation Tabs */
+        .tab-bar {
+            display: flex;
+            background: rgba(18, 21, 29, 0.95);
+            border-top: 1px solid var(--border-color);
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            z-index: 100;
+            padding-bottom: env(safe-area-inset-bottom);
+        }
+
+        .tab-btn {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 10px 4px 8px;
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            font-size: 11px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .tab-btn svg {
+            width: 22px;
+            height: 22px;
+            margin-bottom: 3px;
+            fill: currentColor;
+        }
+
+        .tab-btn.active {
+            color: var(--accent-cyan);
+        }
+
+        .tab-btn.active svg {
+            filter: drop-shadow(0 0 6px var(--accent-cyan));
+        }
+
+        /* Main Container */
+        main {
+            flex: 1;
+            padding: 16px;
+            padding-bottom: 90px;
+            max-width: 900px;
+            width: 100%;
+            margin: 0 auto;
+        }
+
+        .tab-content {
+            display: none;
+            animation: fadeIn 0.25s ease;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(6px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Hero Speedometer & State Badge */
+        .state-banner {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            padding: 12px 18px;
+            border-radius: var(--radius-md);
+            margin-bottom: 16px;
+        }
+
+        .state-badge {
+            font-size: 13px;
+            font-weight: 800;
+            padding: 6px 14px;
+            border-radius: 20px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            background: #222938;
+            color: var(--text-secondary);
+        }
+
+        .state-badge.armed {
+            background: rgba(0, 230, 118, 0.2);
+            color: var(--accent-green);
+            border: 1px solid var(--accent-green);
+            box-shadow: var(--glow-green);
+        }
+
+        .state-badge.measuring {
+            background: rgba(0, 255, 204, 0.2);
+            color: var(--accent-cyan);
+            border: 1px solid var(--accent-cyan);
+            box-shadow: var(--glow-cyan);
+            animation: pulse 1s infinite;
+        }
+
+        .state-badge.finished {
+            background: rgba(41, 121, 255, 0.2);
+            color: var(--accent-blue);
+            border: 1px solid var(--accent-blue);
+        }
+
+        .hero-speed-box {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg);
+            padding: 24px 20px;
+            text-align: center;
+            position: relative;
+            box-shadow: var(--shadow);
+            margin-bottom: 16px;
+            overflow: hidden;
+        }
+
+        .hero-speed-val {
+            font-size: 88px;
+            font-weight: 900;
+            line-height: 1;
+            font-variant-numeric: tabular-nums;
+            background: linear-gradient(180deg, #ffffff 40%, #8a99ad 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 0 30px rgba(0, 255, 204, 0.2);
+        }
+
+        .hero-speed-unit {
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--accent-cyan);
+            letter-spacing: 2px;
+            margin-top: 4px;
+        }
+
+        /* G-Force & Secondary Gauges */
+        .gauges-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 14px;
+            margin-bottom: 16px;
+        }
+
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            padding: 16px;
+            box-shadow: var(--shadow);
+        }
+
+        .card-title {
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-muted);
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .g-bowl-container {
+            width: 140px;
+            height: 140px;
+            margin: 0 auto;
+            position: relative;
+            border-radius: 50%;
+            border: 2px dashed var(--border-color);
+            background: radial-gradient(circle, rgba(0,255,204,0.03) 0%, transparent 70%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .g-cross-h, .g-cross-v {
+            position: absolute;
+            background: #222a3a;
+        }
+        .g-cross-h { width: 100%; height: 1px; }
+        .g-cross-v { height: 100%; width: 1px; }
+
+        .g-dot {
+            width: 16px;
+            height: 16px;
+            background: var(--accent-cyan);
+            border-radius: 50%;
+            position: absolute;
+            box-shadow: var(--glow-cyan);
+            transform: translate(0, 0);
+            transition: transform 0.08s ease-out;
+        }
+
+        .g-metrics-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            justify-content: center;
+        }
+
+        .g-metric-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 13px;
+        }
+
+        .g-metric-val {
+            font-weight: 800;
+            font-size: 17px;
+            font-variant-numeric: tabular-nums;
+        }
+
+        /* Action Buttons */
+        .btn-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 16px;
+        }
+
+        .action-btn {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 14px 8px;
+            border-radius: var(--radius-md);
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .action-btn:active {
+            transform: scale(0.96);
+        }
+
+        .action-btn.arm-btn {
+            background: linear-gradient(135deg, rgba(0, 230, 118, 0.2), rgba(0, 255, 204, 0.1));
+            border-color: var(--accent-green);
+            color: var(--accent-green);
+        }
+
+        .action-btn.reset-btn {
+            background: linear-gradient(135deg, rgba(255, 51, 102, 0.15), rgba(255, 82, 82, 0.05));
+            border-color: rgba(255, 51, 102, 0.4);
+            color: var(--accent-red);
+        }
+
+        .action-btn.calib-btn {
+            background: linear-gradient(135deg, rgba(255, 179, 0, 0.15), rgba(255, 179, 0, 0.05));
+            border-color: rgba(255, 179, 0, 0.4);
+            color: var(--accent-gold);
+        }
+
+        /* Discipline Selector */
+        .disc-chips {
+            display: flex;
+            gap: 8px;
+            overflow-x: auto;
+            padding-bottom: 6px;
+            margin-bottom: 16px;
+            scrollbar-width: none;
+        }
+
+        .disc-chips::-webkit-scrollbar { display: none; }
+
+        .chip {
+            white-space: nowrap;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            color: var(--text-secondary);
+            padding: 8px 14px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .chip.active {
+            background: var(--accent-cyan);
+            color: #000;
+            border-color: var(--accent-cyan);
+            box-shadow: var(--glow-cyan);
+        }
+
+        /* Drag Race View */
+        .timer-hero {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg);
+            padding: 24px;
+            text-align: center;
+            margin-bottom: 16px;
+            box-shadow: var(--shadow);
+        }
+
+        .timer-val {
+            font-size: 72px;
+            font-weight: 900;
+            font-variant-numeric: tabular-nums;
+            color: var(--accent-cyan);
+            text-shadow: var(--glow-cyan);
+        }
+
+        .timer-subtitle {
+            font-size: 14px;
+            color: var(--text-secondary);
+            font-weight: 600;
+        }
+
+        .splits-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+            gap: 10px;
+            margin-bottom: 16px;
+        }
+
+        .split-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            padding: 12px;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+
+        .split-card.achieved {
+            border-color: var(--accent-green);
+            background: rgba(0, 230, 118, 0.08);
+            box-shadow: var(--glow-green);
+        }
+
+        .split-card-title {
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--text-muted);
+            text-transform: uppercase;
+        }
+
+        .split-card-time {
+            font-size: 22px;
+            font-weight: 900;
+            margin: 4px 0;
+            color: var(--text-primary);
+            font-variant-numeric: tabular-nums;
+        }
+
+        .split-card.achieved .split-card-time {
+            color: var(--accent-green);
+        }
+
+        .split-card-speed {
+            font-size: 11px;
+            color: var(--text-secondary);
+        }
+
+        /* Result Certificate / Dragy Card */
+        .dragy-card {
+            background: linear-gradient(145deg, #161a24, #0f1218);
+            border: 2px solid var(--border-color);
+            border-radius: var(--radius-lg);
+            padding: 22px;
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
+            margin-bottom: 16px;
+            position: relative;
+        }
+
+        .dragy-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 12px;
+            margin-bottom: 16px;
+        }
+
+        .dragy-title {
+            font-size: 16px;
+            font-weight: 800;
+            color: var(--text-primary);
+        }
+
+        .slope-badge {
+            font-size: 11px;
+            font-weight: 800;
+            padding: 4px 10px;
+            border-radius: 12px;
+            text-transform: uppercase;
+        }
+
+        .slope-badge.valid {
+            background: rgba(0, 230, 118, 0.2);
+            color: var(--accent-green);
+            border: 1px solid var(--accent-green);
+        }
+
+        .slope-badge.invalid {
+            background: rgba(255, 51, 102, 0.2);
+            color: var(--accent-red);
+            border: 1px solid var(--accent-red);
+        }
+
+        .dragy-hero-metric {
+            text-align: center;
+            margin: 16px 0 20px;
+        }
+
+        .dragy-hero-label {
+            font-size: 14px;
+            color: var(--text-secondary);
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .dragy-hero-val {
+            font-size: 56px;
+            font-weight: 900;
+            color: #ffffff;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .dragy-stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 14px;
+            padding-top: 14px;
+            border-top: 1px solid var(--border-color);
+            font-size: 13px;
+        }
+
+        .dragy-stat-row {
+            display: flex;
+            justify-content: space-between;
+            color: var(--text-secondary);
+        }
+
+        .dragy-stat-row strong {
+            color: var(--text-primary);
+        }
+
+        /* Interactive Canvas Chart */
+        .chart-container {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            padding: 16px;
+            margin-bottom: 16px;
+            height: 220px;
+            position: relative;
+        }
+
+        canvas {
+            width: 100% !important;
+            height: 100% !important;
+        }
+
+        /* History Table */
+        .history-item {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            padding: 14px 16px;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+
+        .history-item:hover {
+            background: var(--bg-card-hover);
+        }
+
+        .history-main {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .history-disc {
+            font-weight: 700;
+            font-size: 14px;
+        }
+
+        .history-date {
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+
+        .history-result {
+            text-align: right;
+        }
+
+        .history-time {
+            font-size: 20px;
+            font-weight: 900;
+            color: var(--accent-cyan);
+            font-variant-numeric: tabular-nums;
+        }
+
+        /* Settings Form */
+        .setting-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 0;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .setting-row:last-child {
+            border-bottom: none;
+        }
+
+        .setting-label {
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+        }
+
+        .setting-name {
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .setting-desc {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        /* Toggle Switch */
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 46px;
+            height: 26px;
+        }
+
+        .switch input { opacity: 0; width: 0; height: 0; }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: #222938;
+            transition: .3s;
+            border-radius: 26px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 20px; width: 20px;
+            left: 3px; bottom: 3px;
+            background-color: white;
+            transition: .3s;
+            border-radius: 50%;
+        }
+
+        input:checked + .slider {
+            background-color: var(--accent-green);
+        }
+
+        input:checked + .slider:before {
+            transform: translateX(20px);
+        }
+
+        /* Log / Toast Notifications */
+        .toast {
+            position: fixed;
+            top: 70px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(18, 21, 29, 0.95);
+            color: var(--text-primary);
+            border: 1px solid var(--accent-cyan);
+            padding: 10px 20px;
+            border-radius: 24px;
+            font-size: 13px;
+            font-weight: 600;
+            z-index: 200;
+            box-shadow: var(--shadow);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+
+        .toast.show {
+            opacity: 1;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Header -->
+    <header>
+        <div class="brand">
+            <span class="brand-logo">DRAGon</span>
+            <span class="brand-badge">PRO TELEMETRY</span>
+        </div>
+        <button id="bleConnectBtn" class="ble-btn" onclick="toggleBleConnection()">
+            <span class="ble-dot"></span>
+            <span id="bleBtnText">Подключить BLE</span>
+        </button>
+    </header>
+
+    <!-- Top GPS & System Status Bar -->
+    <div class="status-strip">
+        <div class="status-item">
+            <span>🛰️ Спутники:</span>
+            <strong id="statSats">--</strong>
+        </div>
+        <div class="status-item">
+            <span>🎯 Точность:</span>
+            <strong id="statAcc">-- м</strong>
+        </div>
+        <div class="status-item">
+            <span>📡 Статус:</span>
+            <strong id="statFix">Поиск GPS</strong>
+        </div>
+    </div>
+
+    <!-- Main Content Area -->
+    <main>
+
+        <!-- 1. TAB: COCKPIT / DASHBOARD -->
+        <div id="tabCockpit" class="tab-content active">
+
+            <!-- State Banner -->
+            <div class="state-banner">
+                <div style="font-size: 13px; color: var(--text-secondary); font-weight: 600;">РЕЖИМ ГОНКИ:</div>
+                <div id="cockpitStateBadge" class="state-badge">ОЖИДАНИЕ СТОПА</div>
+            </div>
+
+            <!-- Discipline Selector -->
+            <div class="disc-chips">
+                <div class="chip active" onclick="selectDiscipline(0, this)">All-in-One Drag</div>
+                <div class="chip" onclick="selectDiscipline(1, this)">0-100 км/ч</div>
+                <div class="chip" onclick="selectDiscipline(2, this)">100-200 км/ч</div>
+                <div class="chip" onclick="selectDiscipline(3, this)">0-200 км/ч</div>
+                <div class="chip" onclick="selectDiscipline(4, this)">1/4 Мили (402м)</div>
+                <div class="chip" onclick="selectDiscipline(5, this)">1/2 Мили (804м)</div>
+                <div class="chip" onclick="selectDiscipline(6, this)">100-0 Торможение</div>
+            </div>
+
+            <!-- Big Digital Speedometer -->
+            <div class="hero-speed-box">
+                <div id="cockpitSpeedVal" class="hero-speed-val">0</div>
+                <div class="hero-speed-unit">КМ/Ч</div>
+            </div>
+
+            <!-- Gauges & G-Meter -->
+            <div class="gauges-grid">
+                <!-- G-Bowl -->
+                <div class="card" style="text-align: center;">
+                    <div class="card-title">G-BOWL (ПЕРЕГРУЗКА)</div>
+                    <div class="g-bowl-container">
+                        <div class="g-cross-h"></div>
+                        <div class="g-cross-v"></div>
+                        <div id="gDot" class="g-dot"></div>
+                    </div>
+                </div>
+
+                <!-- G Metrics -->
+                <div class="card">
+                    <div class="card-title">УСКОРЕНИЕ</div>
+                    <div class="g-metrics-list">
+                        <div class="g-metric-row">
+                            <span style="color: var(--text-secondary);">Продольное (G):</span>
+                            <span id="gLongVal" class="g-metric-val" style="color: var(--accent-cyan);">+0.00</span>
+                        </div>
+                        <div class="g-metric-row">
+                            <span style="color: var(--text-secondary);">Боковое (G):</span>
+                            <span id="gLatVal" class="g-metric-val">+0.00</span>
+                        </div>
+                        <div class="g-metric-row">
+                            <span style="color: var(--text-secondary);">Пиковое G:</span>
+                            <span id="gPeakVal" class="g-metric-val" style="color: var(--accent-gold);">0.00</span>
+                        </div>
+                        <div class="g-metric-row">
+                            <span style="color: var(--text-secondary);">Уклон трассы:</span>
+                            <span id="cockpitSlopeVal" class="g-metric-val">0.0%</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Action Controls -->
+            <div class="btn-row">
+                <button class="action-btn arm-btn" onclick="sendBleCmd('arm')">
+                    <span style="font-size: 20px;">🟢</span>
+                    ВЗВЕСТИ (ARM)
+                </button>
+                <button class="action-btn reset-btn" onclick="sendBleCmd('reset')">
+                    <span style="font-size: 20px;">🔄</span>
+                    СБРОСИТЬ
+                </button>
+                <button class="action-btn calib-btn" onclick="sendBleCmd('calibrate_imu')">
+                    <span style="font-size: 20px;">⚖️</span>
+                    КАЛИБРОВКА
+                </button>
+            </div>
+
+        </div>
+
+        <!-- 2. TAB: DRAG RACE -->
+        <div id="tabRace" class="tab-content">
+            <div class="timer-hero">
+                <div class="timer-subtitle" id="raceDiscName">ALL-IN-ONE DRAG RACE</div>
+                <div id="raceTimerVal" class="timer-val">0.000</div>
+                <div style="font-size: 13px; color: var(--text-muted);" id="raceDistVal">Дистанция: 0.0 м</div>
+            </div>
+
+            <div class="card-title">ОТСЕЧКИ ТЕКУЩЕГО ЗАЕЗДА</div>
+            <div class="splits-grid" id="splitsContainer">
+                <div class="split-card" id="card_s0_60">
+                    <div class="split-card-title">0 - 60</div>
+                    <div class="split-card-time" id="val_s0_60">--</div>
+                    <div class="split-card-speed">60 км/ч</div>
+                </div>
+                <div class="split-card" id="card_s0_100">
+                    <div class="split-card-title">0 - 100</div>
+                    <div class="split-card-time" id="val_s0_100">--</div>
+                    <div class="split-card-speed">100 км/ч</div>
+                </div>
+                <div class="split-card" id="card_s100_200">
+                    <div class="split-card-title">100 - 200</div>
+                    <div class="split-card-time" id="val_s100_200">--</div>
+                    <div class="split-card-speed">200 км/ч</div>
+                </div>
+                <div class="split-card" id="card_s0_200">
+                    <div class="split-card-title">0 - 200</div>
+                    <div class="split-card-time" id="val_s0_200">--</div>
+                    <div class="split-card-speed">200 км/ч</div>
+                </div>
+                <div class="split-card" id="card_s60ft">
+                    <div class="split-card-title">60 FT</div>
+                    <div class="split-card-time" id="val_s60ft">--</div>
+                    <div class="split-card-speed">18.28 м</div>
+                </div>
+                <div class="split-card" id="card_s330ft">
+                    <div class="split-card-title">330 FT</div>
+                    <div class="split-card-time" id="val_s330ft">--</div>
+                    <div class="split-card-speed">100.58 м</div>
+                </div>
+                <div class="split-card" id="card_s1_8mi">
+                    <div class="split-card-title">1/8 MILE</div>
+                    <div class="split-card-time" id="val_s1_8mi">--</div>
+                    <div class="split-card-speed">201.16 м</div>
+                </div>
+                <div class="split-card" id="card_s1_4mi">
+                    <div class="split-card-title">1/4 MILE</div>
+                    <div class="split-card-time" id="val_s1_4mi">--</div>
+                    <div class="split-card-speed" id="val_s1_4mi_spd">402.33 м</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 3. TAB: RESULTS & CHARTS -->
+        <div id="tabResults" class="tab-content">
+            <!-- Dragy Certificate Card -->
+            <div class="dragy-card" id="dragyCertCard">
+                <div class="dragy-header">
+                    <div>
+                        <div class="dragy-title" id="certDiscipline">0 - 100 KM/H</div>
+                        <div style="font-size: 11px; color: var(--text-muted);" id="certDate">Заезд не выбран</div>
+                    </div>
+                    <div id="certSlopeBadge" class="slope-badge valid">VALID -0.4%</div>
+                </div>
+
+                <div class="dragy-hero-metric">
+                    <div class="dragy-hero-label" id="certHeroLabel">0 - 100 KM/H</div>
+                    <div class="dragy-hero-val" id="certHeroVal">0.00 s</div>
+                </div>
+
+                <div class="dragy-stats-grid">
+                    <div class="dragy-stat-row">
+                        <span>1-Foot Rollout:</span>
+                        <strong id="certRollout">Да (0.30м)</strong>
+                    </div>
+                    <div class="dragy-stat-row">
+                        <span>Пиковое G:</span>
+                        <strong id="certMaxG">0.00 G</strong>
+                    </div>
+                    <div class="dragy-stat-row">
+                        <span>Макс. скорость:</span>
+                        <strong id="certMaxSpd">0.0 км/ч</strong>
+                    </div>
+                    <div class="dragy-stat-row">
+                        <span>Уклон трассы:</span>
+                        <strong id="certSlopeVal">-0.0%</strong>
+                    </div>
+                    <div class="dragy-stat-row">
+                        <span>Дистанция:</span>
+                        <strong id="certDist">0.0 м</strong>
+                    </div>
+                    <div class="dragy-stat-row">
+                        <span>Время заезда:</span>
+                        <strong id="certDur">0.00 с</strong>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Interactive Speed & G Chart -->
+            <div class="chart-container">
+                <div class="card-title" style="margin-bottom: 4px;">ГРАФИК СКОРОСТИ И УСКОРЕНИЯ</div>
+                <canvas id="runChartCanvas"></canvas>
+            </div>
+
+            <div style="display: flex; gap: 10px;">
+                <button class="action-btn" style="flex: 1;" onclick="exportCurrentRunCsv()">
+                    📥 Экспорт в CSV
+                </button>
+                <button class="action-btn" style="flex: 1;" onclick="copyRunSummary()">
+                    📋 Скопировать отчет
+                </button>
+            </div>
+        </div>
+
+        <!-- 4. TAB: HISTORY & PB -->
+        <div id="tabHistory" class="tab-content">
+            <!-- Personal Bests Podium -->
+            <div class="card" style="margin-bottom: 16px;">
+                <div class="card-title">🏆 ЛИЧНЫЕ РЕКОРДЫ (PERSONAL BESTS)</div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                    <div class="history-item" style="margin: 0;">
+                        <div class="history-main">
+                            <span class="history-disc">0 - 100 км/ч</span>
+                        </div>
+                        <div class="history-time" id="pb0_100">--</div>
+                    </div>
+                    <div class="history-item" style="margin: 0;">
+                        <div class="history-main">
+                            <span class="history-disc">100 - 200 км/ч</span>
+                        </div>
+                        <div class="history-time" id="pb100_200">--</div>
+                    </div>
+                    <div class="history-item" style="margin: 0;">
+                        <div class="history-main">
+                            <span class="history-disc">1/4 Мили (402м)</span>
+                        </div>
+                        <div class="history-time" id="pb1_4mi">--</div>
+                    </div>
+                    <div class="history-item" style="margin: 0;">
+                        <div class="history-main">
+                            <span class="history-disc">60 Футов</span>
+                        </div>
+                        <div class="history-time" id="pb60ft">--</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Saved Runs List -->
+            <div class="card-title" style="display: flex; justify-content: space-between; align-items: center;">
+                <span>ИСТОРИЯ ЗАЕЗДОВ</span>
+                <div style="display: flex; gap: 6px;">
+                    <button class="chip" onclick="sendBleCmd('get_history')">🔄 Синхронизировать</button>
+                    <button class="chip" style="color: var(--accent-red);" onclick="clearHistory()">🗑️ Очистить</button>
+                </div>
+            </div>
+
+            <div id="historyListContainer">
+                <div style="text-align: center; color: var(--text-muted); padding: 30px;">
+                    История заездов пуста
+                </div>
+            </div>
+        </div>
+
+        <!-- 5. TAB: SETTINGS & GPS DIAGNOSTICS -->
+        <div id="tabSettings" class="tab-content">
+            <div class="card" style="margin-bottom: 16px;">
+                <div class="card-title">ГОНОЧНЫЕ НАСТРОЙКИ</div>
+                
+                <div class="setting-row">
+                    <div class="setting-label">
+                        <span class="setting-name">1-Foot Rollout (Раскат 30.48 см)</span>
+                        <span class="setting-desc">Стандарт Dragy / NHRA для исключения задержки сцепления</span>
+                    </div>
+                    <label class="switch">
+                        <input type="checkbox" id="setRolloutToggle" checked onchange="toggleRollout(this.checked)">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+
+                <div class="setting-row">
+                    <div class="setting-label">
+                        <span class="setting-name">Голосовой помощник (Озвучка отсечек)</span>
+                        <span class="setting-desc">Озвучивание старта, 0-100, 1/4 мили и финиша</span>
+                    </div>
+                    <label class="switch">
+                        <input type="checkbox" id="setVoiceToggle" checked>
+                        <span class="slider"></span>
+                    </label>
+                </div>
+
+                <div class="setting-row">
+                    <div class="setting-label">
+                        <span class="setting-name">Калибровка горизонта IMU</span>
+                        <span class="setting-desc">Поставьте авто на ровную плоскость перед калибровкой</span>
+                    </div>
+                    <button class="chip" style="background: var(--accent-gold); color: #000;" onclick="sendBleCmd('calibrate_imu')">
+                        Откалибровать
+                    </button>
+                </div>
+            </div>
+
+            <!-- GPS Diagnostics -->
+            <div class="card">
+                <div class="card-title">ДИАГНОСТИКА U-BLOX GNSS M10Q</div>
+                <div class="g-metrics-list">
+                    <div class="g-metric-row">
+                        <span style="color: var(--text-secondary);">Координаты (Широта / Долгота):</span>
+                        <span id="diagCoords" style="font-weight: 700;">-- / --</span>
+                    </div>
+                    <div class="g-metric-row">
+                        <span style="color: var(--text-secondary);">Высота над уровнем моря:</span>
+                        <span id="diagAlt" style="font-weight: 700;">-- м</span>
+                    </div>
+                    <div class="g-metric-row">
+                        <span style="color: var(--text-secondary);">Оценка точности скорости:</span>
+                        <span id="diagSpeedAcc" style="font-weight: 700;">-- км/ч</span>
+                    </div>
+                    <div class="g-metric-row">
+                        <span style="color: var(--text-secondary);">Версия прошивки:</span>
+                        <span id="diagFwVer" style="font-weight: 700; color: var(--accent-cyan);">DRAGon v2.0 BLE</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Bottom Tab Navigation -->
+    <nav class="tab-bar">
+        <button class="tab-btn active" onclick="switchTab('tabCockpit', this)">
+            <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+            Кокпит
+        </button>
+        <button class="tab-btn" onclick="switchTab('tabRace', this)">
+            <svg viewBox="0 0 24 24"><path d="M19.03 3.56c-.59-.4-1.39-.33-1.89.17l-1.39 1.39-1.47-1.47c-.59-.59-1.54-.59-2.12 0L3.56 12.25c-.59.59-.59 1.54 0 2.12l1.47 1.47-1.39 1.39c-.5.5-.57 1.3-.17 1.89.4.59 1.2 1.39 2.5 1.39 1.3 0 2.1-.8 2.5-1.39l1.39-1.39 1.47 1.47c.29.29.68.44 1.06.44s.77-.15 1.06-.44l8.6-8.6c.59-.59.59-1.54 0-2.12l-1.47-1.47 1.39-1.39c.5-.5.57-1.3.17-1.89-.4-.59-1.2-1.39-2.5-1.39-1.3 0-2.1.8-2.5 1.39z"/></svg>
+            Заезд
+        </button>
+        <button class="tab-btn" onclick="switchTab('tabResults', this)">
+            <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/></svg>
+            Графика
+        </button>
+        <button class="tab-btn" onclick="switchTab('tabHistory', this)">
+            <svg viewBox="0 0 24 24"><path d="M13 3c-4.97 0-9 4.03-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42C8.27 19.99 10.51 21 13 21c4.97 0 9-4.03 9-9s-4.03-9-9-9zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z"/></svg>
+            История
+        </button>
+        <button class="tab-btn" onclick="switchTab('tabSettings', this)">
+            <svg viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>
+            Настройки
+        </button>
+    </nav>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="toast">Готово</div>
+
+    <script>
+        /**
+         * ============================================================================
+         *                   DRAGon WEB BLUETOOTH CLIENT & APP LOGIC
+         * ============================================================================
+         */
+
+        const NUS_SERVICE_UUID = "6e400001-b5a3-f393-e0a9-e50e24dcca9e";
+        const NUS_RX_CHAR_UUID = "6e400002-b5a3-f393-e0a9-e50e24dcca9e"; // Phone -> ESP32
+        const NUS_TX_CHAR_UUID = "6e400003-b5a3-f393-e0a9-e50e24dcca9e"; // ESP32 -> Phone
+
+        let bleDevice = null;
+        let bleServer = null;
+        let rxCharacteristic = null;
+        let txCharacteristic = null;
+        let isBleConnected = false;
+
+        let rxBuffer = "";
+        let savedRuns = [];
+        let currentRunSamples = [];
+        let lastRunData = null;
+
+        // Sound / Speech Engine
+        const speechSynth = window.speechSynthesis;
+        function speak(text) {
+            if (!document.getElementById('setVoiceToggle').checked) return;
+            if (!speechSynth) return;
+            try {
+                speechSynth.cancel();
+                const utter = new SpeechSynthesisUtterance(text);
+                utter.lang = 'ru-RU';
+                utter.rate = 1.1;
+                speechSynth.speak(utter);
+            } catch(e) {}
+        }
+
+        // Tab Switching
+        function switchTab(tabId, btn) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+            if (btn) btn.classList.add('active');
+            if (tabId === 'tabResults') {
+                renderChart();
+            }
+        }
+
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            toast.innerText = msg;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 2500);
+        }
+
+        // Web Bluetooth Connect / Disconnect
+        async function toggleBleConnection() {
+            if (isBleConnected) {
+                if (bleDevice && bleDevice.gatt.connected) {
+                    bleDevice.gatt.disconnect();
+                }
+                return;
+            }
+
+            try {
+                showToast("Поиск устройства DRAGon...");
+                bleDevice = await navigator.bluetooth.requestDevice({
+                    filters: [
+                        { namePrefix: "DRAGon" },
+                        { services: [NUS_SERVICE_UUID] }
+                    ],
+                    optionalServices: [NUS_SERVICE_UUID]
+                });
+
+                bleDevice.addEventListener('gattserverdisconnected', onDisconnected);
+
+                showToast("Подключение к GATT...");
+                bleServer = await bleDevice.gatt.connect();
+
+                const service = await bleServer.getPrimaryService(NUS_SERVICE_UUID);
+                rxCharacteristic = await service.getCharacteristic(NUS_RX_CHAR_UUID);
+                txCharacteristic = await service.getCharacteristic(NUS_TX_CHAR_UUID);
+
+                await txCharacteristic.startNotifications();
+                txCharacteristic.addEventListener('characteristicvaluechanged', handleIncomingBleData);
+
+                isBleConnected = true;
+                updateBleUi(true);
+                showToast("DRAGon подключен успешно!");
+
+                // Запрашиваем информацию
+                sendBleCmd('get_info');
+            } catch (err) {
+                console.error("BLE Error:", err);
+                showToast("Ошибка подключения: " + (err.message || err));
+                updateBleUi(false);
+            }
+        }
+
+        function onDisconnected() {
+            isBleConnected = false;
+            updateBleUi(false);
+            showToast("Связь с DRAGon потеряна");
+        }
+
+        function updateBleUi(connected) {
+            const btn = document.getElementById('bleConnectBtn');
+            const txt = document.getElementById('bleBtnText');
+            if (connected) {
+                btn.classList.add('connected');
+                txt.innerText = "Подключено";
+            } else {
+                btn.classList.remove('connected');
+                txt.innerText = "Подключить BLE";
+            }
+        }
+
+        async function sendBleCmd(cmd, val = null) {
+            if (!rxCharacteristic || !isBleConnected) {
+                showToast("Прибор не подключен по BLE!");
+                return;
+            }
+
+            try {
+                let payload = JSON.stringify({ cmd: cmd, val: val }) + "\n";
+                let encoder = new TextEncoder();
+                await rxCharacteristic.writeValue(encoder.encode(payload));
+                console.log("Sent BLE cmd:", payload);
+            } catch (err) {
+                console.error("Send error:", err);
+            }
+        }
+
+        function handleIncomingBleData(event) {
+            let decoder = new TextDecoder();
+            let chunk = decoder.decode(event.target.value);
+            rxBuffer += chunk;
+
+            let lines = rxBuffer.split("\n");
+            rxBuffer = lines.pop(); // Оставляем незавершенный кусок
+
+            for (let line of lines) {
+                line = line.trim();
+                if (line.length > 0) {
+                    try {
+                        let json = JSON.parse(line);
+                        processPacket(json);
+                    } catch(e) {
+                        console.warn("JSON parse err:", line);
+                    }
+                }
+            }
+        }
+
+        // Process incoming telemetry packets
+        let prevState = 0;
+        function processPacket(pkt) {
+            if (pkt.t === 'live') {
+                updateLiveTelemetry(pkt);
+            } else if (pkt.t === 'split') {
+                handleSplitAchieved(pkt);
+            } else if (pkt.t === 'run') {
+                handleRunFinished(pkt);
+            } else if (pkt.t === 'pb') {
+                updatePersonalBests(pkt);
+            } else if (pkt.t === 'info') {
+                updateDeviceInfo(pkt);
+            }
+        }
+
+        function updateLiveTelemetry(d) {
+            // Speed
+            document.getElementById('cockpitSpeedVal').innerText = Math.round(d.spd);
+            
+            // Stats
+            document.getElementById('statSats').innerText = d.sats;
+            document.getElementById('statAcc').innerText = "±" + d.hacc.toFixed(1) + " м";
+            
+            let fixText = "Поиск GPS";
+            if (d.fix === 3) fixText = "3D Fix (" + d.sats + " спутников)";
+            else if (d.fix === 2) fixText = "2D Fix";
+            document.getElementById('statFix').innerText = fixText;
+
+            // G-Forces
+            document.getElementById('gLongVal').innerText = (d.g >= 0 ? "+" : "") + d.g.toFixed(2);
+            document.getElementById('gLatVal').innerText = (d.gy >= 0 ? "+" : "") + d.gy.toFixed(2);
+            document.getElementById('gPeakVal').innerText = d.g_peak.toFixed(2);
+            document.getElementById('cockpitSlopeVal').innerText = d.slope.toFixed(1) + "%";
+
+            // G-Bowl Dot position (1G = 55px radius)
+            let dot = document.getElementById('gDot');
+            let posX = Math.max(-55, Math.min(55, d.gy * 55));
+            let posY = Math.max(-55, Math.min(55, -d.gx * 55));
+            dot.style.transform = `translate(${posX}px, ${posY}px)`;
+
+            // Race State Badge
+            let badge = document.getElementById('cockpitStateBadge');
+            badge.className = 'state-badge';
+            if (d.state === 0) {
+                badge.innerText = "ОЖИДАНИЕ СТОПА";
+            } else if (d.state === 1) {
+                badge.innerText = "🟢 ARMED (ГОТОВ К СТАРТУ)";
+                badge.classList.add('armed');
+                if (prevState !== 1) speak("Готов к старту");
+            } else if (d.state === 2 || d.state === 3) {
+                badge.innerText = "🚀 ИДЕТ ЗАЕЗД...";
+                badge.classList.add('measuring');
+                if (prevState === 1) speak("Старт");
+            } else if (d.state === 4) {
+                badge.innerText = "🏁 ФИНИШ";
+                badge.classList.add('finished');
+            }
+            prevState = d.state;
+
+            // Race Tab Live Stopwatch & Distance
+            document.getElementById('raceTimerVal').innerText = d.time.toFixed(3);
+            document.getElementById('raceDistVal').innerText = "Дистанция: " + d.dist.toFixed(1) + " м | Скорость: " + Math.round(d.spd) + " км/ч";
+
+            // If measuring, buffer points for live graph
+            if (d.state === 3) {
+                currentRunSamples.push({ time: d.time, speed: d.spd, g: d.g });
+            }
+        }
+
+        function handleSplitAchieved(s) {
+            console.log("Split reached:", s);
+            let nameId = s.name.toLowerCase().replace('-', '_').replace(' ', '');
+            let card = document.getElementById('card_' + nameId);
+            let val = document.getElementById('val_' + nameId);
+            if (card && val) {
+                card.classList.add('achieved');
+                val.innerText = s.time.toFixed(2) + " с";
+            }
+            speak(s.name + ": " + s.time.toFixed(2) + " секунды");
+        }
+
+        function handleRunFinished(run) {
+            console.log("Run finished:", run);
+            lastRunData = run;
+            savedRuns.unshift(run);
+
+            // Populate Dragy Card
+            document.getElementById('certDate').innerText = new Date(run.ts * 1000).toLocaleString('ru-RU');
+            let slopeBadge = document.getElementById('certSlopeBadge');
+            if (run.valid) {
+                slopeBadge.className = 'slope-badge valid';
+                slopeBadge.innerText = "VALID " + run.slope.toFixed(1) + "%";
+                speak("Заезд завершен. Валидный уклон.");
+            } else {
+                slopeBadge.className = 'slope-badge invalid';
+                slopeBadge.innerText = "INVALID SLOPE " + run.slope.toFixed(1) + "%";
+                speak("Внимание! Уклон превышает норму.");
+            }
+
+            if (run.s0_100 > 0) {
+                document.getElementById('certHeroLabel').innerText = "0 - 100 КМ/Ч";
+                document.getElementById('certHeroVal').innerText = run.s0_100.toFixed(2) + " s";
+            } else if (run.s1_4mi > 0) {
+                document.getElementById('certHeroLabel').innerText = "1/4 МИЛИ (402м)";
+                document.getElementById('certHeroVal').innerText = run.s1_4mi.toFixed(2) + " s";
+            }
+
+            document.getElementById('certRollout').innerText = run.rollout ? "Да (1 фут / 0.30м)" : "Нет (0.0м)";
+            document.getElementById('certMaxG').innerText = run.max_g.toFixed(2) + " G";
+            document.getElementById('certMaxSpd').innerText = run.max_spd.toFixed(1) + " км/ч";
+            document.getElementById('certSlopeVal').innerText = run.slope.toFixed(2) + "%";
+            document.getElementById('certDist').innerText = run.dist.toFixed(1) + " м";
+            document.getElementById('certDur').innerText = run.dur.toFixed(2) + " с";
+
+            // Render Results History
+            renderHistoryList();
+            renderChart();
+
+            showToast("Заезд успешно сохранен!");
+        }
+
+        function updatePersonalBests(pb) {
+            if (pb.best0_100 > 0) document.getElementById('pb0_100').innerText = pb.best0_100.toFixed(2) + " с";
+            if (pb.best100_200 > 0) document.getElementById('pb100_200').innerText = pb.best100_200.toFixed(2) + " с";
+            if (pb.best1_4mi > 0) document.getElementById('pb1_4mi').innerText = pb.best1_4mi.toFixed(2) + " с";
+            if (pb.best60ft > 0) document.getElementById('pb60ft').innerText = pb.best60ft.toFixed(2) + " с";
+        }
+
+        function updateDeviceInfo(info) {
+            document.getElementById('diagFwVer').innerText = info.fw;
+            document.getElementById('setRolloutToggle').checked = info.rollout;
+        }
+
+        function selectDiscipline(discId, el) {
+            document.querySelectorAll('.disc-chips .chip').forEach(c => c.classList.remove('active'));
+            el.classList.add('active');
+            sendBleCmd('set_disc', discId);
+            document.getElementById('raceDiscName').innerText = el.innerText.toUpperCase();
+            
+            // Сброс карточек отсечек
+            document.querySelectorAll('.split-card').forEach(c => {
+                c.classList.remove('achieved');
+            });
+            currentRunSamples = [];
+        }
+
+        function toggleRollout(enabled) {
+            sendBleCmd('set_rollout', enabled);
+            showToast("1-Foot Rollout: " + (enabled ? "Включен" : "Выключен"));
+        }
+
+        function clearHistory() {
+            if (confirm("Вы уверены, что хотите удалить все заезды из памяти прибора?")) {
+                sendBleCmd('clear_history');
+                savedRuns = [];
+                renderHistoryList();
+                showToast("Память прибора очищена");
+            }
+        }
+
+        function renderHistoryList() {
+            let container = document.getElementById('historyListContainer');
+            if (savedRuns.length === 0) {
+                container.innerHTML = '<div style="text-align: center; color: var(--text-muted); padding: 30px;">История заездов пуста</div>';
+                return;
+            }
+
+            container.innerHTML = savedRuns.map((r, idx) => `
+                <div class="history-item" onclick="viewHistoricalRun(${idx})">
+                    <div class="history-main">
+                        <span class="history-disc">${r.s0_100 > 0 ? "0-100 км/ч" : "1/4 мили"}</span>
+                        <span class="history-date">${new Date(r.ts * 1000).toLocaleString('ru-RU')} • ${r.valid ? "🟢 Валиден" : "🔴 Уклон"}</span>
+                    </div>
+                    <div class="history-result">
+                        <div class="history-time">${(r.s0_100 > 0 ? r.s0_100 : r.s1_4mi).toFixed(2)} с</div>
+                        <div style="font-size: 11px; color: var(--text-secondary);">${r.max_spd.toFixed(1)} км/ч</div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function viewHistoricalRun(idx) {
+            let r = savedRuns[idx];
+            if (r) {
+                handleRunFinished(r);
+                switchTab('tabResults', document.querySelectorAll('.tab-btn')[2]);
+            }
+        }
+
+        // Render Canvas Graph (Speed & G-Force curve)
+        function renderChart() {
+            let canvas = document.getElementById('runChartCanvas');
+            if (!canvas) return;
+            let ctx = canvas.getContext('2d');
+            
+            // Set canvas resolution
+            let rect = canvas.getBoundingClientRect();
+            canvas.width = rect.width * window.devicePixelRatio;
+            canvas.height = rect.height * window.devicePixelRatio;
+            ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+
+            let w = rect.width;
+            let h = rect.height;
+
+            // Clear
+            ctx.clearRect(0, 0, w, h);
+
+            // Grid lines
+            ctx.strokeStyle = "#1e2430";
+            ctx.lineWidth = 1;
+            for (let y = 20; y < h; y += 35) {
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(w, y);
+                ctx.stroke();
+            }
+
+            // If we have live or completed samples
+            let data = currentRunSamples;
+            if (data.length < 2) {
+                ctx.fillStyle = "#536173";
+                ctx.font = "12px sans-serif";
+                ctx.textAlign = "center";
+                ctx.fillText("Данные графика появятся после старта заезда", w / 2, h / 2);
+                return;
+            }
+
+            let maxTime = data[data.length - 1].time || 1;
+            let maxSpeed = Math.max(120, ...data.map(p => p.speed));
+
+            // Draw Speed Curve (Cyan)
+            ctx.strokeStyle = "#00ffcc";
+            ctx.lineWidth = 2.5;
+            ctx.beginPath();
+            for (let i = 0; i < data.length; i++) {
+                let x = (data[i].time / maxTime) * (w - 20) + 10;
+                let y = h - 20 - (data[i].speed / maxSpeed) * (h - 40);
+                if (i === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+            }
+            ctx.stroke();
+
+            // Draw G-Force Curve (Gold)
+            ctx.strokeStyle = "#ffb300";
+            ctx.lineWidth = 1.8;
+            ctx.beginPath();
+            for (let i = 0; i < data.length; i++) {
+                let x = (data[i].time / maxTime) * (w - 20) + 10;
+                let y = h - 20 - (Math.max(0, data[i].g) / 1.5) * (h - 40);
+                if (i === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+            }
+            ctx.stroke();
+
+            // Legend
+            ctx.font = "10px sans-serif";
+            ctx.fillStyle = "#00ffcc";
+            ctx.fillText("— Скорость (км/ч)", 15, 15);
+            ctx.fillStyle = "#ffb300";
+            ctx.fillText("— Перегрузка (G)", 110, 15);
+        }
+
+        function exportCurrentRunCsv() {
+            if (!lastRunData && currentRunSamples.length === 0) {
+                showToast("Нет данных для экспорта!");
+                return;
+            }
+
+            let csv = "Time (s),Speed (km/h),G-Force (G)\n";
+            for (let p of currentRunSamples) {
+                csv += `${p.time.toFixed(3)},${p.speed.toFixed(2)},${p.g.toFixed(2)}\n`;
+            }
+
+            let blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+            let link = document.createElement("a");
+            link.href = URL.createObjectURL(blob);
+            link.download = `DRAGon_Run_${Date.now()}.csv`;
+            link.click();
+            showToast("CSV файл сохранен!");
+        }
+
+        function copyRunSummary() {
+            if (!lastRunData) {
+                showToast("Нет сохраненного заезда!");
+                return;
+            }
+            let text = `🏎️ DRAGon Telemetry Run Report\n` +
+                       `0-100 km/h: ${lastRunData.s0_100.toFixed(2)}s\n` +
+                       `100-200 km/h: ${lastRunData.s100_200.toFixed(2)}s\n` +
+                       `1/4 Mile: ${lastRunData.s1_4mi.toFixed(2)}s @ ${lastRunData.trap_spd.toFixed(1)} km/h\n` +
+                       `Slope: ${lastRunData.slope.toFixed(2)}% (${lastRunData.valid ? "VALID" : "INVALID"})\n` +
+                       `Max G: ${lastRunData.max_g.toFixed(2)}G | Max Speed: ${lastRunData.max_spd.toFixed(1)} km/h\n` +
+                       `Rollout: ${lastRunData.rollout ? "1-Foot (0.30m)" : "None"}`;
+
+            navigator.clipboard.writeText(text).then(() => {
+                showToast("Отчет скопирован в буфер обмена!");
+            });
+        }
+
+        window.addEventListener('resize', renderChart);
+    </script>
+</body>
+</html>

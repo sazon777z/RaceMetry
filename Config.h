@@ -4,13 +4,13 @@
 /**
  * ============================================================================
  *                          DRAGon TELEMETRY METER
- *                      КОНФИГУРАЦИЯ ОБОРУДОВАНИЯ И ПИНОВ
+ *                 КОНФИГУРАЦИЯ ОБОРУДОВАНИЯ И ПАРАМЕТРОВ (BLE)
  * ============================================================================
  * Микроконтроллер: ESP32-S3 Super Mini
- * GPS: u-blox M10Q (UB10050F)
- * IMU: MPU-9250 / MPU-6500 / MPU-9255
- * Дисплей: 1.47" IPS SPI (ST7789, 172x320)
- * Светодиод: WS2812B (Адресный RGB)
+ * GPS: u-blox M10Q (UB10050F) на 10-18 Гц (UBX-NAV-PVT)
+ * IMU: MPU-9250 / MPU-6500 (200 Гц Launch Jerk Trigger)
+ * Индикатор: WS2812B (Адресный RGB)
+ * Беспроводная связь: Bluetooth Low Energy 5.0 (Nordic UART Service)
  * Кнопки: 2 тактовые кнопки с подтяжкой к VCC/GND
  * ============================================================================
  */
@@ -18,19 +18,6 @@
 // ----------------------------------------------------------------------------
 // 1. НАЗНАЧЕНИЕ ПИНОВ (GPIO)
 // ----------------------------------------------------------------------------
-
-// Дисплей 1.47" IPS ST7789 (SPI) — Фактическое подключение пользователя
-#define PIN_LCD_SCLK            1   // SCL (SPI Clock) -> GPIO 1
-#define PIN_LCD_MOSI            2   // SDA (SPI MOSI)  -> GPIO 2
-#define PIN_LCD_MISO            -1  // Не используется
-#define PIN_LCD_RST             3   // RST (Reset)     -> GPIO 3
-#define PIN_LCD_DC              4   // DC (Data/Cmd)   -> GPIO 4
-#define PIN_LCD_CS              5   // CS (Chip Select)-> GPIO 5
-#define PIN_LCD_BLK             6   // IPL / BLK (Подсветка PWM) -> GPIO 6
-
-#define LCD_WIDTH               320 // Ширина в горизонтальной ориентации
-#define LCD_HEIGHT              172 // Высота в горизонтальной ориентации
-#define LCD_ROTATION            1   // Альбомная ориентация (0-3)
 
 // GPS u-blox M10Q (Hardware UART1) — Подключено к шелкографии RX / TX платы
 #define PIN_GPS_RX              44  // ESP32 RX (GPIO 44) <- GPS TX
@@ -50,23 +37,30 @@
 #define PIN_WS2812              11  // Data pin (GPIO 11)
 #define NUM_WS2812_LEDS         1
 
-// Кнопки управления (активный уровень - LOW, INPUT_PULLUP) — Фактическое подключение
-#define PIN_BTN_LEFT            10  // Кнопка 1 (Навигация / Режим) -> GPIO 10
-#define PIN_BTN_RIGHT           9   // Кнопка 2 (Действие / Сброс / Старт) -> GPIO 9
+// Кнопки управления (активный уровень - LOW, INPUT_PULLUP)
+#define PIN_BTN_LEFT            10  // Кнопка 1 (Взведение / Режим) -> GPIO 10
+#define PIN_BTN_RIGHT           9   // Кнопка 2 (Сброс / Калибровка) -> GPIO 9
 #define BTN_DEBOUNCE_MS         35  // Защита от дребезга (мс)
 #define BTN_LONG_PRESS_MS       600 // Порог длинного нажатия (мс)
 
+// ----------------------------------------------------------------------------
+// 2. ПАРАМЕТРЫ BLUETOOTH LOW ENERGY (BLE)
+// ----------------------------------------------------------------------------
+#define BLE_DEVICE_NAME         "DRAGon-Telemetry"
+// Стандартный сервис Nordic UART (NUS) для максимальной совместимости с Web Bluetooth и мобильными ОС
+#define BLE_NUS_SERVICE_UUID    "6E400001-B5A3-F393-E0A9-E50E24DCCA9E"
+#define BLE_NUS_RX_CHAR_UUID    "6E400002-B5A3-F393-E0A9-E50E24DCCA9E"
+#define BLE_NUS_TX_CHAR_UUID    "6E400003-B5A3-F393-E0A9-E50E24DCCA9E"
+
+// Частота потоковой трансляции телеметрии по BLE на смартфон (Гц)
+#define BLE_TELEMETRY_RATE_HZ   15      // 15 пакетов в секунду (плавный 60fps UI со сглаживанием)
+
 // Режим прямого моста USB <-> GPS для программы u-blox U-Center
-// Установите true для прямого проброса данных в U-Center / U-Center 2
-// Установите false для нормального режима гоночного прибора DRAGon
 #define GPS_BRIDGE_MODE         false
 
 // ----------------------------------------------------------------------------
-// 2. МАТЕМАТИЧЕСКИЕ И ГОНОЧНЫЕ КОНСТАНТЫ
+// 3. МАТЕМАТИЧЕСКИЕ И ГОНОЧНЫЕ КОНСТАНТЫ
 // ----------------------------------------------------------------------------
-
-// Время автоматического показа итогов заезда перед возвратом в режим готовности (мс)
-#define AUTO_SUMMARY_DURATION_MS 7000
 
 // Пороги детекции старта (Launch Detection)
 #define LAUNCH_G_THRESHOLD      0.15f   // Продольная перегрузка в G (> 0.15G = начало движения)
@@ -89,4 +83,4 @@
 #define MAX_SAVED_RUNS          20      // Количество сохраняемых заездов в истории
 
 // Версия прошивки
-#define DRAGON_FW_VERSION       "v1.0.0 Pro"
+#define DRAGON_FW_VERSION       "v2.0.0 BLE"
