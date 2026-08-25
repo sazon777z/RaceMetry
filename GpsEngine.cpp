@@ -54,7 +54,40 @@ bool GpsEngine::begin(HardwareSerial& serialPort, uint32_t targetBaud) {
         }
     }
 
-    if (!foundBaud) {
+    if (foundBaud && _detectedBaud != targetBaud) {
+        Serial.printf("[GPS] Upgrading u-blox UART baudrate from %u to %u for 18Hz UBX stream...\n", _detectedBaud, targetBaud);
+        
+        // 1. Команда смены скорости по UBX-CFG-VALSET (Gen 10)
+        uint8_t cfgBaudValSet[] = {
+            0x00, 0x01, 0x00, 0x00, // RAM layer
+            0x01, 0x00, 0x52, 0x40, // CFG-UART1-BAUDRATE (0x40520001, U4)
+            (uint8_t)(targetBaud & 0xFF),
+            (uint8_t)((targetBaud >> 8) & 0xFF),
+            (uint8_t)((targetBaud >> 16) & 0xFF),
+            (uint8_t)((targetBaud >> 24) & 0xFF)
+        };
+        _sendUbxCommand(0x06, 0x8A, cfgBaudValSet, sizeof(cfgBaudValSet));
+        
+        // 2. Команда смены скорости по UBX-CFG-PRT (Legacy Gen 8/9)
+        uint8_t cfgPrt[20] = {
+            0x01, 0x00, 0x00, 0x00,
+            0xD0, 0x08, 0x00, 0x00,
+            (uint8_t)(targetBaud & 0xFF),
+            (uint8_t)((targetBaud >> 8) & 0xFF),
+            (uint8_t)((targetBaud >> 16) & 0xFF),
+            (uint8_t)((targetBaud >> 24) & 0xFF),
+            0x07, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00
+        };
+        _sendUbxCommand(0x06, 0x00, cfgPrt, sizeof(cfgPrt));
+        _serial->flush();
+        delay(100);
+
+        // Переводим UART ESP32 на целевую высокую скорость
+        _serial->end();
+        _serial->begin(targetBaud, SERIAL_8N1, PIN_GPS_RX, PIN_GPS_TX);
+        _detectedBaud = targetBaud;
+        delay(100);
+    } else if (!foundBaud) {
         Serial.println("[GPS] WARNING: No incoming data detected on any baud rate.");
         Serial.println("[GPS] Defaulting to 115200 baud. Check RX/TX wiring!");
         _serial->end();
@@ -62,7 +95,7 @@ bool GpsEngine::begin(HardwareSerial& serialPort, uint32_t targetBaud) {
         _detectedBaud = targetBaud;
     }
 
-    // Отправляем конфигурационные команды на текущей скорости
+    // Отправляем конфигурационные команды на максимальную частоту 18 Гц
     configureUblox();
 
     _ubxState = WAIT_SYNC1;
@@ -73,10 +106,13 @@ bool GpsEngine::begin(HardwareSerial& serialPort, uint32_t targetBaud) {
 
 void GpsEngine::configureUblox() {
     if (!_serial) return;
-    Serial.println("[GPS] Sending u-blox M10 configuration (UBX-CFG-VALSET & UBX-CFG)...");
+    Serial.printf("[GPS] Configuring u-blox M10 for %d Hz Navigation Rate (Automotive Mode)...\n", GPS_UPDATE_RATE_HZ);
+
+    // Период измерения: 55 мс для 18 Гц, 100 мс для 10 Гц
+    uint16_t measRateMs = 1000 / GPS_UPDATE_RATE_HZ;
 
     // ------------------------------------------------------------------------
-    // 1. УСТАНОВКА МОДЕЛИ "AUTOMOTIVE" И ЧАСТОТЫ 10 ГЦ (UBX Gen 8/9/10)
+    // 1. УСТАНОВКА МОДЕЛИ "AUTOMOTIVE" И ЧАСТОТЫ 18 ГЦ (UBX Gen 8/9/10)
     // ------------------------------------------------------------------------
     // UBX-CFG-NAV5: Динамическая модель 4 (Automotive)
     uint8_t cfgNav5[36] = {0};
@@ -87,8 +123,7 @@ void GpsEngine::configureUblox() {
     _sendUbxCommand(0x06, 0x24, cfgNav5, sizeof(cfgNav5));
     delay(20);
 
-    // UBX-CFG-RATE: 100 мс = 10 Гц
-    uint16_t measRateMs = 1000 / GPS_UPDATE_RATE_HZ;
+    // UBX-CFG-RATE: 55 мс = 18.18 Гц
     uint8_t cfgRate[6] = {
         (uint8_t)(measRateMs & 0xFF),
         (uint8_t)((measRateMs >> 8) & 0xFF),
@@ -98,17 +133,25 @@ void GpsEngine::configureUblox() {
     _sendUbxCommand(0x06, 0x08, cfgRate, sizeof(cfgRate));
     delay(20);
 
-    // Включение UBX-NAV-PVT с периодом 1 такт
+    // Включение UBX-NAV-PVT с периодом 1 такт (каждые 55 мс)
     uint8_t enablePvt[3] = {0x01, 0x07, 0x01};
     _sendUbxCommand(0x06, 0x01, enablePvt, sizeof(enablePvt));
     delay(20);
+
+    // Отключение тяжелых текстовых NMEA сообщений для разгрузки шины при 18 Гц
+    const uint8_t nmeaMsgIds[] = {0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x08};
+    for (uint8_t id : nmeaMsgIds) {
+        uint8_t disableMsg[3] = {0xF0, id, 0x00};
+        _sendUbxCommand(0x06, 0x01, disableMsg, sizeof(disableMsg));
+        delay(5);
+    }
 
     // ------------------------------------------------------------------------
     // 2. NATIVE U-BLOX M10 CONFIGURATION (UBX-CFG-VALSET)
     // ------------------------------------------------------------------------
     // CFG-MSGOUT-UBX_NAV_PVT_UART1 = 1 (Key: 0x20910007, U1)
     // CFG-NAVSPG-DYNMODEL = 4 (Key: 0x20110021, U1)
-    // CFG-RATE-MEAS = 100ms (Key: 0x30210001, U2)
+    // CFG-RATE-MEAS = 55ms (Key: 0x30210001, U2 -> 18.18 Hz)
     uint8_t cfgValSet[] = {
         0x00,             // Version 0
         0x01,             // Layer 1 = RAM
@@ -120,13 +163,13 @@ void GpsEngine::configureUblox() {
         // Key: CFG-NAVSPG-DYNMODEL (0x20110021), Val = 4 (Automotive)
         0x21, 0x00, 0x11, 0x20, 0x04,
 
-        // Key: CFG-RATE-MEAS (0x30210001), Val = 100ms (10Hz)
+        // Key: CFG-RATE-MEAS (0x30210001), Val = 55ms (18.18 Hz)
         0x01, 0x00, 0x21, 0x30, (uint8_t)(measRateMs & 0xFF), (uint8_t)((measRateMs >> 8) & 0xFF)
     };
     _sendUbxCommand(0x06, 0x8A, cfgValSet, sizeof(cfgValSet));
     delay(30);
 
-    Serial.println("[GPS] Configuration sent successfully.");
+    Serial.println("[GPS] 18 Hz Ultra-High-Rate Mode enabled successfully!");
 }
 
 bool GpsEngine::update() {
