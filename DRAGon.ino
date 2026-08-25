@@ -312,9 +312,15 @@ void loop() {
 void runUcenterBridgeMode() {
     Serial.begin(115200);
 
-    // Увеличиваем аппаратный буфер UART1 до 4096 байт для исключения переполнения
-    Serial1.setRxBufferSize(4096);
-    Serial1.begin(38400, SERIAL_8N1, PIN_GPS_RX, PIN_GPS_TX);
+    // Буфер 8 КБ для предотвращения любых потерь и переполнений
+    Serial1.setRxBufferSize(8192);
+    
+    // Начальная скорость по умолчанию для u-blox M10 (38400 бод)
+    uint32_t currentGpsBaud = 38400;
+    Serial1.begin(currentGpsBaud, SERIAL_8N1, PIN_GPS_RX, PIN_GPS_TX);
+
+    // Кнопка для ручного переключения скорости прямо с прибора
+    pinMode(PIN_BTN_LEFT, INPUT_PULLUP);
 
     // Индикация и экран
     ledController.begin(PIN_WS2812);
@@ -323,32 +329,55 @@ void runUcenterBridgeMode() {
     displayEngine.begin();
     displayEngine.setScreen(AppScreen::UCENTER_BRIDGE);
 
-    uint32_t lastHostBaud = 0;
+    uint8_t chunkBuf[512];
     uint32_t lastUiUpdate = 0;
+    uint32_t totalRx = 0, totalTx = 0;
+    bool lastBtnState = HIGH;
 
     for (;;) {
-        // Динамическая адаптация скорости UART под запрос u-center с ПК
-        uint32_t hostBaud = Serial.baudRate();
-        if (hostBaud >= 9600 && hostBaud <= 921600 && hostBaud != lastHostBaud) {
-            Serial1.updateBaudRate(hostBaud);
-            lastHostBaud = hostBaud;
+        // 1. Сверхбыстрый блочный проброс PC -> GPS
+        int availPC = Serial.available();
+        if (availPC > 0) {
+            int toRead = min(availPC, (int)sizeof(chunkBuf));
+            int readBytes = Serial.readBytes(chunkBuf, toRead);
+            if (readBytes > 0) {
+                Serial1.write(chunkBuf, readBytes);
+                totalTx += readBytes;
+            }
         }
 
-        // Прямой проброс байт PC -> GPS
-        while (Serial.available() > 0) {
-            Serial1.write(Serial.read());
+        // 2. Сверхбыстрый блочный проброс GPS -> PC
+        int availGPS = Serial1.available();
+        if (availGPS > 0) {
+            int toRead = min(availGPS, (int)sizeof(chunkBuf));
+            int readBytes = Serial1.readBytes(chunkBuf, toRead);
+            if (readBytes > 0) {
+                Serial.write(chunkBuf, readBytes);
+                totalRx += readBytes;
+            }
         }
 
-        // Прямой проброс байт GPS -> PC
-        while (Serial1.available() > 0) {
-            Serial.write(Serial1.read());
-        }
+        // 3. Обработка Кнопки 10 (переключение скорости 38400 -> 115200 -> 460800)
+        bool btnState = (digitalRead(PIN_BTN_LEFT) == LOW);
+        if (btnState && !lastBtnState) {
+            if (currentGpsBaud == 38400) currentGpsBaud = 115200;
+            else if (currentGpsBaud == 115200) currentGpsBaud = 460800;
+            else currentGpsBaud = 38400;
 
-        // Отрисовка статуса на дисплее
-        if (millis() - lastUiUpdate >= 120) {
+            Serial1.updateBaudRate(currentGpsBaud);
+            delay(100);
+        }
+        lastBtnState = btnState;
+
+        // 4. Отрисовка статуса на дисплее (раз в 150 мс, не замедляя UART)
+        if (millis() - lastUiUpdate >= 150) {
             lastUiUpdate = millis();
-            displayEngine.render(AppScreen::UCENTER_BRIDGE, safeGpsData, safeImuData, RaceState::IDLE_WAIT_STOP, RaceDiscipline::ALL_IN_ONE_DRAG, safeCurrentRun, safeLastRun, deviceSettings, 0.0f);
+            _renderBridgeUi(currentGpsBaud, totalRx, totalTx);
             ledController.update();
         }
     }
+}
+
+static void _renderBridgeUi(uint32_t baud, uint32_t rx, uint32_t tx) {
+    displayEngine.renderBridge(baud, rx, tx);
 }

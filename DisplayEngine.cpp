@@ -111,6 +111,12 @@ void DisplayEngine::render(AppScreen screen,
     _canvas.pushSprite(0, 0);
 }
 
+void DisplayEngine::renderBridge(uint32_t currentBaud, uint32_t rxBytes, uint32_t txBytes) {
+    _canvas.fillScreen(COLOR_BG);
+    _renderUcenterBridge(currentBaud, rxBytes, txBytes);
+    _canvas.pushSprite(0, 0);
+}
+
 void DisplayEngine::_drawTopStatusBar(const GpsData& gps, RaceState raceState) {
     // Фоновая полоса
     _canvas.fillRect(0, 0, LCD_WIDTH, 24, 0x1082);
@@ -585,7 +591,7 @@ void DisplayEngine::_drawPillBadge(int x, int y, int w, int h, const char* text,
     _canvas.setTextDatum(textdatum_t::top_left);
 }
 
-void DisplayEngine::_renderUcenterBridge(uint32_t baud, uint32_t rxBytes, uint32_t txBytes) {
+void DisplayEngine::_renderUcenterBridge(uint32_t currentBaud, uint32_t rxBytes, uint32_t txBytes) {
     _canvas.setFont(&fonts::Font2);
     _canvas.setTextColor(COLOR_CYAN);
     _canvas.setTextDatum(textdatum_t::top_left);
@@ -598,18 +604,22 @@ void DisplayEngine::_renderUcenterBridge(uint32_t baud, uint32_t rxBytes, uint32
 
     _canvas.setFont(&fonts::Font2);
     _canvas.setTextColor(COLOR_WHITE);
-    _canvas.drawString("PC COM Port <---> u-blox M10Q", 24, 56);
+    _canvas.drawString("PC COM Port <---> u-blox M10Q", 24, 54);
 
     _canvas.setTextColor(COLOR_GRAY);
-    _canvas.drawString("Status:", 24, 80);
-    _canvas.setTextColor(COLOR_GREEN);
-    _canvas.drawString("TRANSPARENT BRIDGE ACTIVE", 80, 80);
-
-    _canvas.setTextColor(COLOR_GRAY);
-    _canvas.drawString("Baudrate:", 24, 104);
+    _canvas.drawString("GPS UART:", 24, 76);
+    char baudBuf[24];
+    snprintf(baudBuf, sizeof(baudBuf), "%u baud", currentBaud);
     _canvas.setTextColor(COLOR_YELLOW);
-    _canvas.drawString("460800 / 38400 (Auto)", 86, 104);
+    _canvas.drawString(baudBuf, 110, 76);
 
     _canvas.setTextColor(COLOR_GRAY);
-    _canvas.drawString("Open u-center / u-center 2 on PC", 24, 128);
+    _canvas.drawString("Traffic:", 24, 98);
+    char trBuf[32];
+    snprintf(trBuf, sizeof(trBuf), "RX:%u KB | TX:%u KB", rxBytes / 1024, txBytes / 1024);
+    _canvas.setTextColor(COLOR_GREEN);
+    _canvas.drawString(trBuf, 110, 98);
+
+    _canvas.setTextColor(COLOR_LIGHT_GRAY);
+    _canvas.drawString("Btn 10: Switch 38400/115200/460800", 24, 122);
 }
