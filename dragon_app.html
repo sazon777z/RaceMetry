@@ -1197,16 +1197,36 @@
                 showToast("Поиск устройства DRAGon...");
                 bleDevice = await navigator.bluetooth.requestDevice({
                     filters: [
-                        { namePrefix: "DRAGon" },
-                        { services: [NUS_SERVICE_UUID] }
+                        { namePrefix: "DRAGon" }
                     ],
                     optionalServices: [NUS_SERVICE_UUID]
                 });
 
                 bleDevice.addEventListener('gattserverdisconnected', onDisconnected);
 
-                showToast("Подключение к GATT...");
-                bleServer = await bleDevice.gatt.connect();
+                showToast("Подключение к GATT серверу...");
+                
+                // На Android даем время на установку соединения и обнаружение сервисов
+                let server = null;
+                for (let attempt = 1; attempt <= 3; attempt++) {
+                    try {
+                        server = await bleDevice.gatt.connect();
+                        // Пауза 250мс для стабилизации GATT кэша на Android
+                        await new Promise(r => setTimeout(r, 250));
+                        if (server.connected) break;
+                    } catch (err) {
+                        console.warn(`GATT connect attempt ${attempt} failed:`, err);
+                        await new Promise(r => setTimeout(r, 400));
+                    }
+                }
+
+                if (!server || !server.connected) {
+                    throw new Error("Не удалось установить GATT соединение. Попробуйте еще раз.");
+                }
+                bleServer = server;
+
+                showToast("Получение сервиса телеметрии...");
+                await new Promise(r => setTimeout(r, 200));
 
                 const service = await bleServer.getPrimaryService(NUS_SERVICE_UUID);
                 rxCharacteristic = await service.getCharacteristic(NUS_RX_CHAR_UUID);
@@ -1219,8 +1239,11 @@
                 updateBleUi(true);
                 showToast("DRAGon подключен успешно!");
 
-                // Запрашиваем информацию
-                sendBleCmd('get_info');
+                // Запрашиваем информацию и рекорды
+                setTimeout(() => {
+                    sendBleCmd('get_info');
+                }, 300);
+
             } catch (err) {
                 console.error("BLE Error:", err);
                 showToast("Ошибка подключения: " + (err.message || err));

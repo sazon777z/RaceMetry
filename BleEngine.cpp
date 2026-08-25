@@ -19,7 +19,6 @@ bool BleEngine::begin(const char* deviceName) {
 
     // 1. Инициализация стека BLE Device
     BLEDevice::init(deviceName);
-    BLEDevice::setMTU(512);
 
     // 2. Создание BLE Сервера
     _pServer = BLEDevice::createServer();
@@ -57,8 +56,8 @@ bool BleEngine::begin(const char* deviceName) {
     BLEAdvertising* pAdvertising = BLEDevice::getAdvertising();
     pAdvertising->addServiceUUID(BLE_NUS_SERVICE_UUID);
     pAdvertising->setScanResponse(true);
-    pAdvertising->setMinPreferred(0x06); // функции помощи подключению на iPhone
-    pAdvertising->setMinPreferred(0x12);
+    pAdvertising->setMinPreferred(0x06); // 7.5ms (совместимость с iOS и Android)
+    pAdvertising->setMaxPreferred(0x12); // 22.5ms
     BLEDevice::startAdvertising();
 
     Serial.println("[BLE] Advertising started. Waiting for smartphone connection...");
@@ -66,26 +65,29 @@ bool BleEngine::begin(const char* deviceName) {
 }
 
 void BleEngine::update() {
-    // Обработка дисконнекта и мгновенный перезапуск рекламы
+    // Внутренний контроль статуса
     if (!_deviceConnected && _oldDeviceConnected) {
-        delay(20);
-        _pServer->startAdvertising();
-        Serial.println("[BLE] Smartphone disconnected. Resumed advertising...");
-        _oldDeviceConnected = _deviceConnected;
+        _oldDeviceConnected = false;
+        if (_pServer) {
+            _pServer->startAdvertising();
+        }
     }
-    // Обработка нового подключения
     if (_deviceConnected && !_oldDeviceConnected) {
-        _oldDeviceConnected = _deviceConnected;
-        Serial.println("[BLE] Smartphone connected successfully!");
+        _oldDeviceConnected = true;
     }
 }
 
 void BleEngine::onConnect(BLEServer* pServer) {
     _deviceConnected = true;
+    _oldDeviceConnected = true;
+    Serial.println("[BLE] Smartphone connected to GATT Server!");
 }
 
 void BleEngine::onDisconnect(BLEServer* pServer) {
     _deviceConnected = false;
+    _oldDeviceConnected = false;
+    Serial.println("[BLE] Smartphone disconnected. Resuming advertising...");
+    pServer->startAdvertising();
 }
 
 void BleEngine::onWrite(BLECharacteristic* pCharacteristic) {
@@ -101,7 +103,6 @@ void BleEngine::onWrite(BLECharacteristic* pCharacteristic) {
             }
         } else {
             _rxAccumulator += c;
-            // Если пришел валидный завершенный JSON без символа переноса строки
             if (c == '}' && _rxAccumulator.startsWith("{")) {
                 _parseIncomingLine(_rxAccumulator);
                 _rxAccumulator = "";
@@ -144,7 +145,6 @@ void BleEngine::_parseIncomingLine(const String& line) {
             if (endIdx >= 0) {
                 val = trimmed.substring(colonIdx + 1, endIdx);
                 val.trim();
-                // Убираем кавычки, если значение строковое
                 if (val.startsWith("\"") && val.endsWith("\"")) {
                     val = val.substring(1, val.length() - 1);
                 }
