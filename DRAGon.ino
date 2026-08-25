@@ -51,8 +51,14 @@ bool            newRunSaved = false;
 // Прототипы задач FreeRTOS
 void TelemetryTask(void* parameter);
 void UiTask(void* parameter);
+void runUcenterBridgeMode();
 
 void setup() {
+    if (GPS_BRIDGE_MODE) {
+        runUcenterBridgeMode();
+        return;
+    }
+
     Serial.begin(115200);
     delay(500);
     Serial.println("\n[DRAGon] Initializing Pro Telemetry System...");
@@ -296,4 +302,53 @@ void UiTask(void* parameter) {
 void loop() {
     // Вся работа выполняется задачами FreeRTOS на Core 0 и Core 1
     vTaskDelay(pdMS_TO_TICKS(1000));
+}
+
+/**
+ * ============================================================================
+ * ВЫДЕЛЕННЫЙ РЕЖИМ ПРОЗРАЧНОГО МОСТА ДЛЯ U-CENTER / U-CENTER 2
+ * ============================================================================
+ */
+void runUcenterBridgeMode() {
+    Serial.begin(115200);
+
+    // Увеличиваем аппаратный буфер UART1 до 4096 байт для исключения переполнения
+    Serial1.setRxBufferSize(4096);
+    Serial1.begin(38400, SERIAL_8N1, PIN_GPS_RX, PIN_GPS_TX);
+
+    // Индикация и экран
+    ledController.begin(PIN_WS2812);
+    ledController.setMode(LedMode::RUNNING);
+
+    displayEngine.begin();
+    displayEngine.setScreen(AppScreen::UCENTER_BRIDGE);
+
+    uint32_t lastHostBaud = 0;
+    uint32_t lastUiUpdate = 0;
+
+    for (;;) {
+        // Динамическая адаптация скорости UART под запрос u-center с ПК
+        uint32_t hostBaud = Serial.baudRate();
+        if (hostBaud >= 9600 && hostBaud <= 921600 && hostBaud != lastHostBaud) {
+            Serial1.updateBaudRate(hostBaud);
+            lastHostBaud = hostBaud;
+        }
+
+        // Прямой проброс байт PC -> GPS
+        while (Serial.available() > 0) {
+            Serial1.write(Serial.read());
+        }
+
+        // Прямой проброс байт GPS -> PC
+        while (Serial1.available() > 0) {
+            Serial.write(Serial1.read());
+        }
+
+        // Отрисовка статуса на дисплее
+        if (millis() - lastUiUpdate >= 120) {
+            lastUiUpdate = millis();
+            displayEngine.render(AppScreen::UCENTER_BRIDGE, safeGpsData, safeImuData, RaceState::IDLE_WAIT_STOP, RaceDiscipline::ALL_IN_ONE_DRAG, safeCurrentRun, safeLastRun, deviceSettings, 0.0f);
+            ledController.update();
+        }
+    }
 }
