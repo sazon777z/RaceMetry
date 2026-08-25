@@ -53,8 +53,8 @@
             display: flex;
             align-items: center;
             justify-content: space-between;
-            padding: 12px 18px;
-            background: rgba(18, 21, 29, 0.85);
+            padding: 10px 14px;
+            background: rgba(18, 21, 29, 0.95);
             backdrop-filter: blur(12px);
             border-bottom: 1px solid var(--border-color);
             position: sticky;
@@ -65,38 +65,34 @@
         .brand {
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 8px;
         }
 
         .brand-logo {
-            font-size: 22px;
+            font-size: 20px;
             font-weight: 900;
-            letter-spacing: 1px;
+            letter-spacing: 0.5px;
             background: linear-gradient(135deg, #00ffcc, #2979ff);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
         }
 
-        .brand-badge {
-            font-size: 10px;
-            font-weight: 700;
-            padding: 2px 7px;
-            border-radius: 6px;
-            background: rgba(0, 255, 204, 0.15);
-            color: var(--accent-cyan);
-            border: 1px solid rgba(0, 255, 204, 0.3);
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
 
         .ble-btn {
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 6px;
             background: #182030;
             color: var(--text-primary);
             border: 1px solid var(--border-color);
-            padding: 8px 14px;
+            padding: 7px 12px;
             border-radius: var(--radius-md);
-            font-size: 13px;
+            font-size: 12px;
             font-weight: 600;
             cursor: pointer;
             transition: all 0.2s ease;
@@ -367,6 +363,40 @@
             box-shadow: var(--shadow);
             margin-bottom: 16px;
             overflow: hidden;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 14px;
+            background: rgba(18, 21, 29, 0.95);
+            border-bottom: 1px solid var(--border-color);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(10px);
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .brand-logo {
+            font-size: 20px;
+            font-weight: 900;
+            letter-spacing: 0.5px;
+            background: linear-gradient(135deg, #00ffcc, #2979ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
 
         .hero-speed-val {
@@ -860,29 +890,30 @@
     <header>
         <div class="brand">
             <span class="brand-logo">RaceMetry</span>
-            <span class="brand-badge">20Hz PRO TELEMETRY</span>
         </div>
-        <button id="bleConnectBtn" class="ble-btn" onclick="toggleBleConnection()">
-            <span class="ble-dot"></span>
-            <span id="bleBtnText">Подключить BLE</span>
-        </button>
+        <div class="header-right">
+            <div class="bat-widget" id="statBatItem" title="Уровень заряда аккумулятора">
+                <div class="bat-icon-pill">
+                    <div class="bat-level-fill" id="statBatFill" style="width: 100%;"></div>
+                </div>
+                <strong id="statBatPct">--%</strong>
+            </div>
+            <button id="bleConnectBtn" class="ble-btn" onclick="toggleBleConnection()">
+                <span class="ble-dot"></span>
+                <span id="bleBtnText">Подключить</span>
+            </button>
+        </div>
     </header>
 
     <!-- Top GPS & System Status Bar -->
     <div class="status-strip">
         <div class="status-item">
             <span>🛰️ Спутники:</span>
-            <strong id="statSats">--</strong>
+            <strong id="statSats">0</strong>
         </div>
         <div class="status-item">
             <span>🎯 Точность:</span>
             <strong id="statAcc">-- м</strong>
-        </div>
-        <div class="status-item bat-widget" id="statBatItem" title="Уровень заряда аккумулятора">
-            <div class="bat-icon-pill">
-                <div class="bat-level-fill" id="statBatFill" style="width: 100%;"></div>
-            </div>
-            <strong id="statBatPct">--%</strong>
         </div>
         <div class="status-item">
             <span>📡 Статус:</span>
@@ -1600,7 +1631,11 @@
             
             // Stats
             document.getElementById('statSats').innerText = d.sats;
-            document.getElementById('statAcc').innerText = "±" + d.hacc.toFixed(1) + " м";
+            if (d.fix >= 2 && d.hacc < 500.0 && d.hacc > 0) {
+                document.getElementById('statAcc').innerText = "±" + d.hacc.toFixed(1) + " м";
+            } else {
+                document.getElementById('statAcc').innerText = "-- м";
+            }
             
             let fixText = "Поиск GPS";
             if (d.fix === 3) fixText = "3D Fix (" + d.sats + " спутников)";

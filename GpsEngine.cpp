@@ -319,11 +319,19 @@ void GpsEngine::_processUbxPayload() {
     // Horizontal & Vertical Accuracy (mm)
     uint32_t rawHacc = (uint32_t)_payloadBuf[40] | ((uint32_t)_payloadBuf[41] << 8) |
                        ((uint32_t)_payloadBuf[42] << 16) | ((uint32_t)_payloadBuf[43] << 24);
-    _data.hAccM = (float)rawHacc / 1000.0f;
+    if (!gnssFixOk || _data.fixType < 2 || rawHacc > 200000) {
+        _data.hAccM = 99.0f;
+    } else {
+        _data.hAccM = (float)rawHacc / 1000.0f;
+    }
 
     uint32_t rawVacc = (uint32_t)_payloadBuf[44] | ((uint32_t)_payloadBuf[45] << 8) |
                        ((uint32_t)_payloadBuf[46] << 16) | ((uint32_t)_payloadBuf[47] << 24);
-    _data.vAccM = (float)rawVacc / 1000.0f;
+    if (!gnssFixOk || _data.fixType < 2 || rawVacc > 200000) {
+        _data.vAccM = 99.0f;
+    } else {
+        _data.vAccM = (float)rawVacc / 1000.0f;
+    }
 
     // Ground Speed (Doppler 3D velocity mm/s)
     int32_t rawGspeed = (int32_t)((uint32_t)_payloadBuf[60] | ((uint32_t)_payloadBuf[61] << 8) |
