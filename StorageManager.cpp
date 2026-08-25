@@ -123,6 +123,7 @@ void StorageManager::_updatePersonalBests(const RunRecord& run) {
             _prefs.putFloat("pb_1_4mi", run.split1_4mi.timeSec);
             _prefs.putFloat("pb_1_4_spd", run.split1_4mi.trapSpeedKmh);
         }
+    }
     // 60 футов
     if (run.split60ft.achieved) {
         float best60ft = _prefs.getFloat("pb_60ft", 999.0f);
