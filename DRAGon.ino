@@ -9,6 +9,7 @@
  * Связь: Bluetooth Low Energy 5.0 (Nordic UART Service)
  * Индикатор: WS2812B RGB
  * Органы управления: 2 кнопки (опционально) + полное управление по BLE
+ * Питание: Li-Ion аккумулятор с замером напряжения и процента заряда
  * ============================================================================
  */
 
@@ -51,6 +52,14 @@ float           safeLiveSpeedKmh = 0.0f;
 float           safeLiveSlopePct = 0.0f;
 bool            newRunSaved = false;
 
+// Переменные состояния аккумулятора
+static float    currentBatVoltage = 0.0f;
+static uint8_t  currentBatPercent = 0;
+
+// Прототипы функций замера батареи
+float readRawBatteryVoltage();
+uint8_t calculateBatteryPercentage(float v);
+
 // Прототипы задач FreeRTOS
 void TelemetryTask(void* parameter);
 void CommTask(void* parameter);
@@ -78,7 +87,16 @@ void setup() {
     // 3. Инициализация кнопок управления
     buttonManager.begin(PIN_BTN_LEFT, PIN_BTN_RIGHT);
 
-    // 4. Инициализация инерциального датчика MPU-9250 (I2C)
+    // 4. Инициализация АЦП батареи
+#if ENABLE_BATTERY_MONITOR
+    pinMode(PIN_BAT_ADC, INPUT);
+    analogReadResolution(12);
+    currentBatVoltage = readRawBatteryVoltage();
+    currentBatPercent = calculateBatteryPercentage(currentBatVoltage);
+    Serial.printf("[DRAGon] Battery Monitor initialized: %.2fV (%u%%)\n", currentBatVoltage, currentBatPercent);
+#endif
+
+    // 5. Инициализация инерциального датчика MPU-9250 (I2C)
     if (!imuEngine.begin(PIN_I2C_SDA, PIN_I2C_SCL, I2C_FREQUENCY)) {
         Serial.println("[DRAGon] WARNING: MPU-9250 not detected!");
     } else {
@@ -86,14 +104,14 @@ void setup() {
         Serial.println("[DRAGon] IMU MPU-9250 ready");
     }
 
-    // 5. Инициализация GPS u-blox M10Q (Hardware UART1)
+    // 6. Инициализация GPS u-blox M10Q (Hardware UART1)
     gpsEngine.begin(Serial1, GPS_BAUDRATE_TARGET);
     Serial.println("[DRAGon] GPS M10Q configured with UBX 10-18Hz");
 
-    // 6. Инициализация гоночного ядра телеметрии
+    // 7. Инициализация гоночного ядра телеметрии
     telemetryEngine.begin(deviceSettings);
 
-    // 7. Инициализация BLE Сервера (Nordic UART Service)
+    // 8. Инициализация BLE Сервера (Nordic UART Service)
     bleEngine.begin(BLE_DEVICE_NAME);
     bleEngine.setCommandHandler([](const String& cmd, const String& val) {
         Serial.printf("[DRAGon CMD] cmd: %s, val: %s\n", cmd.c_str(), val.c_str());
@@ -119,7 +137,7 @@ void setup() {
             imuEngine.calibrateZero(600);
             imuEngine.getOffsets(deviceSettings.imuOffsetGx, deviceSettings.imuOffsetGy, deviceSettings.imuOffsetGz);
             storageManager.saveSettings(deviceSettings);
-            bleEngine.sendDeviceInfo(deviceSettings, storageManager.getSavedRunsCount(), gpsEngine.isReadyForRace(), safeGpsData.numSats);
+            bleEngine.sendDeviceInfo(deviceSettings, storageManager.getSavedRunsCount(), gpsEngine.isReadyForRace(), safeGpsData.numSats, currentBatVoltage, currentBatPercent);
         } else if (cmd == "get_history") {
             uint8_t count = storageManager.getSavedRunsCount();
             for (uint8_t i = 0; i < count; i++) {
@@ -131,9 +149,9 @@ void setup() {
             }
         } else if (cmd == "clear_history") {
             storageManager.clearAllRuns();
-            bleEngine.sendDeviceInfo(deviceSettings, 0, gpsEngine.isReadyForRace(), safeGpsData.numSats);
+            bleEngine.sendDeviceInfo(deviceSettings, 0, gpsEngine.isReadyForRace(), safeGpsData.numSats, currentBatVoltage, currentBatPercent);
         } else if (cmd == "get_info") {
-            bleEngine.sendDeviceInfo(deviceSettings, storageManager.getSavedRunsCount(), gpsEngine.isReadyForRace(), safeGpsData.numSats);
+            bleEngine.sendDeviceInfo(deviceSettings, storageManager.getSavedRunsCount(), gpsEngine.isReadyForRace(), safeGpsData.numSats, currentBatVoltage, currentBatPercent);
             PersonalBests pb;
             storageManager.getPersonalBests(pb);
             bleEngine.sendPersonalBests(pb);
@@ -142,7 +160,7 @@ void setup() {
         }
     });
 
-    // 8. Запуск высокоприоритетной задачи телеметрии на ЯДРЕ 0
+    // 9. Запуск высокоприоритетной задачи телеметрии на ЯДРЕ 0
     xTaskCreatePinnedToCore(
         TelemetryTask,        // Функция задачи
         "TelemetryTask",      // Имя
@@ -153,7 +171,7 @@ void setup() {
         0                     // Ядро 0
     );
 
-    // 9. Запуск коммуникационной задачи BLE на ЯДРЕ 1
+    // 10. Запуск коммуникационной задачи BLE на ЯДРЕ 1
     xTaskCreatePinnedToCore(
         CommTask,             // Функция задачи
         "CommTask",           // Имя
@@ -284,6 +302,7 @@ void CommTask(void* parameter) {
     TickType_t xLastWakeTime = xTaskGetTickCount();
 
     bool wasConnected = false;
+    uint32_t lastBatSampleMs = 0;
 
     for (;;) {
         // 1. Опрос кнопок
@@ -309,20 +328,33 @@ void CommTask(void* parameter) {
             storageManager.saveSettings(deviceSettings);
         }
 
-        // 2. Обновление состояния BLE
+        // 2. Периодический замер напряжения батареи (раз в 500 мс с фильтрацией)
+        if (millis() - lastBatSampleMs >= 500 || lastBatSampleMs == 0) {
+            lastBatSampleMs = millis();
+            float rawV = readRawBatteryVoltage();
+            if (currentBatVoltage < 0.1f) {
+                currentBatVoltage = rawV;
+            } else {
+                // Экспоненциальное сглаживание шумов АЦП
+                currentBatVoltage = 0.85f * currentBatVoltage + 0.15f * rawV;
+            }
+            currentBatPercent = calculateBatteryPercentage(currentBatVoltage);
+        }
+
+        // 3. Обновление состояния BLE
         bleEngine.update();
         bool isConnected = bleEngine.isConnected();
 
         // Если только что подключились — отправляем инфо о приборе и рекорды
         if (isConnected && !wasConnected) {
-            bleEngine.sendDeviceInfo(deviceSettings, storageManager.getSavedRunsCount(), gpsEngine.isReadyForRace(), safeGpsData.numSats);
+            bleEngine.sendDeviceInfo(deviceSettings, storageManager.getSavedRunsCount(), gpsEngine.isReadyForRace(), safeGpsData.numSats, currentBatVoltage, currentBatPercent);
             PersonalBests pb;
             storageManager.getPersonalBests(pb);
             bleEngine.sendPersonalBests(pb);
         }
         wasConnected = isConnected;
 
-        // 3. Получение безопасной копии данных
+        // 4. Получение безопасной копии данных
         GpsData localGps;
         ImuData localImu;
         RaceState localState;
@@ -352,9 +384,9 @@ void CommTask(void* parameter) {
         }
         portEXIT_CRITICAL(&stateMutex);
 
-        // 4. Трансляция телеметрии по BLE
+        // 5. Трансляция телеметрии по BLE
         if (isConnected) {
-            // Живая телеметрия
+            // Живая телеметрия с процентом батареи
             bleEngine.sendLiveTelemetry(
                 localGps,
                 localImu,
@@ -363,7 +395,9 @@ void CommTask(void* parameter) {
                 localLiveTime,
                 localDistanceM,
                 localSpeedKmh,
-                localSlopePct
+                localSlopePct,
+                currentBatVoltage,
+                currentBatPercent
             );
 
             // Если только что завершился заезд — отправляем полный отчет и обновленные рекорды
@@ -381,6 +415,31 @@ void CommTask(void* parameter) {
 
 void loop() {
     vTaskDelay(pdMS_TO_TICKS(1000));
+}
+
+/**
+ * ============================================================================
+ * ФУНКЦИИ ЗАМЕРА И РАСЧЕТА НАПРЯЖЕНИЯ БАТАРЕИ
+ * ============================================================================
+ */
+float readRawBatteryVoltage() {
+#if ENABLE_BATTERY_MONITOR
+    uint32_t mv = analogReadMilliVolts(PIN_BAT_ADC);
+    return (mv / 1000.0f) * BAT_DIVIDER_RATIO;
+#else
+    return 0.0f;
+#endif
+}
+
+uint8_t calculateBatteryPercentage(float v) {
+    if (v < 2.0f) return 0; // Питание без делителя или батарея не подключена
+    if (v >= BAT_VOLTAGE_MAX) return 100;
+    if (v <= BAT_VOLTAGE_MIN) return 0;
+    // Аппроксимация разрядной кривой Li-Ion:
+    if (v >= 3.95f) return 80 + (uint8_t)((v - 3.95f) / (4.20f - 3.95f) * 20.0f);
+    if (v >= 3.75f) return 40 + (uint8_t)((v - 3.75f) / (3.95f - 3.75f) * 40.0f);
+    if (v >= 3.55f) return 15 + (uint8_t)((v - 3.55f) / (3.75f - 3.55f) * 25.0f);
+    return (uint8_t)((v - 3.30f) / (3.55f - 3.30f) * 15.0f);
 }
 
 /**

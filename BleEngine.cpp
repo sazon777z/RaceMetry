@@ -191,13 +191,15 @@ void BleEngine::sendLiveTelemetry(
     float liveTimeSec,
     float liveDistanceM,
     float liveSpeedKmh,
-    float liveSlopePct
+    float liveSlopePct,
+    float batVolts,
+    uint8_t batPct
 ) {
     if (!_deviceConnected) return;
 
     snprintf(
         _txBuffer, sizeof(_txBuffer),
-        "{\"t\":\"live\",\"spd\":%.2f,\"dist\":%.1f,\"time\":%.3f,\"g\":%.2f,\"gx\":%.2f,\"gy\":%.2f,\"gz\":%.2f,\"g_peak\":%.2f,\"sats\":%u,\"fix\":%u,\"hacc\":%.1f,\"sacc\":%.2f,\"state\":%u,\"disc\":%u,\"slope\":%.2f,\"alt\":%.1f}\n",
+        "{\"t\":\"live\",\"spd\":%.2f,\"dist\":%.1f,\"time\":%.3f,\"g\":%.2f,\"gx\":%.2f,\"gy\":%.2f,\"gz\":%.2f,\"g_peak\":%.2f,\"sats\":%u,\"fix\":%u,\"hacc\":%.1f,\"sacc\":%.2f,\"state\":%u,\"disc\":%u,\"slope\":%.2f,\"alt\":%.1f,\"bat\":%.2f,\"pct\":%u}\n",
         liveSpeedKmh,
         liveDistanceM,
         liveTimeSec,
@@ -213,7 +215,9 @@ void BleEngine::sendLiveTelemetry(
         (uint8_t)state,
         (uint8_t)disc,
         liveSlopePct,
-        gps.altMSL
+        gps.altMSL,
+        batVolts,
+        batPct
     );
 
     sendJson(_txBuffer);
@@ -288,12 +292,12 @@ void BleEngine::sendPersonalBests(const PersonalBests& pb) {
     sendJson(_txBuffer);
 }
 
-void BleEngine::sendDeviceInfo(const DeviceSettings& settings, uint8_t runsCount, bool gpsReady, uint8_t sats) {
+void BleEngine::sendDeviceInfo(const DeviceSettings& settings, uint8_t runsCount, bool gpsReady, uint8_t sats, float batVolts, uint8_t batPct) {
     if (!_deviceConnected) return;
 
     snprintf(
         _txBuffer, sizeof(_txBuffer),
-        "{\"t\":\"info\",\"fw\":\"%s\",\"name\":\"%s\",\"rollout\":%s,\"metric\":%s,\"slope_tol\":%.2f,\"runs_cnt\":%u,\"calibrated\":true,\"gps_ready\":%s,\"sats\":%u}\n",
+        "{\"t\":\"info\",\"fw\":\"%s\",\"name\":\"%s\",\"rollout\":%s,\"metric\":%s,\"slope_tol\":%.2f,\"runs_cnt\":%u,\"calibrated\":true,\"gps_ready\":%s,\"sats\":%u,\"bat\":%.2f,\"pct\":%u}\n",
         DRAGON_FW_VERSION,
         BLE_DEVICE_NAME,
         settings.use1FootRollout ? "true" : "false",
@@ -301,7 +305,9 @@ void BleEngine::sendDeviceInfo(const DeviceSettings& settings, uint8_t runsCount
         settings.slopeTolerancePct,
         runsCount,
         gpsReady ? "true" : "false",
-        sats
+        sats,
+        batVolts,
+        batPct
     );
 
     sendJson(_txBuffer);

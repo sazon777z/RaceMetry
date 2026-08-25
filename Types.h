@@ -145,6 +145,13 @@ enum class ButtonEvent : uint8_t {
     LONG_PRESS
 };
 
+// Состояние аккумулятора
+struct BatteryData {
+    float voltage;       // Напряжение батареи в вольтах (3.3 - 4.2 В)
+    uint8_t percentage;  // Оценка заряда (0 - 100%)
+    bool isConnected;    // Подключен ли аккумулятор
+};
+
 // Пользовательские настройки (сохраняются в NVS)
 struct DeviceSettings {
     bool use1FootRollout;       // Использовать 1 фут раската (по умолчанию true, как в Dragy)

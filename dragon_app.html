@@ -787,6 +787,11 @@
             <span>🎯 Точность:</span>
             <strong id="statAcc">-- м</strong>
         </div>
+        <div class="status-item" id="statBatItem">
+            <span id="statBatIcon">🔋</span>
+            <strong id="statBatPct">--%</strong>
+            <span id="statBatVolts" style="font-size: 11px; color: var(--text-muted);">(0.00V)</span>
+        </div>
         <div class="status-item">
             <span>📡 Статус:</span>
             <strong id="statFix">Поиск GPS</strong>
@@ -1094,6 +1099,10 @@
                         <span id="diagSpeedAcc" style="font-weight: 700;">-- км/ч</span>
                     </div>
                     <div class="g-metric-row">
+                        <span style="color: var(--text-secondary);">Аккумулятор:</span>
+                        <span id="diagBat" style="font-weight: 700; color: var(--accent-green);">-- В (--%)</span>
+                    </div>
+                    <div class="g-metric-row">
                         <span style="color: var(--text-secondary);">Версия прошивки:</span>
                         <span id="diagFwVer" style="font-weight: 700; color: var(--accent-cyan);">DRAGon v2.0 BLE</span>
                     </div>
@@ -1334,6 +1343,33 @@
             if (d.fix === 3) fixText = "3D Fix (" + d.sats + " спутников)";
             else if (d.fix === 2) fixText = "2D Fix";
             document.getElementById('statFix').innerText = fixText;
+
+            // Battery Status
+            if (d.bat !== undefined && d.bat > 2.0) {
+                let batPct = d.pct !== undefined ? d.pct : 0;
+                let batPctEl = document.getElementById('statBatPct');
+                let batVoltsEl = document.getElementById('statBatVolts');
+                let batIconEl = document.getElementById('statBatIcon');
+
+                if (batPctEl) batPctEl.innerText = batPct + "%";
+                if (batVoltsEl) batVoltsEl.innerText = "(" + d.bat.toFixed(2) + "V)";
+
+                if (batPctEl && batIconEl) {
+                    if (batPct > 40) {
+                        batPctEl.style.color = "var(--accent-green)";
+                        batIconEl.innerText = "🔋";
+                    } else if (batPct > 20) {
+                        batPctEl.style.color = "var(--accent-gold)";
+                        batIconEl.innerText = "🪫";
+                    } else {
+                        batPctEl.style.color = "var(--accent-red)";
+                        batIconEl.innerText = "🪫";
+                    }
+                }
+
+                let diagBat = document.getElementById('diagBat');
+                if (diagBat) diagBat.innerText = d.bat.toFixed(2) + " В (" + batPct + "%)";
+            }
 
             // G-Forces
             document.getElementById('gLongVal').innerText = (d.g >= 0 ? "+" : "") + d.g.toFixed(2);

@@ -50,7 +50,9 @@ public:
         float liveTimeSec,
         float liveDistanceM,
         float liveSpeedKmh,
-        float liveSlopePct
+        float liveSlopePct,
+        float batVolts = 0.0f,
+        uint8_t batPct = 0
     );
 
     // Отправка события моментального взятия отсечки
@@ -63,7 +65,7 @@ public:
     void sendPersonalBests(const PersonalBests& pb);
 
     // Отправка системной информации и настроек прибора
-    void sendDeviceInfo(const DeviceSettings& settings, uint8_t runsCount, bool gpsReady, uint8_t sats);
+    void sendDeviceInfo(const DeviceSettings& settings, uint8_t runsCount, bool gpsReady, uint8_t sats, float batVolts = 0.0f, uint8_t batPct = 0);
 
     // Прямая отправка произвольной JSON-строки
     void sendJson(const char* jsonStr);
