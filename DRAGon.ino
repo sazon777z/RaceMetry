@@ -127,7 +127,22 @@ void TelemetryTask(void* parameter) {
     RaceState prevRaceState = RaceState::IDLE_WAIT_STOP;
 
     for (;;) {
-        // 1. Потоковый разбор бинарных пакетов UBX GPS
+        // Проверка режима моста U-Center
+        if (displayEngine.getScreen() == AppScreen::UCENTER_BRIDGE || GPS_BRIDGE_MODE) {
+            // Прозрачный двунаправленный аппаратный проброс: USB CDC <-> UART1 GPS
+            while (Serial.available() > 0) {
+                Serial1.write(Serial.read());
+            }
+            while (Serial1.available() > 0) {
+                Serial.write(Serial1.read());
+            }
+            ledController.setMode(LedMode::RUNNING);
+            ledController.update();
+            vTaskDelayUntil(&xLastWakeTime, pdMS_TO_TICKS(2));
+            continue;
+        }
+
+        // 1. Потоковый разбор бинарных пакетов UBX GPS (Стандартный режим)
         bool newGpsPvt = gpsEngine.update();
 
         // 2. Скоростной опрос акселерометра MPU-9250

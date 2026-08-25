@@ -42,13 +42,13 @@ void DisplayEngine::setScreen(AppScreen screen) {
 }
 
 void DisplayEngine::nextScreen() {
-    uint8_t next = ((uint8_t)_currentScreen + 1) % 7;
+    uint8_t next = ((uint8_t)_currentScreen + 1) % 9;
     _currentScreen = (AppScreen)next;
 }
 
 void DisplayEngine::prevScreen() {
     int prev = (int)_currentScreen - 1;
-    if (prev < 0) prev = 6;
+    if (prev < 0) prev = 8;
     _currentScreen = (AppScreen)prev;
 }
 
@@ -96,6 +96,14 @@ void DisplayEngine::render(AppScreen screen,
 
         case AppScreen::SETTINGS:
             _renderSettings(settings);
+            break;
+
+        case AppScreen::UCENTER_BRIDGE:
+            _renderUcenterBridge(460800, 0, 0);
+            break;
+
+        default:
+            _renderDashboardLive(gps, imu, raceState);
             break;
     }
 
@@ -575,4 +583,33 @@ void DisplayEngine::_drawPillBadge(int x, int y, int w, int h, const char* text,
     _canvas.setTextDatum(textdatum_t::middle_center);
     _canvas.drawString(text, x + w / 2, y + h / 2);
     _canvas.setTextDatum(textdatum_t::top_left);
+}
+
+void DisplayEngine::_renderUcenterBridge(uint32_t baud, uint32_t rxBytes, uint32_t txBytes) {
+    _canvas.setFont(&fonts::Font2);
+    _canvas.setTextColor(COLOR_CYAN);
+    _canvas.setTextDatum(textdatum_t::top_left);
+    _canvas.drawString("U-CENTER USB BRIDGE MODE", 18, 28);
+
+    _drawPillBadge(220, 26, 84, 18, "PASS-THRU", COLOR_GREEN, COLOR_BG);
+
+    _canvas.fillRoundRect(16, 48, 288, 118, 6, COLOR_CARD_BG);
+    _canvas.drawRoundRect(16, 48, 288, 118, 6, COLOR_CARD_BORDER);
+
+    _canvas.setFont(&fonts::Font2);
+    _canvas.setTextColor(COLOR_WHITE);
+    _canvas.drawString("PC COM Port <---> u-blox M10Q", 24, 56);
+
+    _canvas.setTextColor(COLOR_GRAY);
+    _canvas.drawString("Status:", 24, 80);
+    _canvas.setTextColor(COLOR_GREEN);
+    _canvas.drawString("TRANSPARENT BRIDGE ACTIVE", 80, 80);
+
+    _canvas.setTextColor(COLOR_GRAY);
+    _canvas.drawString("Baudrate:", 24, 104);
+    _canvas.setTextColor(COLOR_YELLOW);
+    _canvas.drawString("460800 / 38400 (Auto)", 86, 104);
+
+    _canvas.setTextColor(COLOR_GRAY);
+    _canvas.drawString("Open u-center / u-center 2 on PC", 24, 128);
 }

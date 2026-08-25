@@ -111,6 +111,7 @@ private:
     void _renderRunResults(const RunRecord& run);
     void _renderGpsInfo(const GpsData& gps);
     void _renderSettings(const DeviceSettings& settings);
+    void _renderUcenterBridge(uint32_t baud, uint32_t rxBytes, uint32_t txBytes);
 
     // Вспомогательные методы рисования графики
     void _drawGBar(int x, int y, int w, int h, float gVal, float maxG);
