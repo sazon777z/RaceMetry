@@ -509,46 +509,89 @@ uint8_t calculateBatteryPercentage(float v) {
  */
 void runUcenterBridgeMode() {
     Serial.begin(115200);
+    delay(1000);
 
+    Serial.println("\n=======================================================");
+    Serial.println("       RACEMETRY PRO // U-CENTER GPS BRIDGE");
+    Serial.println("=======================================================");
+    Serial.printf("GPS Pins: ESP32 RX = GPIO %d, ESP32 TX = GPIO %d\n", PIN_GPS_RX, PIN_GPS_TX);
+    Serial.println("Checking GPS baud rates (38400, 115200, 9600, 460800)...");
+
+    const uint32_t testBauds[] = { 38400, 115200, 9600, 460800, 57600 };
+    uint32_t activeGpsBaud = 0;
+
+    for (uint32_t b : testBauds) {
+        Serial.printf("  Probing %u baud...", b);
+        Serial1.end();
+        Serial1.begin(b, SERIAL_8N1, PIN_GPS_RX, PIN_GPS_TX);
+        delay(200);
+
+        uint32_t t0 = millis();
+        int rxCount = 0;
+        while (millis() - t0 < 300) {
+            while (Serial1.available()) {
+                rxCount++;
+                Serial1.read();
+            }
+            delay(10);
+        }
+
+        if (rxCount > 2) {
+            Serial.printf(" -> OK! Received %d bytes from GPS\n", rxCount);
+            activeGpsBaud = b;
+            break;
+        } else {
+            Serial.println(" No data");
+        }
+    }
+
+    if (activeGpsBaud == 0) {
+        Serial.println("\n[WARNING] No incoming bytes detected on any standard baud rate!");
+        Serial.println("Check physical connections:");
+        Serial.println("  1. GPS TX -> ESP32 GPIO 44 (RX)");
+        Serial.println("  2. GPS RX -> ESP32 GPIO 43 (TX)");
+        Serial.println("  3. GPS VCC -> 3.3V or 5V (Red LED on GPS module must be ON)");
+        Serial.println("  4. In Arduino IDE: Tools -> 'USB CDC On Boot' must be 'Enabled'");
+        Serial.println("Defaulting to 38400 baud...\n");
+        activeGpsBaud = 38400;
+    }
+
+    Serial1.end();
     Serial1.setRxBufferSize(8192);
-    uint32_t currentGpsBaud = 38400;
-    Serial1.begin(currentGpsBaud, SERIAL_8N1, PIN_GPS_RX, PIN_GPS_TX);
+    Serial1.begin(activeGpsBaud, SERIAL_8N1, PIN_GPS_RX, PIN_GPS_TX);
+
+    Serial.printf("\n>>> BRIDGE READY: GPS is at %u baud <<<\n", activeGpsBaud);
+    Serial.println("Now close Serial Monitor and connect u-center at 115200 baud.");
+    Serial.println("Press button on GPIO 11 to manually cycle GPS baud rate if needed.\n");
 
     pinMode(PIN_BTN, INPUT_PULLUP);
-
     ledController.begin(PIN_WS2812);
     ledController.setMode(LedMode::RUNNING);
 
-    uint8_t chunkBuf[512];
     bool lastBtnState = HIGH;
 
     for (;;) {
-        int availPC = Serial.available();
-        if (availPC > 0) {
-            int toRead = min(availPC, (int)sizeof(chunkBuf));
-            int readBytes = Serial.readBytes(chunkBuf, toRead);
-            if (readBytes > 0) {
-                Serial1.write(chunkBuf, readBytes);
-            }
+        // Zero-latency non-blocking byte forwarding PC -> GPS
+        while (Serial.available() > 0) {
+            Serial1.write(Serial.read());
         }
 
-        int availGPS = Serial1.available();
-        if (availGPS > 0) {
-            int toRead = min(availGPS, (int)sizeof(chunkBuf));
-            int readBytes = Serial1.readBytes(chunkBuf, toRead);
-            if (readBytes > 0) {
-                Serial.write(chunkBuf, readBytes);
-            }
+        // Zero-latency non-blocking byte forwarding GPS -> PC
+        while (Serial1.available() > 0) {
+            Serial.write(Serial1.read());
         }
 
+        // Manual baud switch with button
         bool btnState = (digitalRead(PIN_BTN) == LOW);
         if (btnState && !lastBtnState) {
-            if (currentGpsBaud == 38400) currentGpsBaud = 115200;
-            else if (currentGpsBaud == 115200) currentGpsBaud = 460800;
-            else currentGpsBaud = 38400;
+            if (activeGpsBaud == 9600) activeGpsBaud = 38400;
+            else if (activeGpsBaud == 38400) activeGpsBaud = 115200;
+            else if (activeGpsBaud == 115200) activeGpsBaud = 460800;
+            else activeGpsBaud = 9600;
 
-            Serial1.updateBaudRate(currentGpsBaud);
-            delay(100);
+            Serial1.updateBaudRate(activeGpsBaud);
+            Serial.printf("\n[BRIDGE] Manually switched GPS UART to %u baud\n", activeGpsBaud);
+            delay(150);
         }
         lastBtnState = btnState;
         ledController.update();
