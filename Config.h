@@ -32,9 +32,9 @@
 #define LCD_HEIGHT              172 // Высота в горизонтальной ориентации
 #define LCD_ROTATION            1   // Альбомная ориентация (0-3)
 
-// GPS u-blox M10Q (Hardware UART1)
-#define PIN_GPS_RX              7   // ESP32 RX <- GPS TX (GPIO 7)
-#define PIN_GPS_TX              8   // ESP32 TX -> GPS RX (GPIO 8)
+// GPS u-blox M10Q (Hardware UART1) — Подключено к шелкографии RX / TX платы
+#define PIN_GPS_RX              44  // ESP32 RX (GPIO 44) <- GPS TX
+#define PIN_GPS_TX              43  // ESP32 TX (GPIO 43) -> GPS RX
 #define GPS_BAUDRATE_INITIAL    9600
 #define GPS_BAUDRATE_TARGET     460800  // Скоростной порт для минимальной латентности (UBX 10-18Hz)
 #define GPS_UPDATE_RATE_HZ      10      // Частота навигации (10 Гц в режиме Multi-GNSS)

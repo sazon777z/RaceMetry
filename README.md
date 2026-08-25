@@ -28,8 +28,8 @@
 | | CS | `GPIO 5` | Chip Select |
 | | IPL / BLK | `GPIO 6` | Подсветка (PWM) |
 | | VDD / GND | `3.3V / GND` | Питание дисплея |
-| **GPS u-blox M10Q** | TX | `GPIO 7` | RX ESP32 (Hardware Serial1) |
-| | RX | `GPIO 8` | TX ESP32 |
+| **GPS u-blox M10Q** | TX | `RX (GPIO 44)` | RX ESP32 (Hardware Serial1) |
+| | RX | `TX (GPIO 43)` | TX ESP32 (Команды UBX) |
 | | VCC / GND | `3.3V / 5V` | Питание GPS |
 | **IMU MPU-9250** | SDA | `GPIO 9` | I2C Data (400 кГц) |
 | | SCL | `GPIO 10` | I2C Clock |
