@@ -76,6 +76,10 @@ struct ImuData {
     float gPeakBrake;       // Максимальное тормозное замедление (G)
     bool isCalibrated;      // Флаг успешной калибровки нуля
     uint32_t lastSampleUs;  // Время выборки (micros)
+
+    inline bool isLaunchDetected() const {
+        return gLongitudinal >= LAUNCH_G_THRESHOLD;
+    }
 };
 
 // Точка трека телеметрии во время заезда
