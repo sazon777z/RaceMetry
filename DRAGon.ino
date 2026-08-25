@@ -191,7 +191,7 @@ void setup() {
         1                     // Ядро 1
     );
 
-    Serial.println("[DRAGon] BLE System started successfully!");
+    Serial.println("[RaceMetry] BLE System started successfully!");
 }
 
 /**
