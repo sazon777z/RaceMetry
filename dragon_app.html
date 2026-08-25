@@ -1475,7 +1475,6 @@
             let imuEl = document.getElementById('diagImuStatus');
             let gpsEl = document.getElementById('diagGpsStatus');
             let storEl = document.getElementById('diagStorageStatus');
-            let batEl = document.getElementById('diagBatStatus');
 
             if (imuEl) {
                 imuEl.innerText = d.imu_ok ? "🟢 " + (d.imu_msg || "MPU-9250 (200 Гц): OK") : "🔴 " + (d.imu_msg || "Ошибка I2C");
@@ -1492,10 +1491,7 @@
                 storEl.style.color = d.storage_ok ? "var(--accent-green)" : "var(--accent-red)";
             }
 
-            if (batEl) {
-                batEl.innerText = d.bat_ok ? `🟢 Заряд: ${d.bat_pct}% (${d.bat_v.toFixed(2)} В, OK)` : "⚪ Питание от USB (без батареи)";
-                batEl.style.color = d.bat_ok ? "var(--accent-green)" : "var(--text-secondary)";
-            }
+            renderBatteryStatus(d.bat_v, d.bat_pct);
 
             // Update Floating Toast HUD
             let toastImu = document.getElementById('toastImu');
@@ -1516,7 +1512,7 @@
                 toastStorage.style.color = d.storage_ok ? "var(--accent-green)" : "var(--accent-red)";
             }
             if (toastBat) {
-                toastBat.innerText = d.bat_ok ? `${d.bat_pct}% (${d.bat_v.toFixed(2)}V)` : "USB";
+                toastBat.innerText = (d.bat_v > 2.0) ? `${d.bat_pct}% (${d.bat_v.toFixed(2)}V)` : "USB (5V)";
                 toastBat.style.color = d.bat_ok ? "var(--accent-green)" : "var(--text-secondary)";
             }
 
@@ -1532,6 +1528,42 @@
 
             // Announce readiness via Voice
             speak("Все системы инициализированы. GPS настроен на двадцать герц. Прибор готов к замерам.");
+        }
+
+        function renderBatteryStatus(vBat, pct) {
+            let batPctEl = document.getElementById('statBatPct');
+            let batFillEl = document.getElementById('statBatFill');
+            let diagBat = document.getElementById('diagBat');
+            let diagBatStatus = document.getElementById('diagBatStatus');
+
+            if (!batPctEl || !batFillEl) return;
+
+            if (vBat !== undefined && vBat > 2.0) {
+                let p = pct !== undefined ? Math.min(100, Math.max(0, pct)) : 0;
+                batPctEl.innerText = p + "%";
+                batFillEl.style.width = p + "%";
+
+                if (p > 40) {
+                    batFillEl.style.background = "var(--accent-green)";
+                    batPctEl.style.color = "var(--text-primary)";
+                } else if (p > 20) {
+                    batFillEl.style.background = "var(--accent-gold)";
+                    batPctEl.style.color = "var(--accent-gold)";
+                } else {
+                    batFillEl.style.background = "var(--accent-red)";
+                    batPctEl.style.color = "var(--accent-red)";
+                }
+
+                if (diagBat) diagBat.innerText = p + "% (" + vBat.toFixed(2) + " В)";
+                if (diagBatStatus) diagBatStatus.innerText = "🟢 " + p + "% (" + vBat.toFixed(2) + " В, OK)";
+            } else if (vBat !== undefined && vBat <= 2.0 && vBat > 0.0) {
+                batPctEl.innerText = "USB";
+                batFillEl.style.width = "100%";
+                batFillEl.style.background = "var(--accent-cyan)";
+                batPctEl.style.color = "var(--accent-cyan)";
+                if (diagBat) diagBat.innerText = "Питание от USB (5В)";
+                if (diagBatStatus) diagBatStatus.innerText = "🟢 Питание от USB (5В)";
+            }
         }
 
         function closeDiagToast() {
@@ -1553,29 +1585,9 @@
             else if (d.fix === 2) fixText = "2D Fix";
             document.getElementById('statFix').innerText = fixText;
 
-            // Battery Status (Smartphone-style percentage & fill bar)
-            if (d.bat !== undefined && d.bat > 2.0) {
-                let batPct = d.pct !== undefined ? Math.min(100, Math.max(0, d.pct)) : 0;
-                let batPctEl = document.getElementById('statBatPct');
-                let batFillEl = document.getElementById('statBatFill');
-
-                if (batPctEl) batPctEl.innerText = batPct + "%";
-                if (batFillEl) {
-                    batFillEl.style.width = batPct + "%";
-                    if (batPct > 40) {
-                        batFillEl.style.background = "var(--accent-green)";
-                        if (batPctEl) batPctEl.style.color = "var(--text-primary)";
-                    } else if (batPct > 20) {
-                        batFillEl.style.background = "var(--accent-gold)";
-                        if (batPctEl) batPctEl.style.color = "var(--accent-gold)";
-                    } else {
-                        batFillEl.style.background = "var(--accent-red)";
-                        if (batPctEl) batPctEl.style.color = "var(--accent-red)";
-                    }
-                }
-
-                let diagBat = document.getElementById('diagBat');
-                if (diagBat) diagBat.innerText = batPct + "% (" + d.bat.toFixed(2) + " В)";
+            // Battery Status
+            if (d.bat !== undefined) {
+                renderBatteryStatus(d.bat, d.pct);
             }
 
             // G-Forces
