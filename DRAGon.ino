@@ -84,8 +84,8 @@ void setup() {
     ledController.begin(PIN_WS2812);
     ledController.setMode(LedMode::GPS_SEARCH);
 
-    // 3. Инициализация кнопок управления
-    buttonManager.begin(PIN_BTN_LEFT, PIN_BTN_RIGHT);
+    // 3. Инициализация кнопки управления (GPIO 11)
+    buttonManager.begin(PIN_BTN);
 
     // 4. Инициализация АЦП батареи
 #if ENABLE_BATTERY_MONITOR
@@ -305,23 +305,23 @@ void CommTask(void* parameter) {
     uint32_t lastBatSampleMs = 0;
 
     for (;;) {
-        // 1. Опрос кнопок
+        // 1. Опрос кнопки (GPIO 11)
         buttonManager.update();
-        ButtonEvent evLeft = buttonManager.getLeftEvent();
-        ButtonEvent evRight = buttonManager.getRightEvent();
+        ButtonEvent ev = buttonManager.getEvent();
 
-        // Обработка кнопки 1 (Left: Клик = Взведение, Длинное = Смена дисциплины)
-        if (evLeft == ButtonEvent::CLICK) {
-            telemetryEngine.arm();
-        } else if (evLeft == ButtonEvent::LONG_PRESS) {
-            uint8_t nextDisc = ((uint8_t)telemetryEngine.getDiscipline() + 1) % 6;
+        if (ev == ButtonEvent::CLICK) {
+            // Одиночный клик: Взведение (ARM) или сброс заезда
+            if (telemetryEngine.getState() == RaceState::ARMED || telemetryEngine.getState() == RaceState::MEASURING) {
+                telemetryEngine.reset();
+            } else {
+                telemetryEngine.arm();
+            }
+        } else if (ev == ButtonEvent::DOUBLE_CLICK) {
+            // Двойной клик: переключение дисциплины по кругу (0-100, 100-200, 1/4 мили...)
+            uint8_t nextDisc = ((uint8_t)telemetryEngine.getDiscipline() + 1) % 7;
             telemetryEngine.setDiscipline((RaceDiscipline)nextDisc);
-        }
-
-        // Обработка кнопки 2 (Right: Клик = Сброс, Длинное = Калибровка IMU)
-        if (evRight == ButtonEvent::CLICK) {
-            telemetryEngine.reset();
-        } else if (evRight == ButtonEvent::LONG_PRESS) {
+        } else if (ev == ButtonEvent::LONG_PRESS) {
+            // Длинное нажатие (>600мс): Калибровка горизонта акселерометра IMU
             ledController.setMode(LedMode::CALIBRATING);
             imuEngine.calibrateZero(600);
             imuEngine.getOffsets(deviceSettings.imuOffsetGx, deviceSettings.imuOffsetGy, deviceSettings.imuOffsetGz);

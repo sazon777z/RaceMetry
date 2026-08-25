@@ -154,6 +154,47 @@
             color: var(--text-primary);
         }
 
+        /* Smartphone-style Battery Widget */
+        .bat-widget {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(255, 255, 255, 0.04);
+            padding: 3px 8px;
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+        }
+
+        .bat-icon-pill {
+            width: 20px;
+            height: 10px;
+            border: 1.5px solid var(--text-secondary);
+            border-radius: 3px;
+            padding: 1px;
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
+        .bat-icon-pill::after {
+            content: "";
+            position: absolute;
+            right: -3px;
+            top: 2px;
+            width: 1.5px;
+            height: 4px;
+            background: var(--text-secondary);
+            border-radius: 0 1px 1px 0;
+        }
+
+        .bat-level-fill {
+            height: 100%;
+            width: 100%;
+            background: var(--accent-green);
+            border-radius: 1px;
+            transition: width 0.3s ease, background 0.3s ease;
+        }
+
         /* Navigation Tabs */
         .tab-bar {
             display: flex;
@@ -787,10 +828,11 @@
             <span>🎯 Точность:</span>
             <strong id="statAcc">-- м</strong>
         </div>
-        <div class="status-item" id="statBatItem">
-            <span id="statBatIcon">🔋</span>
+        <div class="status-item bat-widget" id="statBatItem" title="Уровень заряда аккумулятора">
+            <div class="bat-icon-pill">
+                <div class="bat-level-fill" id="statBatFill" style="width: 100%;"></div>
+            </div>
             <strong id="statBatPct">--%</strong>
-            <span id="statBatVolts" style="font-size: 11px; color: var(--text-muted);">(0.00V)</span>
         </div>
         <div class="status-item">
             <span>📡 Статус:</span>
@@ -1344,31 +1386,29 @@
             else if (d.fix === 2) fixText = "2D Fix";
             document.getElementById('statFix').innerText = fixText;
 
-            // Battery Status
+            // Battery Status (Smartphone-style percentage & fill bar)
             if (d.bat !== undefined && d.bat > 2.0) {
-                let batPct = d.pct !== undefined ? d.pct : 0;
+                let batPct = d.pct !== undefined ? Math.min(100, Math.max(0, d.pct)) : 0;
                 let batPctEl = document.getElementById('statBatPct');
-                let batVoltsEl = document.getElementById('statBatVolts');
-                let batIconEl = document.getElementById('statBatIcon');
+                let batFillEl = document.getElementById('statBatFill');
 
                 if (batPctEl) batPctEl.innerText = batPct + "%";
-                if (batVoltsEl) batVoltsEl.innerText = "(" + d.bat.toFixed(2) + "V)";
-
-                if (batPctEl && batIconEl) {
+                if (batFillEl) {
+                    batFillEl.style.width = batPct + "%";
                     if (batPct > 40) {
-                        batPctEl.style.color = "var(--accent-green)";
-                        batIconEl.innerText = "🔋";
+                        batFillEl.style.background = "var(--accent-green)";
+                        if (batPctEl) batPctEl.style.color = "var(--text-primary)";
                     } else if (batPct > 20) {
-                        batPctEl.style.color = "var(--accent-gold)";
-                        batIconEl.innerText = "🪫";
+                        batFillEl.style.background = "var(--accent-gold)";
+                        if (batPctEl) batPctEl.style.color = "var(--accent-gold)";
                     } else {
-                        batPctEl.style.color = "var(--accent-red)";
-                        batIconEl.innerText = "🪫";
+                        batFillEl.style.background = "var(--accent-red)";
+                        if (batPctEl) batPctEl.style.color = "var(--accent-red)";
                     }
                 }
 
                 let diagBat = document.getElementById('diagBat');
-                if (diagBat) diagBat.innerText = d.bat.toFixed(2) + " В (" + batPct + "%)";
+                if (diagBat) diagBat.innerText = batPct + "% (" + d.bat.toFixed(2) + " В)";
             }
 
             // G-Forces

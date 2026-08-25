@@ -9,10 +9,10 @@
  * Микроконтроллер: ESP32-S3 Super Mini
  * GPS: u-blox M10Q (UB10050F) на 10-18 Гц (UBX-NAV-PVT)
  * IMU: MPU-9250 / MPU-6500 (200 Гц Launch Jerk Trigger)
- * Индикатор: WS2812B (Адресный RGB)
+ * Индикатор: Встроенный светодиод на плате ESP32-S3 (GPIO 48 / RGB_BUILTIN)
+ * Органы управления: 1 тактовая кнопка на GPIO 11 (Клик=ARM/Reset, 2xКлик=Режим, Удержание=Калибровка)
  * Беспроводная связь: Bluetooth Low Energy 5.0 (Nordic UART Service)
- * Кнопки: 2 тактовые кнопки с подтяжкой к VCC/GND
- * Питание: Li-Ion / Li-Po аккумулятор 3.7V с делителем напряжения
+ * Питание: Li-Ion / Li-Po аккумулятор 3.7V с делителем напряжения (GPIO 1)
  * ============================================================================
  */
 
@@ -34,19 +34,24 @@
 #define IMU_I2C_ADDR            0x68    // Адрес 0x68 (если AD0 к GND) или 0x69
 #define IMU_SAMPLE_RATE_HZ      200     // Частота дискретизации акселерометра (200 Гц)
 
-// Адресный светодиод WS2812B (NeoPixel)
-#define PIN_WS2812              11  // Data pin (GPIO 11)
+// Встроенный светодиод платы ESP32-S3 Super Mini
+#ifdef RGB_BUILTIN
+#define PIN_WS2812              RGB_BUILTIN
+#elif defined(LED_BUILTIN)
+#define PIN_WS2812              LED_BUILTIN
+#else
+#define PIN_WS2812              48  // Встроенный RGB светодиод на ESP32-S3 Super Mini (GPIO 48)
+#endif
 #define NUM_WS2812_LEDS         1
 
-// Кнопки управления (активный уровень - LOW, INPUT_PULLUP)
-#define PIN_BTN_LEFT            10  // Кнопка 1 (Взведение / Режим) -> GPIO 10
-#define PIN_BTN_RIGHT           9   // Кнопка 2 (Сброс / Калибровка) -> GPIO 9
+// Единственная кнопка управления на GPIO 11 (активный уровень - LOW, INPUT_PULLUP)
+#define PIN_BTN                 11  // Кнопка -> GPIO 11 (вторая ножка к GND)
 #define BTN_DEBOUNCE_MS         35  // Защита от дребезга (мс)
 #define BTN_LONG_PRESS_MS       600 // Порог длинного нажатия (мс)
 
 // Контроль заряда аккумулятора (Battery Monitor)
 #define ENABLE_BATTERY_MONITOR  true    // Включить замер напряжения батареи
-#define PIN_BAT_ADC             1       // Пин АЦП (GPIO 1) для средней точки делителя
+#define PIN_BAT_ADC             1       // Пин АЦП (GPIO 1) для средней точки делителя 1:2
 #define BAT_DIVIDER_RATIO       2.0f    // Делитель 1:2 (два одинаковых резистора по 100k-220k)
 #define BAT_VOLTAGE_MIN         3.30f   // Напряжение полностью разряженной батареи (0%)
 #define BAT_VOLTAGE_MAX         4.20f   // Напряжение полностью заряженной батареи (100%)
