@@ -23,6 +23,7 @@ DisplayEngine::DisplayEngine()
 bool DisplayEngine::begin() {
     _tft.init();
     _tft.setRotation(LCD_ROTATION);
+    _tft.fillScreen(0x0000); // Очистка экрана от случайного шума VRAM
     _tft.setBrightness(220);
 
     // Создаем полноэкранный 16-битный спрайт для исключения мерцания

@@ -41,13 +41,13 @@ public:
             cfg.pin_cs           = PIN_LCD_CS;
             cfg.pin_rst          = PIN_LCD_RST;
             cfg.pin_busy         = -1;
-            cfg.memory_width     = 172;
-            cfg.memory_height    = 320;
-            cfg.panel_width      = 172;
+            cfg.memory_width     = 240; // Базовая ширина видеопамяти чипа ST7789 (240x320)
+            cfg.memory_height    = 320; // Базовая высота видеопамяти чипа ST7789
+            cfg.panel_width      = 172; // Видимая область матрицы 1.47" (172x320)
             cfg.panel_height     = 320;
-            cfg.offset_x         = 34;  // Смещение для 1.47" ST7789 (172x320)
+            cfg.offset_x         = 34;  // Центрирование 172px по центру 240px: (240 - 172) / 2 = 34
             cfg.offset_y         = 0;
-            cfg.offset_rotation  = 1;   // Альбомная ориентация (320x172)
+            cfg.offset_rotation  = 0;   // 0 для корректной работы setRotation(1)
             cfg.dummy_read_pixel = 8;
             cfg.dummy_read_bits  = 1;
             cfg.readable         = false;
