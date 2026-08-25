@@ -228,6 +228,7 @@ void TelemetryTask(void* parameter) {
 
         // 3. Обработка математики заезда
         telemetryEngine.process(gpsEngine.getData(), imuEngine.getData());
+        RaceState curState = telemetryEngine.getState();
 
         // 4. Управление светодиодной индикацией (если кнопка не удерживается)
         if (!buttonManager.isPressed() || buttonManager.getPressDurationMs() < 400) {
@@ -245,7 +246,6 @@ void TelemetryTask(void* parameter) {
                 ledController.triggerSplitFlash();
             }
 
-            RaceState curState = telemetryEngine.getState();
             if (!isGpsReady) {
                 ledController.setMode(LedMode::GPS_SEARCH);
             } else {
