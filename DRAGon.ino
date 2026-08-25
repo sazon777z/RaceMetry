@@ -75,12 +75,12 @@ void setup() {
 
     Serial.begin(115200);
     delay(200);
-    Serial.println("\n[DRAGon] Initializing Pro BLE Telemetry System...");
+    Serial.println("\n[RaceMetry] Initializing Pro 20Hz BLE Telemetry System...");
 
     // 1. Инициализация хранилища NVS (настройки и рекорды)
     storageManager.begin();
     storageManager.loadSettings(deviceSettings);
-    Serial.println("[DRAGon] Storage loaded");
+    Serial.println("[RaceMetry] Storage loaded");
 
     // 2. Инициализация и анимация включения светодиода
     ledController.begin(PIN_WS2812);
@@ -96,20 +96,20 @@ void setup() {
     analogReadResolution(12);
     currentBatVoltage = readRawBatteryVoltage();
     currentBatPercent = calculateBatteryPercentage(currentBatVoltage);
-    Serial.printf("[DRAGon] Battery Monitor initialized: %.2fV (%u%%)\n", currentBatVoltage, currentBatPercent);
+    Serial.printf("[RaceMetry] Battery Monitor initialized: %.2fV (%u%%)\n", currentBatVoltage, currentBatPercent);
 #endif
 
     // 5. Инициализация инерциального датчика MPU-9250 (I2C)
     if (!imuEngine.begin(PIN_I2C_SDA, PIN_I2C_SCL, I2C_FREQUENCY)) {
-        Serial.println("[DRAGon] WARNING: MPU-9250 not detected!");
+        Serial.println("[RaceMetry] WARNING: MPU-9250 not detected!");
     } else {
         imuEngine.setOffsets(deviceSettings.imuOffsetGx, deviceSettings.imuOffsetGy, deviceSettings.imuOffsetGz);
-        Serial.println("[DRAGon] IMU MPU-9250 ready (200 Hz)");
+        Serial.println("[RaceMetry] IMU MPU-9250 ready (200 Hz)");
     }
 
     // 6. Инициализация GPS u-blox M10Q (Hardware UART1, 20 Hz)
     gpsEngine.begin(Serial1, GPS_BAUDRATE_TARGET);
-    Serial.printf("[DRAGon] GPS M10Q configured with UBX %d Hz\n", GPS_UPDATE_RATE_HZ);
+    Serial.printf("[RaceMetry] GPS M10Q configured with UBX %d Hz\n", GPS_UPDATE_RATE_HZ);
 
     // 7. Инициализация гоночного ядра телеметрии
     telemetryEngine.begin(deviceSettings);
@@ -117,7 +117,7 @@ void setup() {
     // 8. Инициализация BLE Сервера (Nordic UART Service)
     bleEngine.begin(BLE_DEVICE_NAME);
     bleEngine.setCommandHandler([](const String& cmd, const String& val) {
-        Serial.printf("[DRAGon CMD] cmd: %s, val: %s\n", cmd.c_str(), val.c_str());
+        Serial.printf("[RaceMetry CMD] cmd: %s, val: %s\n", cmd.c_str(), val.c_str());
 
         if (cmd == "arm") {
             telemetryEngine.arm();

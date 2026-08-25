@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>DRAGon — Профессиональная Телеметрия</title>
+    <title>RaceMetry — Профессиональная Телеметрия 20Hz</title>
     <meta name="theme-color" content="#0d0f14">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -859,8 +859,8 @@
     <!-- Header -->
     <header>
         <div class="brand">
-            <span class="brand-logo">DRAGon</span>
-            <span class="brand-badge">PRO TELEMETRY</span>
+            <span class="brand-logo">RaceMetry</span>
+            <span class="brand-badge">20Hz PRO TELEMETRY</span>
         </div>
         <button id="bleConnectBtn" class="ble-btn" onclick="toggleBleConnection()">
             <span class="ble-dot"></span>
@@ -1236,7 +1236,7 @@
                     </div>
                     <div class="g-metric-row">
                         <span style="color: var(--text-secondary);">Версия прошивки:</span>
-                        <span id="diagFwVer" style="font-weight: 700; color: var(--accent-cyan);">DRAGon v2.0 BLE</span>
+                        <span id="diagFwVer" style="font-weight: 700; color: var(--accent-cyan);">RaceMetry v2.0 BLE</span>
                     </div>
                 </div>
             </div>
@@ -1349,9 +1349,10 @@
             }
 
             try {
-                showToast("Поиск устройства DRAGon...");
+                showToast("Поиск устройства RaceMetry...");
                 bleDevice = await navigator.bluetooth.requestDevice({
                     filters: [
+                        { namePrefix: "RaceMetry" },
                         { namePrefix: "DRAGon" }
                     ],
                     optionalServices: [NUS_SERVICE_UUID]
@@ -1392,7 +1393,7 @@
 
                 isBleConnected = true;
                 updateBleUi(true);
-                showToast("DRAGon подключен успешно!");
+                showToast("RaceMetry подключен успешно!");
 
                 // Запрашиваем информацию и рекорды
                 setTimeout(() => {
@@ -1409,7 +1410,7 @@
         function onDisconnected() {
             isBleConnected = false;
             updateBleUi(false);
-            showToast("Связь с DRAGon потеряна");
+            showToast("Связь с RaceMetry потеряна");
         }
 
         function updateBleUi(connected) {

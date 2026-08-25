@@ -3,14 +3,14 @@
 
 /**
  * ============================================================================
- *                          DRAGon TELEMETRY METER
+ *                          RACEMETRY PRO METER
  *                 КОНФИГУРАЦИЯ ОБОРУДОВАНИЯ И ПАРАМЕТРОВ (BLE)
  * ============================================================================
  * Микроконтроллер: ESP32-S3 Super Mini
- * GPS: u-blox M10Q (UB10050F) на 10-18 Гц (UBX-NAV-PVT)
+ * GPS: u-blox M10Q (UB10050F) на 20 Гц (UBX-NAV-PVT)
  * IMU: MPU-9250 / MPU-6500 (200 Гц Launch Jerk Trigger)
  * Индикатор: Встроенный светодиод на плате ESP32-S3 (GPIO 48 / RGB_BUILTIN)
- * Органы управления: 1 тактовая кнопка на GPIO 11 (Клик=ARM/Reset, 2xКлик=Режим, Удержание=Калибровка)
+ * Органы управления: Кнопка питания на GPIO 11 (Включение / Выключение)
  * Беспроводная связь: Bluetooth Low Energy 5.0 (Nordic UART Service)
  * Питание: Li-Ion / Li-Po аккумулятор 3.7V с делителем напряжения (GPIO 1)
  * ============================================================================
@@ -59,7 +59,7 @@
 // ----------------------------------------------------------------------------
 // 2. ПАРАМЕТРЫ BLUETOOTH LOW ENERGY (BLE)
 // ----------------------------------------------------------------------------
-#define BLE_DEVICE_NAME         "DRAGon-Telemetry"
+#define BLE_DEVICE_NAME         "RaceMetry-Pro"
 // Стандартный сервис Nordic UART (NUS) для максимальной совместимости с Web Bluetooth и мобильными ОС
 #define BLE_NUS_SERVICE_UUID    "6E400001-B5A3-F393-E0A9-E50E24DCCA9E"
 #define BLE_NUS_RX_CHAR_UUID    "6E400002-B5A3-F393-E0A9-E50E24DCCA9E"
@@ -92,8 +92,9 @@
 #define MAX_RUN_SAMPLES         400     // 400 точек при 10 Гц = 40 секунд записи заезда
 
 // Хранилище энергонезависимой памяти (Preferences)
-#define NVS_NAMESPACE           "dragon_cfg"
+#define NVS_NAMESPACE           "racemetry_cfg"
 #define MAX_SAVED_RUNS          20      // Количество сохраняемых заездов в истории
 
 // Версия прошивки
-#define DRAGON_FW_VERSION       "v2.0.0 BLE"
+#define RACEMETRY_FW_VERSION    "v2.0.0 BLE"
+#define DRAGON_FW_VERSION       RACEMETRY_FW_VERSION
