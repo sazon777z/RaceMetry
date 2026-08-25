@@ -158,8 +158,22 @@ void TelemetryTask(void* parameter) {
         telemetryEngine.process(gpsEngine.getData(), imuEngine.getData());
 
         // 4. Управление светодиодной индикацией WS2812B
+        static bool wasGpsReady = false;
+        bool isGpsReady = gpsEngine.isReadyForRace();
+
+        // Проверка события первого захвата 3D-фикса
+        if (isGpsReady && !wasGpsReady) {
+            ledController.notifyFixAcquired();
+        }
+        wasGpsReady = isGpsReady;
+
+        // Проверка моментальной вспышки при взятии отсечки (0-100, 100-200, 402м)
+        if (telemetryEngine.checkAndClearSplitTrigger()) {
+            ledController.triggerSplitFlash();
+        }
+
         RaceState curState = telemetryEngine.getState();
-        if (!gpsEngine.isReadyForRace()) {
+        if (!isGpsReady) {
             ledController.setMode(LedMode::GPS_SEARCH);
         } else {
             switch (curState) {
@@ -167,8 +181,14 @@ void TelemetryTask(void* parameter) {
                     ledController.setMode(LedMode::ARMED_READY);
                     break;
                 case RaceState::LAUNCH_DETECTED:
+                    ledController.setMode(LedMode::LAUNCH_DETECTED);
+                    break;
                 case RaceState::MEASURING:
-                    ledController.setMode(LedMode::RUNNING);
+                    if (telemetryEngine.getDiscipline() == RaceDiscipline::BRAKE_100_0) {
+                        ledController.setMode(LedMode::BRAKING_ACTIVE);
+                    } else {
+                        ledController.setMode(LedMode::MEASURING);
+                    }
                     break;
                 case RaceState::FINISHED:
                     if (telemetryEngine.getLastRun().isValidSlope) {
@@ -178,7 +198,7 @@ void TelemetryTask(void* parameter) {
                     }
                     break;
                 default:
-                    ledController.setMode(LedMode::GPS_SEARCH);
+                    ledController.setMode(LedMode::ARMED_READY);
                     break;
             }
         }

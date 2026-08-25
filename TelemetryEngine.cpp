@@ -353,6 +353,7 @@ void TelemetryEngine::_interpolateSpeedSplit(float targetKmh, SplitTime& split,
     split.timeSec = t1 + factor * (t2 - t1);
     split.trapSpeedKmh = targetKmh;
     split.achieved = true;
+    _splitTriggered = true;
 }
 
 void TelemetryEngine::_interpolateDistanceSplit(float targetM, SplitTime& split, 
@@ -365,6 +366,7 @@ void TelemetryEngine::_interpolateDistanceSplit(float targetM, SplitTime& split,
         split.timeSec = t2;
         split.trapSpeedKmh = v2Ms * 3.6f;
         split.achieved = true;
+        _splitTriggered = true;
         return;
     }
 
@@ -395,6 +397,15 @@ void TelemetryEngine::_interpolateDistanceSplit(float targetM, SplitTime& split,
     }
 
     split.achieved = true;
+    _splitTriggered = true;
+}
+
+bool TelemetryEngine::checkAndClearSplitTrigger() {
+    if (_splitTriggered) {
+        _splitTriggered = false;
+        return true;
+    }
+    return false;
 }
 
 void TelemetryEngine::_checkRunCompletion() {

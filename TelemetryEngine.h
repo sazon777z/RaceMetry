@@ -43,6 +43,7 @@ public:
     float getCurrentTimeSec() const;
     float getCurrentGLong() const { return _liveGLong; }
     float getCurrentSlopePct() const { return _liveSlopePct; }
+    bool checkAndClearSplitTrigger();
 
     // Настройки
     void updateSettings(const DeviceSettings& settings);
@@ -80,6 +81,7 @@ private:
     float _timeAt200KmhSec;
     bool _passed100Kmh;
     bool _passed200Kmh;
+    bool _splitTriggered;
 
     // Замер торможения
     bool _brakeActive;

@@ -18,12 +18,15 @@
 
 enum class LedMode : uint8_t {
     OFF = 0,
-    GPS_SEARCH,      // Медленное мигание оранжево-красным
-    ARMED_READY,     // Яркий постоянный зеленый (готов к старту)
-    RUNNING,         // Пульсирующий сине-голубой
-    FINISHED_VALID,  // 3 быстрых вспышки зеленым
-    FINISHED_SLOPE,  // 3 быстрых вспышки желтым
-    CALIBRATING      // Фиолетовый
+    GPS_SEARCH,          // Плавная пульсация синим цветом (поиск спутников)
+    GPS_FIX_ACQUIRED,    // Двойная вспышка зеленым при захвате 3D-фикса
+    ARMED_READY,         // Постоянный сочный зеленый (готов к старту)
+    LAUNCH_DETECTED,     // Быстрое мерцание неоновым синим/цианом (старт)
+    MEASURING,           // Динамическая скоростная пульсация синим в заезде
+    BRAKING_ACTIVE,      // Яркий красный стробоскоп при торможении
+    FINISHED_VALID,      // Тройная победная зеленая вспышка (валидный заезд)
+    FINISHED_SLOPE,      // Янтарно-оранжевая вспышка (предупреждение об уклоне)
+    CALIBRATING          // Фиолетовый стробоскоп (калибровка IMU)
 };
 
 class LedController {
@@ -34,6 +37,8 @@ public:
     void update();
 
     void setMode(LedMode mode);
+    void triggerSplitFlash();
+    void notifyFixAcquired();
     void setRgb(uint8_t r, uint8_t g, uint8_t b);
 
 private:
@@ -42,6 +47,8 @@ private:
     uint32_t _lastUpdateMs;
     uint8_t _animStep;
     uint8_t _curR, _curG, _curB;
+    uint32_t _splitFlashUntilMs;
+    uint32_t _fixAcquiredUntilMs;
 
     void _writeLed(uint8_t r, uint8_t g, uint8_t b);
 };
