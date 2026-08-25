@@ -156,10 +156,8 @@ void LedController::update() {
     }
 }
 
+extern "C" void neopixelWrite(uint8_t pin, uint8_t red_val, uint8_t green_val, uint8_t blue_val);
+
 void LedController::_writeLed(uint8_t r, uint8_t g, uint8_t b) {
-#ifdef neopixelWrite
     neopixelWrite(_pin, r, g, b);
-#else
-    (void)_pin; (void)r; (void)g; (void)b;
-#endif
 }
