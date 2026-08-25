@@ -35,8 +35,8 @@
 | | SDA | `GPIO 13` | I2C Data (400 кГц) |
 | | VCC / GND | `3.3V / GND` | Питание датчика (AD0 к GND) |
 | **WS2812B RGB LED** | DIN | `GPIO 11` | RMT управление |
-| **Кнопка 1 (Left / Mode)** | Pin | `GPIO 7` | Вторая ножка к `GND` (INPUT_PULLUP) |
-| **Кнопка 2 (Right / Action)** | Pin | `GPIO 8` | Вторая ножка к `GND` (INPUT_PULLUP) |
+| **Кнопка 1 (Left / Mode)** | Pin | `GPIO 10` | Вторая ножка к `GND` (INPUT_PULLUP) |
+| **Кнопка 2 (Right / Action)** | Pin | `GPIO 9` | Вторая ножка к `GND` (INPUT_PULLUP) |
 
 > ℹ️ *Все пины легко переназначаются в файле `Config.h`.*
 

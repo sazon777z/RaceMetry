@@ -50,9 +50,9 @@
 #define PIN_WS2812              11  // Data pin (GPIO 11)
 #define NUM_WS2812_LEDS         1
 
-// Кнопки управления (активный уровень - LOW, INPUT_PULLUP)
-#define PIN_BTN_LEFT            7   // Кнопка 1 (Навигация / Режим) -> GPIO 7
-#define PIN_BTN_RIGHT           8   // Кнопка 2 (Действие / Сброс / Старт) -> GPIO 8
+// Кнопки управления (активный уровень - LOW, INPUT_PULLUP) — Фактическое подключение
+#define PIN_BTN_LEFT            10  // Кнопка 1 (Навигация / Режим) -> GPIO 10
+#define PIN_BTN_RIGHT           9   // Кнопка 2 (Действие / Сброс / Старт) -> GPIO 9
 #define BTN_DEBOUNCE_MS         35  // Защита от дребезга (мс)
 #define BTN_LONG_PRESS_MS       600 // Порог длинного нажатия (мс)
 
