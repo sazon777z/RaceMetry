@@ -19,40 +19,40 @@
 // 1. НАЗНАЧЕНИЕ ПИНОВ (GPIO)
 // ----------------------------------------------------------------------------
 
-// GPS u-blox M10Q (Hardware UART1)
-#define PIN_GPS_RX              4   // ESP32 RX <- GPS TX
-#define PIN_GPS_TX              5   // ESP32 TX -> GPS RX
-#define GPS_BAUDRATE_INITIAL    9600
-#define GPS_BAUDRATE_TARGET     460800  // Скоростной порт для минимальной латентности (UBX 10-18Hz)
-#define GPS_UPDATE_RATE_HZ      10      // Частота навигации (10 Гц в режиме Multi-GNSS)
-
-// IMU Акселерометр/Гироскоп MPU-9250/6500 (I2C)
-#define PIN_I2C_SDA             8
-#define PIN_I2C_SCL             9
-#define I2C_FREQUENCY           400000  // 400 кГц (Fast Mode)
-#define IMU_I2C_ADDR            0x68    // Адрес 0x68 (если AD0 к GND) или 0x69
-#define IMU_SAMPLE_RATE_HZ      200     // Частота дискретизации акселерометра (200 Гц)
-
-// Дисплей 1.47" IPS ST7789 (SPI)
-#define PIN_LCD_SCLK            10  // SPI Clock (SCK)
-#define PIN_LCD_MOSI            11  // SPI MOSI (SDA)
+// Дисплей 1.47" IPS ST7789 (SPI) — Фактическое подключение пользователя
+#define PIN_LCD_SCLK            1   // SCL (SPI Clock) -> GPIO 1
+#define PIN_LCD_MOSI            2   // SDA (SPI MOSI)  -> GPIO 2
 #define PIN_LCD_MISO            -1  // Не используется
-#define PIN_LCD_DC              12  // Data / Command
-#define PIN_LCD_CS              13  // Chip Select
-#define PIN_LCD_RST             14  // Reset
-#define PIN_LCD_BLK             1   // Управление подсветкой (PWM)
+#define PIN_LCD_RST             3   // RST (Reset)     -> GPIO 3
+#define PIN_LCD_DC              4   // DC (Data/Cmd)   -> GPIO 4
+#define PIN_LCD_CS              5   // CS (Chip Select)-> GPIO 5
+#define PIN_LCD_BLK             6   // IPL / BLK (Подсветка PWM) -> GPIO 6
 
 #define LCD_WIDTH               320 // Ширина в горизонтальной ориентации
 #define LCD_HEIGHT              172 // Высота в горизонтальной ориентации
 #define LCD_ROTATION            1   // Альбомная ориентация (0-3)
 
+// GPS u-blox M10Q (Hardware UART1)
+#define PIN_GPS_RX              7   // ESP32 RX <- GPS TX (GPIO 7)
+#define PIN_GPS_TX              8   // ESP32 TX -> GPS RX (GPIO 8)
+#define GPS_BAUDRATE_INITIAL    9600
+#define GPS_BAUDRATE_TARGET     460800  // Скоростной порт для минимальной латентности (UBX 10-18Hz)
+#define GPS_UPDATE_RATE_HZ      10      // Частота навигации (10 Гц в режиме Multi-GNSS)
+
+// IMU Акселерометр/Гироскоп MPU-9250/6500 (I2C)
+#define PIN_I2C_SDA             9   // I2C SDA (GPIO 9)
+#define PIN_I2C_SCL             10  // I2C SCL (GPIO 10)
+#define I2C_FREQUENCY           400000  // 400 кГц (Fast Mode)
+#define IMU_I2C_ADDR            0x68    // Адрес 0x68 (если AD0 к GND) или 0x69
+#define IMU_SAMPLE_RATE_HZ      200     // Частота дискретизации акселерометра (200 Гц)
+
 // Адресный светодиод WS2812B (NeoPixel)
-#define PIN_WS2812              2
+#define PIN_WS2812              11  // Data pin (GPIO 11)
 #define NUM_WS2812_LEDS         1
 
 // Кнопки управления (активный уровень - LOW, INPUT_PULLUP)
-#define PIN_BTN_LEFT            6   // Кнопка 1 (Навигация / Режим)
-#define PIN_BTN_RIGHT           7   // Кнопка 2 (Действие / Сброс / Старт)
+#define PIN_BTN_LEFT            12  // Кнопка 1 (Навигация / Режим) -> GPIO 12
+#define PIN_BTN_RIGHT           13  // Кнопка 2 (Действие / Сброс / Старт) -> GPIO 13
 #define BTN_DEBOUNCE_MS         35  // Защита от дребезга (мс)
 #define BTN_LONG_PRESS_MS       600 // Порог длинного нажатия (мс)
 

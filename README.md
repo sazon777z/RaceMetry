@@ -21,24 +21,22 @@
 
 | Модуль | Вывод модуля | Пин ESP32-S3 | Примечание |
 | :--- | :--- | :--- | :--- |
-| **GPS u-blox M10Q** | TX | `GPIO 4` | RX ESP32 (Hardware Serial1) |
-| | RX | `GPIO 5` | TX ESP32 |
-| | VCC | `3.3V / 5V` | Питание модуля |
-| | GND | `GND` | Общая земля |
-| **IMU MPU-9250** | SDA | `GPIO 8` | I2C Data (400 кГц) |
-| | SCL | `GPIO 9` | I2C Clock |
-| | VCC | `3.3V` | Питание датчика |
-| | GND / AD0 | `GND` | Адрес 0x68 |
-| **IPS Дисплей 1.47" ST7789** | SCLK / SCK | `GPIO 10` | SPI Clock |
-| | MOSI / SDA | `GPIO 11` | SPI Data |
-| | DC | `GPIO 12` | Data / Command |
-| | CS | `GPIO 13` | Chip Select |
-| | RST / RES | `GPIO 14` | Reset |
-| | BLK / BL | `GPIO 1` | Подсветка (PWM) |
-| | VCC / GND | `3.3V / GND` | Питание |
-| **WS2812B RGB LED** | DIN | `GPIO 2` | RMT управление |
-| **Кнопка 1 (Left / Mode)** | Pin | `GPIO 6` | Вторая ножка к `GND` (INPUT_PULLUP) |
-| **Кнопка 2 (Right / Action)** | Pin | `GPIO 7` | Вторая ножка к `GND` (INPUT_PULLUP) |
+| **IPS Дисплей 1.47" ST7789** | SCL | `GPIO 1` | SPI Clock (SCLK) |
+| | SDA | `GPIO 2` | SPI Data (MOSI) |
+| | RST | `GPIO 3` | Reset |
+| | DC | `GPIO 4` | Data / Command |
+| | CS | `GPIO 5` | Chip Select |
+| | IPL / BLK | `GPIO 6` | Подсветка (PWM) |
+| | VDD / GND | `3.3V / GND` | Питание дисплея |
+| **GPS u-blox M10Q** | TX | `GPIO 7` | RX ESP32 (Hardware Serial1) |
+| | RX | `GPIO 8` | TX ESP32 |
+| | VCC / GND | `3.3V / 5V` | Питание GPS |
+| **IMU MPU-9250** | SDA | `GPIO 9` | I2C Data (400 кГц) |
+| | SCL | `GPIO 10` | I2C Clock |
+| | VCC / GND | `3.3V / GND` | Питание датчика (AD0 к GND) |
+| **WS2812B RGB LED** | DIN | `GPIO 11` | RMT управление |
+| **Кнопка 1 (Left / Mode)** | Pin | `GPIO 12` | Вторая ножка к `GND` (INPUT_PULLUP) |
+| **Кнопка 2 (Right / Action)** | Pin | `GPIO 13` | Вторая ножка к `GND` (INPUT_PULLUP) |
 
 > ℹ️ *Все пины легко переназначаются в файле `Config.h`.*
 
