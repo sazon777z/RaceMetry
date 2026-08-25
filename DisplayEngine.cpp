@@ -59,6 +59,7 @@ void DisplayEngine::render(AppScreen screen,
                            RaceDiscipline discipline,
                            const RunRecord& currentRun,
                            const RunRecord& lastRun,
+                           const PersonalBests& personalBests,
                            const DeviceSettings& settings,
                            float liveTimeSec) 
 {
@@ -90,6 +91,10 @@ void DisplayEngine::render(AppScreen screen,
             _renderRunResults(lastRun);
             break;
 
+        case AppScreen::HISTORY_VIEW:
+            _renderHistory(personalBests);
+            break;
+
         case AppScreen::GPS_INFO:
             _renderGpsInfo(gps);
             break;
@@ -118,105 +123,67 @@ void DisplayEngine::renderBridge(uint32_t currentBaud, uint32_t rxBytes, uint32_
 }
 
 void DisplayEngine::_drawTopStatusBar(const GpsData& gps, RaceState raceState) {
-    // Фоновая полоса
-    _canvas.fillRect(0, 0, LCD_WIDTH, 24, 0x1082);
+    // Верхняя контрастная полоса с тонкой границей
+    _canvas.fillRect(0, 0, LCD_WIDTH, 24, COLOR_CARD_BG);
     _canvas.drawFastHLine(0, 24, LCD_WIDTH, COLOR_CARD_BORDER);
 
-    // Спутники
-    char satStr[16];
-    snprintf(satStr, sizeof(satStr), "SAT: %02d", gps.numSats);
-    _canvas.setFont(&fonts::Font2);
-    _canvas.setTextColor(gps.validFix ? COLOR_GREEN : COLOR_RED);
+    // Спутники и точность позиционирования
+    char satStr[24];
+    if (gps.validFix) {
+        snprintf(satStr, sizeof(satStr), "SAT:%02d +/-%.1fm", gps.numSats, gps.hAccM);
+        _canvas.setFont(&fonts::Font2);
+        _canvas.setTextColor(COLOR_GREEN);
+    } else {
+        snprintf(satStr, sizeof(satStr), "SAT:%02d NO FIX", gps.numSats);
+        _canvas.setFont(&fonts::Font2);
+        _canvas.setTextColor(COLOR_RED);
+    }
     _canvas.setTextDatum(textdatum_t::top_left);
     _canvas.drawString(satStr, 16, 4);
 
-    // Точность
-    char accStr[20];
-    if (gps.validFix) {
-        snprintf(accStr, sizeof(accStr), "+/-%.1fm", gps.hAccM);
-    } else {
-        snprintf(accStr, sizeof(accStr), "NO FIX");
-    }
-    _canvas.setTextColor(COLOR_GRAY);
-    _canvas.drawString(accStr, 92, 4);
+    // Логотип режима
+    _canvas.setFont(&fonts::Font2);
+    _canvas.setTextColor(COLOR_CYAN);
+    _canvas.setTextDatum(textdatum_t::top_center);
+    _canvas.drawString("DRAGon 18Hz", LCD_WIDTH / 2 + 10, 4);
 
-    // Статус прибора (Pill Badge справа)
-    const char* statusText = "WAIT";
-    uint16_t statusBg = COLOR_YELLOW;
-    uint16_t statusFg = COLOR_BG;
-
+    // Индикатор готовности автомата телеметрии (Pill Badge)
     switch (raceState) {
-        case RaceState::IDLE_WAIT_STOP:
-            statusText = "WAIT STOP";
-            statusBg = COLOR_YELLOW;
-            statusFg = COLOR_BG;
-            break;
         case RaceState::ARMED:
-            statusText = "READY";
-            statusBg = COLOR_GREEN;
-            statusFg = COLOR_BG;
+            _drawPillBadge(236, 3, 70, 18, "READY", COLOR_GREEN, COLOR_BG);
             break;
         case RaceState::LAUNCH_DETECTED:
         case RaceState::MEASURING:
-            statusText = "LAUNCH";
-            statusBg = COLOR_CYAN;
-            statusFg = COLOR_BG;
+            _drawPillBadge(236, 3, 70, 18, "RUN", COLOR_CYAN, COLOR_BG);
             break;
         case RaceState::FINISHED:
-            statusText = "DONE";
-            statusBg = COLOR_GREEN;
-            statusFg = COLOR_BG;
+            _drawPillBadge(236, 3, 70, 18, "FINISH", COLOR_YELLOW, COLOR_BG);
             break;
-        case RaceState::ABORTED:
-            statusText = "ABORT";
-            statusBg = COLOR_RED;
-            statusFg = COLOR_WHITE;
+        default:
+            _drawPillBadge(236, 3, 70, 18, "STOP", COLOR_GRAY, COLOR_WHITE);
             break;
     }
-
-    _drawPillBadge(226, 3, 78, 18, statusText, statusBg, statusFg);
 }
 
 void DisplayEngine::_renderDashboardLive(const GpsData& gps, const ImuData& imu, RaceState raceState) {
-    // Цифровой спидометр (огромные цифры)
+    // 1. Крупный цифровой спидометр
     int speedVal = (int)(gps.speedKmh + 0.5f);
     char spdStr[16];
     snprintf(spdStr, sizeof(spdStr), "%d", speedVal);
 
     _canvas.setTextColor(COLOR_WHITE);
-    _canvas.setFont(&fonts::Font7);
+    _canvas.setFont(&fonts::Font7); // Гладкий крупный шрифт цифр
     _canvas.setTextDatum(textdatum_t::middle_right);
-    _canvas.drawString(spdStr, 175, 75);
+    _canvas.drawString(spdStr, 180, 72);
 
     // Единица измерения
-    _canvas.setFont(&fonts::Font2);
+    _canvas.setFont(&fonts::Font4);
     _canvas.setTextColor(COLOR_CYAN);
     _canvas.setTextDatum(textdatum_t::middle_left);
-    _canvas.drawString("KM/H", 185, 82);
+    _canvas.drawString("KM/H", 192, 78);
 
-    // Нижняя плашка: G-Force и Пиковое G
-    _canvas.fillRoundRect(16, 122, 288, 42, 6, COLOR_CARD_BG);
-    _canvas.drawRoundRect(16, 122, 288, 42, 6, COLOR_CARD_BORDER);
-
-    // G-LONG
-    _canvas.setFont(&fonts::Font2);
-    _canvas.setTextColor(COLOR_GRAY);
-    _canvas.setTextDatum(textdatum_t::middle_left);
-    _canvas.drawString("G-LONG:", 28, 143);
-
-    char gStr[16];
-    snprintf(gStr, sizeof(gStr), "%+.2f G", imu.gLongitudinal);
-    _canvas.setTextColor((imu.gLongitudinal >= 0) ? COLOR_GREEN : COLOR_RED);
-    _canvas.drawString(gStr, 96, 143);
-
-    // PEAK G
-    _canvas.setTextColor(COLOR_GRAY);
-    _canvas.drawString("PEAK G:", 178, 143);
-
-    char pkStr[16];
-    snprintf(pkStr, sizeof(pkStr), "%.2f G", imu.gPeakAccel);
-    _canvas.setTextColor(COLOR_YELLOW);
-    _canvas.drawString(pkStr, 242, 143);
+    // 2. Спортивная шкала перегрузки (G-Bar)
+    _drawGBar(18, 126, 284, 26, imu.gLongitudinal, 1.5f);
 }
 
 void DisplayEngine::_renderDragRace(const GpsData& gps, const ImuData& imu, 
@@ -622,4 +589,91 @@ void DisplayEngine::_renderUcenterBridge(uint32_t currentBaud, uint32_t rxBytes,
 
     _canvas.setTextColor(COLOR_LIGHT_GRAY);
     _canvas.drawString("Btn 10: Switch 38400/115200/460800", 24, 122);
+}
+
+void DisplayEngine::_renderHistory(const PersonalBests& pb) {
+    _canvas.setFont(&fonts::Font2);
+    _canvas.setTextColor(COLOR_CYAN);
+    _canvas.setTextDatum(textdatum_t::top_left);
+    _canvas.drawString("PERSONAL BESTS (RECORDS)", 18, 28);
+
+    _drawPillBadge(226, 26, 78, 18, "RECORDS", COLOR_YELLOW, COLOR_BG);
+
+    _canvas.fillRoundRect(16, 48, 288, 118, 6, COLOR_CARD_BG);
+    _canvas.drawRoundRect(16, 48, 288, 118, 6, COLOR_CARD_BORDER);
+
+    _canvas.setFont(&fonts::Font2);
+    char buf[32];
+
+    // Колонка 1
+    _canvas.setTextColor(COLOR_GRAY);
+    _canvas.drawString("Best 0-100:", 24, 56);
+    if (pb.best0_100 > 0.1f) snprintf(buf, sizeof(buf), "%.2f s", pb.best0_100);
+    else snprintf(buf, sizeof(buf), "---");
+    _canvas.setTextColor(COLOR_GREEN);
+    _canvas.drawString(buf, 110, 56);
+
+    _canvas.setTextColor(COLOR_GRAY);
+    _canvas.drawString("Best 100-200:", 24, 82);
+    if (pb.best100_200 > 0.1f) snprintf(buf, sizeof(buf), "%.2f s", pb.best100_200);
+    else snprintf(buf, sizeof(buf), "---");
+    _canvas.setTextColor(COLOR_GREEN);
+    _canvas.drawString(buf, 110, 82);
+
+    _canvas.setTextColor(COLOR_GRAY);
+    _canvas.drawString("Best 60ft:", 24, 108);
+    if (pb.best60ft > 0.1f) snprintf(buf, sizeof(buf), "%.2f s", pb.best60ft);
+    else snprintf(buf, sizeof(buf), "---");
+    _canvas.setTextColor(COLOR_WHITE);
+    _canvas.drawString(buf, 110, 108);
+
+    // Колонка 2
+    _canvas.setTextColor(COLOR_GRAY);
+    _canvas.drawString("Best 1/4mi:", 164, 56);
+    if (pb.best1_4mi > 0.1f) snprintf(buf, sizeof(buf), "%.2f s", pb.best1_4mi);
+    else snprintf(buf, sizeof(buf), "---");
+    _canvas.setTextColor(COLOR_YELLOW);
+    _canvas.drawString(buf, 236, 56);
+
+    _canvas.setTextColor(COLOR_GRAY);
+    _canvas.drawString("Trap Spd:", 164, 82);
+    if (pb.best1_4miSpeed > 0.1f) snprintf(buf, sizeof(buf), "%.0f km/h", pb.best1_4miSpeed);
+    else snprintf(buf, sizeof(buf), "---");
+    _canvas.setTextColor(COLOR_YELLOW);
+    _canvas.drawString(buf, 236, 82);
+
+    _canvas.setTextColor(COLOR_GRAY);
+    _canvas.drawString("Best 100-0:", 164, 108);
+    if (pb.best100_0Dist > 0.1f) snprintf(buf, sizeof(buf), "%.1f m", pb.best100_0Dist);
+    else snprintf(buf, sizeof(buf), "---");
+    _canvas.setTextColor(COLOR_CYAN);
+    _canvas.drawString(buf, 236, 108);
+}
+
+void DisplayEngine::_drawGBar(int x, int y, int w, int h, float gVal, float maxG) {
+    _canvas.fillRoundRect(x, y, w, h, 6, COLOR_CARD_BG);
+    _canvas.drawRoundRect(x, y, w, h, 6, COLOR_CARD_BORDER);
+
+    int centerX = x + w / 2;
+    int barW = (int)((fabs(gVal) / maxG) * (w / 2 - 4));
+    barW = constrain(barW, 0, w / 2 - 4);
+
+    if (gVal >= 0.05f) {
+        // Разгон: сочный зеленый индикатор вправо
+        _canvas.fillRoundRect(centerX, y + 3, barW, h - 6, 3, COLOR_GREEN);
+    } else if (gVal <= -0.05f) {
+        // Торможение: красный индикатор влево
+        _canvas.fillRoundRect(centerX - barW, y + 3, barW, h - 6, 3, COLOR_RED);
+    }
+
+    // Центральная нулевая риска
+    _canvas.drawFastVLine(centerX, y + 1, h - 2, COLOR_WHITE);
+
+    // Числовое отображение перегрузки по центру
+    char buf[16];
+    snprintf(buf, sizeof(buf), "%+.2f G", gVal);
+    _canvas.setFont(&fonts::Font2);
+    _canvas.setTextColor(COLOR_WHITE);
+    _canvas.setTextDatum(textdatum_t::middle_center);
+    _canvas.drawString(buf, centerX, y + h / 2);
 }

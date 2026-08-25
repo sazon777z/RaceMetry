@@ -77,6 +77,7 @@ private:
 
     // Состояния замеров интервалов
     float _timeAt100KmhSec;
+    float _timeAt200KmhSec;
     bool _passed100Kmh;
     bool _passed200Kmh;
 

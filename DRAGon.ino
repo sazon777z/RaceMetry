@@ -258,9 +258,27 @@ void UiTask(void* parameter) {
         }
 
         // Если заезд только что завершился — автоматически переключаем на экран результатов!
+        static uint32_t finishSummaryShowTime = 0;
+        static bool inAutoSummary = false;
+
         if (newRunSaved) {
             newRunSaved = false;
+            inAutoSummary = true;
+            finishSummaryShowTime = millis();
             displayEngine.setScreen(AppScreen::RUN_RESULTS);
+        }
+
+        // Автоматический возврат с экрана результатов через 7 секунд
+        if (inAutoSummary && (millis() - finishSummaryShowTime >= AUTO_SUMMARY_DURATION_MS)) {
+            inAutoSummary = false;
+            if (displayEngine.getScreen() == AppScreen::RUN_RESULTS) {
+                displayEngine.setScreen(AppScreen::DRAG_RACE);
+            }
+        }
+
+        // Если пользователь сам нажал кнопку во время авто-показа — сбрасываем флаг
+        if (evLeft != ButtonEvent::NONE || evRight != ButtonEvent::NONE) {
+            inAutoSummary = false;
         }
 
         // 3. Получение безопасной копии данных
@@ -282,6 +300,9 @@ void UiTask(void* parameter) {
         localLiveTime = safeLiveTimeSec;
         portEXIT_CRITICAL(&stateMutex);
 
+        PersonalBests personalBests;
+        storageManager.getPersonalBests(personalBests);
+
         // 4. Отрисовка графического интерфейса
         displayEngine.render(
             displayEngine.getScreen(),
@@ -291,6 +312,7 @@ void UiTask(void* parameter) {
             localDisc,
             localCurr,
             localLast,
+            personalBests,
             deviceSettings,
             localLiveTime
         );

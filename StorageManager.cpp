@@ -123,7 +123,29 @@ void StorageManager::_updatePersonalBests(const RunRecord& run) {
             _prefs.putFloat("pb_1_4mi", run.split1_4mi.timeSec);
             _prefs.putFloat("pb_1_4_spd", run.split1_4mi.trapSpeedKmh);
         }
+    // 60 футов
+    if (run.split60ft.achieved) {
+        float best60ft = _prefs.getFloat("pb_60ft", 999.0f);
+        if (run.split60ft.timeSec < best60ft) {
+            _prefs.putFloat("pb_60ft", run.split60ft.timeSec);
+        }
     }
+    // 100 - 0 км/ч (торможение)
+    if (run.split100_0.achieved && run.brakeDist100_0M > 0.1f) {
+        float bestBrake = _prefs.getFloat("pb_100_0_d", 999.0f);
+        if (run.brakeDist100_0M < bestBrake) {
+            _prefs.putFloat("pb_100_0_d", run.brakeDist100_0M);
+        }
+    }
+}
+
+void StorageManager::getPersonalBests(PersonalBests& pb) {
+    pb.best0_100 = _prefs.getFloat("pb_0_100", 0.0f);
+    pb.best100_200 = _prefs.getFloat("pb_100_200", 0.0f);
+    pb.best1_4mi = _prefs.getFloat("pb_1_4mi", 0.0f);
+    pb.best1_4miSpeed = _prefs.getFloat("pb_1_4_spd", 0.0f);
+    pb.best60ft = _prefs.getFloat("pb_60ft", 0.0f);
+    pb.best100_0Dist = _prefs.getFloat("pb_100_0_d", 0.0f);
 }
 
 void StorageManager::getPersonalBests(float& best0_100, float& best100_200, float& best1_4mi, float& best1_4miSpeed) {

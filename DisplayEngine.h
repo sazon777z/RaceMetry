@@ -87,6 +87,7 @@ public:
                 RaceDiscipline discipline,
                 const RunRecord& currentRun,
                 const RunRecord& lastRun,
+                const PersonalBests& personalBests,
                 const DeviceSettings& settings,
                 float liveTimeSec);
 
@@ -112,6 +113,7 @@ private:
     void _renderBrakeTest(const GpsData& gps, const ImuData& imu, RaceState raceState, const RunRecord& currentRun);
     void _renderGMeterScreen(const ImuData& imu);
     void _renderRunResults(const RunRecord& run);
+    void _renderHistory(const PersonalBests& pb);
     void _renderGpsInfo(const GpsData& gps);
     void _renderSettings(const DeviceSettings& settings);
     void _renderUcenterBridge(uint32_t currentBaud, uint32_t rxBytes, uint32_t txBytes);

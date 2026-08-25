@@ -32,6 +32,7 @@ public:
     void clearAllRuns();
 
     // Личные рекорды
+    void getPersonalBests(PersonalBests& pb);
     void getPersonalBests(float& best0_100, float& best100_200, float& best1_4mi, float& best1_4miSpeed);
 
 private:

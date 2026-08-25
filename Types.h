@@ -108,8 +108,10 @@ struct RunRecord {
     // Скоростные отсечки (время в секундах)
     SplitTime split0_60;    // 0 - 60 км/ч
     SplitTime split0_100;   // 0 - 100 км/ч
+    SplitTime split100_150; // 100 - 150 км/ч
     SplitTime split100_200; // 100 - 200 км/ч
     SplitTime split0_200;   // 0 - 200 км/ч
+    SplitTime split200_300; // 200 - 300 км/ч
     SplitTime split60_120;  // 60 - 120 км/ч
     SplitTime split80_120;  // 80 - 120 км/ч
 
@@ -136,6 +138,16 @@ struct RunRecord {
     float slopePct;         // Итоговый уклон трассы в процентах ((H_fin - H_start) / Dist * 100%)
     bool isValidSlope;      // Валиден ли заезд по уклону (уклон >= MAX_VALID_SLOPE_PCT)
     bool rolloutUsed;       // Был ли применен 1-Foot Rollout
+};
+
+// Личные рекорды (Personal Bests)
+struct PersonalBests {
+    float best0_100;
+    float best100_200;
+    float best1_4mi;
+    float best1_4miSpeed;
+    float best60ft;
+    float best100_0Dist;
 };
 
 // События кнопок

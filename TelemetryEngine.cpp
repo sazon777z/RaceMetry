@@ -219,11 +219,21 @@ void TelemetryEngine::_updateMeasuring(const GpsData& gps, const ImuData& imu) {
         _passed100Kmh = true;
     }
 
+    // 100 - 150 км/ч
+    if (!_currentRun.split100_150.achieved && gps.speedKmh >= 150.0f && _passed100Kmh) {
+        SplitTime split150;
+        _interpolateSpeedSplit(150.0f, split150, _prevTimeSec, _prevSpeedKmh, currTimeSec, gps.speedKmh, _prevDistM, _liveDistanceM);
+        _currentRun.split100_150.timeSec = split150.timeSec - _timeAt100KmhSec;
+        _currentRun.split100_150.trapSpeedKmh = 150.0f;
+        _currentRun.split100_150.achieved = true;
+    }
+
     // 0 - 200 км/ч и 100 - 200 км/ч
     if (!_currentRun.split0_200.achieved && gps.speedKmh >= 200.0f) {
         _interpolateSpeedSplit(200.0f, _currentRun.split0_200, 
                                _prevTimeSec, _prevSpeedKmh, currTimeSec, gps.speedKmh, 
                                _prevDistM, _liveDistanceM);
+        _timeAt200KmhSec = _currentRun.split0_200.timeSec;
         _passed200Kmh = true;
 
         if (_passed100Kmh && !_currentRun.split100_200.achieved) {
@@ -231,6 +241,15 @@ void TelemetryEngine::_updateMeasuring(const GpsData& gps, const ImuData& imu) {
             _currentRun.split100_200.trapSpeedKmh = 200.0f;
             _currentRun.split100_200.achieved = true;
         }
+    }
+
+    // 200 - 300 км/ч
+    if (!_currentRun.split200_300.achieved && gps.speedKmh >= 300.0f && _passed200Kmh) {
+        SplitTime split300;
+        _interpolateSpeedSplit(300.0f, split300, _prevTimeSec, _prevSpeedKmh, currTimeSec, gps.speedKmh, _prevDistM, _liveDistanceM);
+        _currentRun.split200_300.timeSec = split300.timeSec - _timeAt200KmhSec;
+        _currentRun.split200_300.trapSpeedKmh = 300.0f;
+        _currentRun.split200_300.achieved = true;
     }
 
     // 60 - 120 км/ч
