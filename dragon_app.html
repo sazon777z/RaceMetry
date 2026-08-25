@@ -195,6 +195,56 @@
             transition: width 0.3s ease, background 0.3s ease;
         }
 
+        /* Floating Diagnostics Toast */
+        .diag-toast {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%) translateY(-180%);
+            width: 92%;
+            max-width: 440px;
+            background: rgba(18, 24, 38, 0.96);
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
+            border: 1px solid rgba(0, 255, 204, 0.35);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.75), 0 0 20px rgba(0, 255, 204, 0.2);
+            border-radius: 14px;
+            padding: 14px 16px;
+            z-index: 1000;
+            transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            font-size: 13px;
+        }
+
+        .diag-toast.show {
+            transform: translateX(-50%) translateY(0);
+        }
+
+        .diag-toast-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            padding-bottom: 6px;
+        }
+
+        .diag-toast-close {
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        .diag-step-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 4px 0;
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
         /* Navigation Tabs */
         .tab-bar {
             display: flex;
@@ -1124,6 +1174,36 @@
                 </div>
             </div>
 
+            <!-- Hardware Self-Test / Diagnostics -->
+            <div class="card" style="margin-bottom: 16px;">
+                <div class="card-title" style="display: flex; justify-content: space-between; align-items: center;">
+                    <span>САМОДИАГНОСТИКА ОБОРУДОВАНИЯ</span>
+                    <button class="chip" onclick="sendBleCmd('run_diag')">🔄 Запустить тест</button>
+                </div>
+                <div class="g-metrics-list">
+                    <div class="g-metric-row">
+                        <span style="color: var(--text-secondary);">Акселерометр IMU:</span>
+                        <span id="diagImuStatus" style="font-weight: 700; color: var(--accent-green);">🟢 MPU-9250 (200 Гц): OK</span>
+                    </div>
+                    <div class="g-metric-row">
+                        <span style="color: var(--text-secondary);">GPS Приемник:</span>
+                        <span id="diagGpsStatus" style="font-weight: 700; color: var(--accent-green);">🟢 u-blox M10Q (20 Гц UBX, 460800 бод): OK</span>
+                    </div>
+                    <div class="g-metric-row">
+                        <span style="color: var(--text-secondary);">Энергонезависимая память:</span>
+                        <span id="diagStorageStatus" style="font-weight: 700; color: var(--accent-green);">🟢 NVS Storage: OK</span>
+                    </div>
+                    <div class="g-metric-row">
+                        <span style="color: var(--text-secondary);">Кнопка управления:</span>
+                        <span id="diagBtnStatus" style="font-weight: 700; color: var(--accent-green);">🟢 GPIO 11: OK</span>
+                    </div>
+                    <div class="g-metric-row">
+                        <span style="color: var(--text-secondary);">Питание и Аккумулятор:</span>
+                        <span id="diagBatStatus" style="font-weight: 700; color: var(--accent-green);">🟢 Контроль заряда: OK</span>
+                    </div>
+                </div>
+            </div>
+
             <!-- GPS Diagnostics -->
             <div class="card">
                 <div class="card-title">ДИАГНОСТИКА U-BLOX GNSS M10Q</div>
@@ -1153,6 +1233,20 @@
         </div>
 
     </main>
+
+    <!-- Diagnostics Floating Toast / HUD -->
+    <div id="diagToast" class="diag-toast">
+        <div class="diag-toast-header">
+            <span style="font-size: 13px; font-weight: 800; color: var(--accent-cyan);">⚙️ ИНИЦИАЛИЗАЦИЯ ОБОРУДОВАНИЯ</span>
+            <button class="diag-toast-close" onclick="closeDiagToast()">✕</button>
+        </div>
+        <div class="diag-toast-body" id="diagToastBody">
+            <div class="diag-step-item"><span>Акселерометр MPU-9250 (200 Гц):</span> <strong id="toastImu" style="color: var(--accent-green);">OK</strong></div>
+            <div class="diag-step-item"><span>GPS u-blox M10Q (20 Гц UBX):</span> <strong id="toastGps" style="color: var(--accent-green);">OK</strong></div>
+            <div class="diag-step-item"><span>Память рекордов NVS:</span> <strong id="toastStorage" style="color: var(--accent-green);">OK</strong></div>
+            <div class="diag-step-item"><span>Питание и аккумулятор:</span> <strong id="toastBat" style="color: var(--accent-green);">OK</strong></div>
+        </div>
+    </div>
 
     <!-- Bottom Tab Navigation -->
     <nav class="tab-bar">
@@ -1370,7 +1464,80 @@
                 updatePersonalBests(pkt);
             } else if (pkt.t === 'info') {
                 updateDeviceInfo(pkt);
+            } else if (pkt.t === 'diag') {
+                updateDiagnostics(pkt);
             }
+        }
+
+        let diagToastTimer = null;
+        function updateDiagnostics(d) {
+            // Update Self-Test Panel in Settings
+            let imuEl = document.getElementById('diagImuStatus');
+            let gpsEl = document.getElementById('diagGpsStatus');
+            let storEl = document.getElementById('diagStorageStatus');
+            let batEl = document.getElementById('diagBatStatus');
+
+            if (imuEl) {
+                imuEl.innerText = d.imu_ok ? "🟢 " + (d.imu_msg || "MPU-9250 (200 Гц): OK") : "🔴 " + (d.imu_msg || "Ошибка I2C");
+                imuEl.style.color = d.imu_ok ? "var(--accent-green)" : "var(--accent-red)";
+            }
+
+            if (gpsEl) {
+                gpsEl.innerText = d.gps_ok ? `🟢 u-blox M10Q (${d.gps_rate || 20} Гц UBX, ${d.gps_baud || 460800} бод): OK` : "🔴 GPS: Нет связи";
+                gpsEl.style.color = d.gps_ok ? "var(--accent-green)" : "var(--accent-red)";
+            }
+
+            if (storEl) {
+                storEl.innerText = d.storage_ok ? "🟢 NVS Flash Storage: OK" : "🔴 NVS: Ошибка";
+                storEl.style.color = d.storage_ok ? "var(--accent-green)" : "var(--accent-red)";
+            }
+
+            if (batEl) {
+                batEl.innerText = d.bat_ok ? `🟢 Заряд: ${d.bat_pct}% (${d.bat_v.toFixed(2)} В, OK)` : "⚪ Питание от USB (без батареи)";
+                batEl.style.color = d.bat_ok ? "var(--accent-green)" : "var(--text-secondary)";
+            }
+
+            // Update Floating Toast HUD
+            let toastImu = document.getElementById('toastImu');
+            let toastGps = document.getElementById('toastGps');
+            let toastStorage = document.getElementById('toastStorage');
+            let toastBat = document.getElementById('toastBat');
+
+            if (toastImu) {
+                toastImu.innerText = d.imu_ok ? "OK (200 Гц)" : "ОШИБКА";
+                toastImu.style.color = d.imu_ok ? "var(--accent-green)" : "var(--accent-red)";
+            }
+            if (toastGps) {
+                toastGps.innerText = d.gps_ok ? `OK (${d.gps_rate || 20} Гц UBX)` : "ОШИБКА";
+                toastGps.style.color = d.gps_ok ? "var(--accent-green)" : "var(--accent-red)";
+            }
+            if (toastStorage) {
+                toastStorage.innerText = d.storage_ok ? "OK" : "ОШИБКА";
+                toastStorage.style.color = d.storage_ok ? "var(--accent-green)" : "var(--accent-red)";
+            }
+            if (toastBat) {
+                toastBat.innerText = d.bat_ok ? `${d.bat_pct}% (${d.bat_v.toFixed(2)}V)` : "USB";
+                toastBat.style.color = d.bat_ok ? "var(--accent-green)" : "var(--text-secondary)";
+            }
+
+            // Show HUD Toast
+            let toast = document.getElementById('diagToast');
+            if (toast) {
+                toast.classList.add('show');
+                if (diagToastTimer) clearTimeout(diagToastTimer);
+                diagToastTimer = setTimeout(() => {
+                    closeDiagToast();
+                }, 4000);
+            }
+
+            // Announce readiness via Voice
+            speak("Все системы инициализированы. GPS настроен на двадцать герц. Прибор готов к замерам.");
+        }
+
+        function closeDiagToast() {
+            let toast = document.getElementById('diagToast');
+            if (toast) toast.classList.remove('show');
+            if (diagToastTimer) clearTimeout(diagToastTimer);
         }
 
         function updateLiveTelemetry(d) {

@@ -169,7 +169,7 @@ void GpsEngine::configureUblox() {
     _sendUbxCommand(0x06, 0x8A, cfgValSet, sizeof(cfgValSet));
     delay(30);
 
-    Serial.println("[GPS] 18 Hz Ultra-High-Rate Mode enabled successfully!");
+    Serial.println("[GPS] 20 Hz Ultra-High-Rate Mode enabled successfully!");
 }
 
 bool GpsEngine::update() {

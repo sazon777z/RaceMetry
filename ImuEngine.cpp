@@ -11,7 +11,8 @@
 #define MPU_REG_WHO_AM_I        0x75
 
 ImuEngine::ImuEngine()
-    : _i2cAddr(IMU_I2C_ADDR),
+    : _isInitialized(false),
+      _i2cAddr(IMU_I2C_ADDR),
       _offsetX(0.0f),
       _offsetY(0.0f),
       _offsetZ(0.0f),
@@ -23,6 +24,7 @@ ImuEngine::ImuEngine()
 }
 
 bool ImuEngine::begin(uint8_t sdaPin, uint8_t sclPin, uint32_t freq) {
+    _isInitialized = false;
     Wire.begin(sdaPin, sclPin, freq);
     delay(50);
 
@@ -57,6 +59,7 @@ bool ImuEngine::begin(uint8_t sdaPin, uint8_t sclPin, uint32_t freq) {
     _writeRegister(MPU_REG_SMPLRT_DIV, 0x04);
 
     _data.isCalibrated = false;
+    _isInitialized = true;
     return true;
 }
 

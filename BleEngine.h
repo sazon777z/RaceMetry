@@ -67,6 +67,20 @@ public:
     // Отправка системной информации и настроек прибора
     void sendDeviceInfo(const DeviceSettings& settings, uint8_t runsCount, bool gpsReady, uint8_t sats, float batVolts = 0.0f, uint8_t batPct = 0);
 
+    // Отправка отчета самодиагностики при подключении смартфона
+    void sendDiagnostics(
+        bool imuOk,
+        const char* imuMsg,
+        bool gpsOk,
+        const char* gpsMsg,
+        uint8_t gpsRateHz,
+        uint32_t gpsBaud,
+        bool storageOk,
+        bool batOk,
+        float batVolts,
+        uint8_t batPct
+    );
+
     // Прямая отправка произвольной JSON-строки
     void sendJson(const char* jsonStr);
     void sendJson(const String& jsonStr);

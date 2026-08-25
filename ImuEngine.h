@@ -39,10 +39,14 @@ public:
     // Получить текущие данные
     const ImuData& getData() const { return _data; }
 
+    // Проверка готовности датчика
+    bool isReady() const { return _isInitialized; }
+
     // Проверка, есть ли резкий рывок вперед (старт)
     bool isLaunchDetected() const;
 
 private:
+    bool _isInitialized;
     uint8_t _i2cAddr;
     ImuData _data;
 

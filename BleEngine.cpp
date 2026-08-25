@@ -312,3 +312,36 @@ void BleEngine::sendDeviceInfo(const DeviceSettings& settings, uint8_t runsCount
 
     sendJson(_txBuffer);
 }
+
+void BleEngine::sendDiagnostics(
+    bool imuOk,
+    const char* imuMsg,
+    bool gpsOk,
+    const char* gpsMsg,
+    uint8_t gpsRateHz,
+    uint32_t gpsBaud,
+    bool storageOk,
+    bool batOk,
+    float batVolts,
+    uint8_t batPct
+) {
+    if (!_deviceConnected) return;
+
+    snprintf(
+        _txBuffer, sizeof(_txBuffer),
+        "{\"t\":\"diag\",\"imu_ok\":%s,\"imu_msg\":\"%s\",\"gps_ok\":%s,\"gps_msg\":\"%s\",\"gps_rate\":%u,\"gps_baud\":%u,\"storage_ok\":%s,\"bat_ok\":%s,\"bat_v\":%.2f,\"bat_pct\":%u,\"fw\":\"%s\"}\n",
+        imuOk ? "true" : "false",
+        imuMsg ? imuMsg : "OK",
+        gpsOk ? "true" : "false",
+        gpsMsg ? gpsMsg : "OK",
+        gpsRateHz,
+        (unsigned int)gpsBaud,
+        storageOk ? "true" : "false",
+        batOk ? "true" : "false",
+        batVolts,
+        batPct,
+        DRAGON_FW_VERSION
+    );
+
+    sendJson(_txBuffer);
+}

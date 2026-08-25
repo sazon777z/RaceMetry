@@ -24,8 +24,8 @@
 #define PIN_GPS_RX              44  // ESP32 RX (GPIO 44) <- GPS TX
 #define PIN_GPS_TX              43  // ESP32 TX (GPIO 43) -> GPS RX
 #define GPS_BAUDRATE_INITIAL    9600
-#define GPS_BAUDRATE_TARGET     460800  // Скоростной порт для минимальной латентности (UBX 18Hz)
-#define GPS_UPDATE_RATE_HZ      18      // Частота навигации: 18 Гц (каждые 55 мс)
+#define GPS_BAUDRATE_TARGET     460800  // Скоростной порт для минимальной латентности (UBX 20Hz)
+#define GPS_UPDATE_RATE_HZ      20      // Частота навигации: 20 Гц (каждые 50 мс)
 
 // IMU Акселерометр/Гироскоп MPU-9250/6500 (I2C) — Фактическое подключение
 #define PIN_I2C_SCL             12  // I2C SCL -> GPIO 12

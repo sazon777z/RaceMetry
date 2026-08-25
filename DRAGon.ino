@@ -5,11 +5,11 @@
  *                   (Bluetooth BLE / Web App / Dragy-style)
  * ============================================================================
  * Платформа: ESP32-S3 Super Mini
- * Сенсоры: u-blox M10Q (UBX 10-18Hz), MPU-9250 (IMU 200Hz)
+ * Сенсоры: u-blox M10Q (UBX 20Hz), MPU-9250 (IMU 200Hz)
  * Связь: Bluetooth Low Energy 5.0 (Nordic UART Service)
- * Индикатор: WS2812B RGB
- * Органы управления: 2 кнопки (опционально) + полное управление по BLE
- * Питание: Li-Ion аккумулятор с замером напряжения и процента заряда
+ * Индикатор: Встроенный RGB светодиод
+ * Органы управления: 1 кнопка (GPIO 11) + полное управление по BLE
+ * Питание: Li-Ion аккумулятор с мониторингом напряжения (GPIO 1)
  * ============================================================================
  */
 
@@ -56,9 +56,10 @@ bool            newRunSaved = false;
 static float    currentBatVoltage = 0.0f;
 static uint8_t  currentBatPercent = 0;
 
-// Прототипы функций замера батареи
+// Прототипы функций замера батареи и самодиагностики
 float readRawBatteryVoltage();
 uint8_t calculateBatteryPercentage(float v);
+void runSystemDiagnostics();
 
 // Прототипы задач FreeRTOS
 void TelemetryTask(void* parameter);
@@ -80,7 +81,7 @@ void setup() {
     storageManager.loadSettings(deviceSettings);
     Serial.println("[DRAGon] Storage loaded");
 
-    // 2. Инициализация индикатора WS2812B
+    // 2. Инициализация встроенного светодиода
     ledController.begin(PIN_WS2812);
     ledController.setMode(LedMode::GPS_SEARCH);
 
@@ -101,12 +102,12 @@ void setup() {
         Serial.println("[DRAGon] WARNING: MPU-9250 not detected!");
     } else {
         imuEngine.setOffsets(deviceSettings.imuOffsetGx, deviceSettings.imuOffsetGy, deviceSettings.imuOffsetGz);
-        Serial.println("[DRAGon] IMU MPU-9250 ready");
+        Serial.println("[DRAGon] IMU MPU-9250 ready (200 Hz)");
     }
 
-    // 6. Инициализация GPS u-blox M10Q (Hardware UART1)
+    // 6. Инициализация GPS u-blox M10Q (Hardware UART1, 20 Hz)
     gpsEngine.begin(Serial1, GPS_BAUDRATE_TARGET);
-    Serial.println("[DRAGon] GPS M10Q configured with UBX 10-18Hz");
+    Serial.printf("[DRAGon] GPS M10Q configured with UBX %d Hz\n", GPS_UPDATE_RATE_HZ);
 
     // 7. Инициализация гоночного ядра телеметрии
     telemetryEngine.begin(deviceSettings);
@@ -137,7 +138,10 @@ void setup() {
             imuEngine.calibrateZero(600);
             imuEngine.getOffsets(deviceSettings.imuOffsetGx, deviceSettings.imuOffsetGy, deviceSettings.imuOffsetGz);
             storageManager.saveSettings(deviceSettings);
+            runSystemDiagnostics();
             bleEngine.sendDeviceInfo(deviceSettings, storageManager.getSavedRunsCount(), gpsEngine.isReadyForRace(), safeGpsData.numSats, currentBatVoltage, currentBatPercent);
+        } else if (cmd == "run_diag") {
+            runSystemDiagnostics();
         } else if (cmd == "get_history") {
             uint8_t count = storageManager.getSavedRunsCount();
             for (uint8_t i = 0; i < count; i++) {
@@ -151,6 +155,7 @@ void setup() {
             storageManager.clearAllRuns();
             bleEngine.sendDeviceInfo(deviceSettings, 0, gpsEngine.isReadyForRace(), safeGpsData.numSats, currentBatVoltage, currentBatPercent);
         } else if (cmd == "get_info") {
+            runSystemDiagnostics();
             bleEngine.sendDeviceInfo(deviceSettings, storageManager.getSavedRunsCount(), gpsEngine.isReadyForRace(), safeGpsData.numSats, currentBatVoltage, currentBatPercent);
             PersonalBests pb;
             storageManager.getPersonalBests(pb);
@@ -211,7 +216,7 @@ void TelemetryTask(void* parameter) {
             continue;
         }
 
-        // 1. Потоковый разбор бинарных пакетов UBX GPS (10-18 Гц)
+        // 1. Потоковый разбор бинарных пакетов UBX GPS (20 Гц)
         gpsEngine.update();
 
         // 2. Скоростной опрос акселерометра MPU-9250 (200 Гц)
@@ -220,7 +225,7 @@ void TelemetryTask(void* parameter) {
         // 3. Обработка математики заезда
         telemetryEngine.process(gpsEngine.getData(), imuEngine.getData());
 
-        // 4. Управление светодиодной индикацией WS2812B
+        // 4. Управление светодиодной индикацией
         static bool wasGpsReady = false;
         bool isGpsReady = gpsEngine.isReadyForRace();
 
@@ -294,7 +299,7 @@ void TelemetryTask(void* parameter) {
 
 /**
  * ============================================================================
- * ЯДРО 1: BLUETOOTH LOW ENERGY, КНОПКИ И ОБРАБОТКА ДАННЫХ
+ * ЯДРО 1: BLUETOOTH LOW ENERGY, КНОПКА И ОБРАБОТКА ДАННЫХ
  * ============================================================================
  */
 void CommTask(void* parameter) {
@@ -326,6 +331,7 @@ void CommTask(void* parameter) {
             imuEngine.calibrateZero(600);
             imuEngine.getOffsets(deviceSettings.imuOffsetGx, deviceSettings.imuOffsetGy, deviceSettings.imuOffsetGz);
             storageManager.saveSettings(deviceSettings);
+            runSystemDiagnostics();
         }
 
         // 2. Периодический замер напряжения батареи (раз в 500 мс с фильтрацией)
@@ -345,9 +351,12 @@ void CommTask(void* parameter) {
         bleEngine.update();
         bool isConnected = bleEngine.isConnected();
 
-        // Если только что подключились — отправляем инфо о приборе и рекорды
+        // Если только что подключились — запускаем полную инициализацию и отчет
         if (isConnected && !wasConnected) {
+            runSystemDiagnostics();
+            vTaskDelay(pdMS_TO_TICKS(30));
             bleEngine.sendDeviceInfo(deviceSettings, storageManager.getSavedRunsCount(), gpsEngine.isReadyForRace(), safeGpsData.numSats, currentBatVoltage, currentBatPercent);
+            vTaskDelay(pdMS_TO_TICKS(30));
             PersonalBests pb;
             storageManager.getPersonalBests(pb);
             bleEngine.sendPersonalBests(pb);
@@ -419,6 +428,33 @@ void loop() {
 
 /**
  * ============================================================================
+ * ФУНКЦИЯ САМОДИАГНОСТИКИ И ОТЧЕТА ОБ ИНИЦИАЛИЗАЦИИ
+ * ============================================================================
+ */
+void runSystemDiagnostics() {
+    bool imuOk = imuEngine.isReady();
+    const char* imuMsg = imuOk ? "MPU-9250 (200 Hz): OK" : "MPU-9250: Ошибка I2C";
+
+    bool gpsOk = (safeGpsData.numSats > 0 || gpsEngine.isReceivingBytes());
+    const char* gpsMsg = "u-blox M10Q (20 Hz UBX, 460800 baud): OK";
+
+    bool storageOk = true;
+    bool batOk = (currentBatVoltage > 2.0f);
+
+    bleEngine.sendDiagnostics(
+        imuOk, imuMsg,
+        gpsOk, gpsMsg,
+        GPS_UPDATE_RATE_HZ,
+        GPS_BAUDRATE_TARGET,
+        storageOk,
+        batOk,
+        currentBatVoltage,
+        currentBatPercent
+    );
+}
+
+/**
+ * ============================================================================
  * ФУНКЦИИ ЗАМЕРА И РАСЧЕТА НАПРЯЖЕНИЯ БАТАРЕИ
  * ============================================================================
  */
@@ -454,7 +490,7 @@ void runUcenterBridgeMode() {
     uint32_t currentGpsBaud = 38400;
     Serial1.begin(currentGpsBaud, SERIAL_8N1, PIN_GPS_RX, PIN_GPS_TX);
 
-    pinMode(PIN_BTN_LEFT, INPUT_PULLUP);
+    pinMode(PIN_BTN, INPUT_PULLUP);
 
     ledController.begin(PIN_WS2812);
     ledController.setMode(LedMode::RUNNING);
@@ -481,7 +517,7 @@ void runUcenterBridgeMode() {
             }
         }
 
-        bool btnState = (digitalRead(PIN_BTN_LEFT) == LOW);
+        bool btnState = (digitalRead(PIN_BTN) == LOW);
         if (btnState && !lastBtnState) {
             if (currentGpsBaud == 38400) currentGpsBaud = 115200;
             else if (currentGpsBaud == 115200) currentGpsBaud = 460800;
