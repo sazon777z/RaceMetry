@@ -1172,6 +1172,16 @@
                         Откалибровать
                     </button>
                 </div>
+
+                <div class="setting-row">
+                    <div class="setting-label">
+                        <span class="setting-name">Питание (Выключение в Deep Sleep)</span>
+                        <span class="setting-desc">Для повторного включения удерживайте кнопку на приборе</span>
+                    </div>
+                    <button class="chip" style="background: rgba(255, 23, 68, 0.2); color: var(--accent-red); border: 1px solid var(--accent-red);" onclick="powerOffDevice()">
+                        ⏻ Выключить
+                    </button>
+                </div>
             </div>
 
             <!-- Hardware Self-Test / Diagnostics -->
@@ -1466,6 +1476,17 @@
                 updateDeviceInfo(pkt);
             } else if (pkt.t === 'diag') {
                 updateDiagnostics(pkt);
+            } else if (pkt.t === 'shutdown') {
+                showToast("Прибор DRAGon выключен (Deep Sleep)");
+                speak("Прибор выключен");
+                updateBleUi(false);
+            }
+        }
+
+        function powerOffDevice() {
+            if (confirm("Выключить прибор DRAGon и перевести его в режим энергосбережения (Deep Sleep)?")) {
+                sendBleCmd('power_off');
+                showToast("Выключение прибора...");
             }
         }
 

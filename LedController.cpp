@@ -161,3 +161,44 @@ extern "C" void neopixelWrite(uint8_t pin, uint8_t red_val, uint8_t green_val, u
 void LedController::_writeLed(uint8_t r, uint8_t g, uint8_t b) {
     neopixelWrite(_pin, r, g, b);
 }
+
+void LedController::turnOff() {
+    _writeLed(0, 0, 0);
+}
+
+void LedController::showPowerOnAnimation() {
+    // Плавное нарастание изумрудно-зеленого свечения (fade-in), затем двойной подтверждающий импульс
+    for (int i = 0; i <= 255; i += 15) {
+        _writeLed(0, i, (uint8_t)(i * 0.4f));
+        delay(15);
+    }
+    delay(100);
+    _writeLed(0, 0, 0);
+    delay(70);
+    _writeLed(0, 255, 120);
+    delay(120);
+    _writeLed(0, 0, 0);
+    delay(50);
+}
+
+void LedController::showPowerOffAnimation() {
+    // 3 предупреждающие красные вспышки и плавное затухание в 0
+    for (int k = 0; k < 3; k++) {
+        _writeLed(255, 0, 0);
+        delay(80);
+        _writeLed(0, 0, 0);
+        delay(60);
+    }
+    for (int i = 255; i >= 0; i -= 20) {
+        _writeLed(i, 0, 0);
+        delay(20);
+    }
+    _writeLed(0, 0, 0);
+}
+
+void LedController::showPowerOffHolding(uint8_t progressPct) {
+    // Отображение прогресса удержания кнопки (от желтого к ярко-красному)
+    uint8_t r = 255;
+    uint8_t g = (progressPct < 100) ? (uint8_t)((100 - progressPct) * 1.5f) : 0;
+    _writeLed(r, g, 0);
+}

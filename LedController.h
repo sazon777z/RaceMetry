@@ -42,6 +42,12 @@ public:
     void notifyFixAcquired();
     void setRgb(uint8_t r, uint8_t g, uint8_t b);
 
+    // Анимации включения и выключения прибора
+    void showPowerOnAnimation();
+    void showPowerOffAnimation();
+    void showPowerOffHolding(uint8_t progressPct);
+    void turnOff();
+
 private:
     uint8_t _pin;
     LedMode _mode;

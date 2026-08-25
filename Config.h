@@ -44,10 +44,10 @@
 #endif
 #define NUM_WS2812_LEDS         1
 
-// Единственная кнопка управления на GPIO 11 (активный уровень - LOW, INPUT_PULLUP)
-#define PIN_BTN                 11  // Кнопка -> GPIO 11 (вторая ножка к GND)
-#define BTN_DEBOUNCE_MS         35  // Защита от дребезга (мс)
-#define BTN_LONG_PRESS_MS       600 // Порог длинного нажатия (мс)
+// Кнопка включения и выключения питания на GPIO 11 (замыкание на GND)
+#define PIN_BTN                 11      // Кнопка питания -> GPIO 11 (к GND)
+#define BTN_HOLD_POWER_OFF_MS   1800    // Удержание кнопки для выключения (1.8 сек)
+#define BTN_HOLD_POWER_ON_MS    400     // Удержание кнопки для включения (0.4 сек)
 
 // Контроль заряда аккумулятора (Battery Monitor)
 #define ENABLE_BATTERY_MONITOR  true    // Включить замер напряжения батареи

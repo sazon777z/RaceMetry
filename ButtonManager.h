@@ -6,13 +6,11 @@
 /**
  * ============================================================================
  *                          DRAGon TELEMETRY METER
- *                    BUTTON MANAGER (SINGLE BUTTON)
+ *                      POWER BUTTON MANAGER (GPIO 11)
  * ============================================================================
- * Неблокирующая обработка единственной кнопки с программным антидребезгом
- * и поддержкой событий:
- * - Одиночный клик (CLICK): Взведение (ARM) / Сброс
- * - Двойной клик (DOUBLE_CLICK): Переключение дисциплины по кругу
- * - Длинное нажатие (LONG_PRESS): Калибровка нуля акселерометра IMU
+ * Неблокирующая обработка кнопки включения / выключения питания:
+ * - Включение: пробуждение из Deep Sleep по нажатию кнопки
+ * - Выключение: удержание кнопки в течение 1.8 сек с световой индикацией
  */
 
 class ButtonManager {
@@ -22,21 +20,25 @@ public:
     void begin(uint8_t pin = PIN_BTN);
     void update();
 
-    ButtonEvent getEvent();
+    // Проверка нажатия кнопки
+    bool isPressed() const { return _btn.isPressed; }
+
+    // Длительность текущего удержания кнопки (мс)
+    uint32_t getPressDurationMs() const;
+
+    // Прогресс удержания кнопки для выключения (0..100%)
+    uint8_t getPowerOffProgressPct() const;
+
+    // Проверка, сработало ли событие выключения
+    bool isPowerOffTriggered();
 
 private:
     struct ButtonState {
         uint8_t pin;
-        bool lastRawState;
         bool isPressed;
         uint32_t pressStartMs;
-        uint32_t lastReleaseMs;
-        uint8_t clickCount;
-        bool longPressFired;
-        ButtonEvent pendingEvent;
+        bool powerOffFired;
     };
 
     ButtonState _btn;
-
-    void _updateButton(ButtonState& btn);
 };

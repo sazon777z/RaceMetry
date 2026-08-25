@@ -8,7 +8,7 @@
  * Сенсоры: u-blox M10Q (UBX 20Hz), MPU-9250 (IMU 200Hz)
  * Связь: Bluetooth Low Energy 5.0 (Nordic UART Service)
  * Индикатор: Встроенный RGB светодиод
- * Органы управления: 1 кнопка (GPIO 11) + полное управление по BLE
+ * Органы управления: Кнопка питания (GPIO 11) + полное управление по BLE
  * Питание: Li-Ion аккумулятор с мониторингом напряжения (GPIO 1)
  * ============================================================================
  */
@@ -56,10 +56,11 @@ bool            newRunSaved = false;
 static float    currentBatVoltage = 0.0f;
 static uint8_t  currentBatPercent = 0;
 
-// Прототипы функций замера батареи и самодиагностики
+// Прототипы функций питания, замера батареи и самодиагностики
 float readRawBatteryVoltage();
 uint8_t calculateBatteryPercentage(float v);
 void runSystemDiagnostics();
+void enterPowerOffDeepSleep();
 
 // Прототипы задач FreeRTOS
 void TelemetryTask(void* parameter);
@@ -73,7 +74,7 @@ void setup() {
     }
 
     Serial.begin(115200);
-    delay(500);
+    delay(200);
     Serial.println("\n[DRAGon] Initializing Pro BLE Telemetry System...");
 
     // 1. Инициализация хранилища NVS (настройки и рекорды)
@@ -81,11 +82,12 @@ void setup() {
     storageManager.loadSettings(deviceSettings);
     Serial.println("[DRAGon] Storage loaded");
 
-    // 2. Инициализация встроенного светодиода
+    // 2. Инициализация и анимация включения светодиода
     ledController.begin(PIN_WS2812);
+    ledController.showPowerOnAnimation();
     ledController.setMode(LedMode::GPS_SEARCH);
 
-    // 3. Инициализация кнопки управления (GPIO 11)
+    // 3. Инициализация кнопки питания (GPIO 11)
     buttonManager.begin(PIN_BTN);
 
     // 4. Инициализация АЦП батареи
@@ -142,6 +144,8 @@ void setup() {
             bleEngine.sendDeviceInfo(deviceSettings, storageManager.getSavedRunsCount(), gpsEngine.isReadyForRace(), safeGpsData.numSats, currentBatVoltage, currentBatPercent);
         } else if (cmd == "run_diag") {
             runSystemDiagnostics();
+        } else if (cmd == "power_off") {
+            enterPowerOffDeepSleep();
         } else if (cmd == "get_history") {
             uint8_t count = storageManager.getSavedRunsCount();
             for (uint8_t i = 0; i < count; i++) {
@@ -225,52 +229,54 @@ void TelemetryTask(void* parameter) {
         // 3. Обработка математики заезда
         telemetryEngine.process(gpsEngine.getData(), imuEngine.getData());
 
-        // 4. Управление светодиодной индикацией
-        static bool wasGpsReady = false;
-        bool isGpsReady = gpsEngine.isReadyForRace();
+        // 4. Управление светодиодной индикацией (если кнопка не удерживается)
+        if (!buttonManager.isPressed() || buttonManager.getPressDurationMs() < 400) {
+            static bool wasGpsReady = false;
+            bool isGpsReady = gpsEngine.isReadyForRace();
 
-        // Проверка события первого захвата 3D-фикса
-        if (isGpsReady && !wasGpsReady) {
-            ledController.notifyFixAcquired();
-        }
-        wasGpsReady = isGpsReady;
-
-        // Проверка моментальной вспышки при взятии отсечки (0-100, 100-200, 402м)
-        if (telemetryEngine.checkAndClearSplitTrigger()) {
-            ledController.triggerSplitFlash();
-        }
-
-        RaceState curState = telemetryEngine.getState();
-        if (!isGpsReady) {
-            ledController.setMode(LedMode::GPS_SEARCH);
-        } else {
-            switch (curState) {
-                case RaceState::ARMED:
-                    ledController.setMode(LedMode::ARMED_READY);
-                    break;
-                case RaceState::LAUNCH_DETECTED:
-                    ledController.setMode(LedMode::LAUNCH_DETECTED);
-                    break;
-                case RaceState::MEASURING:
-                    if (telemetryEngine.getDiscipline() == RaceDiscipline::BRAKE_100_0) {
-                        ledController.setMode(LedMode::BRAKING_ACTIVE);
-                    } else {
-                        ledController.setMode(LedMode::MEASURING);
-                    }
-                    break;
-                case RaceState::FINISHED:
-                    if (telemetryEngine.getLastRun().isValidSlope) {
-                        ledController.setMode(LedMode::FINISHED_VALID);
-                    } else {
-                        ledController.setMode(LedMode::FINISHED_SLOPE);
-                    }
-                    break;
-                default:
-                    ledController.setMode(LedMode::ARMED_READY);
-                    break;
+            // Проверка события первого захвата 3D-фикса
+            if (isGpsReady && !wasGpsReady) {
+                ledController.notifyFixAcquired();
             }
+            wasGpsReady = isGpsReady;
+
+            // Проверка моментальной вспышки при взятии отсечки (0-100, 100-200, 402м)
+            if (telemetryEngine.checkAndClearSplitTrigger()) {
+                ledController.triggerSplitFlash();
+            }
+
+            RaceState curState = telemetryEngine.getState();
+            if (!isGpsReady) {
+                ledController.setMode(LedMode::GPS_SEARCH);
+            } else {
+                switch (curState) {
+                    case RaceState::ARMED:
+                        ledController.setMode(LedMode::ARMED_READY);
+                        break;
+                    case RaceState::LAUNCH_DETECTED:
+                        ledController.setMode(LedMode::LAUNCH_DETECTED);
+                        break;
+                    case RaceState::MEASURING:
+                        if (telemetryEngine.getDiscipline() == RaceDiscipline::BRAKE_100_0) {
+                            ledController.setMode(LedMode::BRAKING_ACTIVE);
+                        } else {
+                            ledController.setMode(LedMode::MEASURING);
+                        }
+                        break;
+                    case RaceState::FINISHED:
+                        if (telemetryEngine.getLastRun().isValidSlope) {
+                            ledController.setMode(LedMode::FINISHED_VALID);
+                        } else {
+                            ledController.setMode(LedMode::FINISHED_SLOPE);
+                        }
+                        break;
+                    default:
+                        ledController.setMode(LedMode::ARMED_READY);
+                        break;
+                }
+            }
+            ledController.update();
         }
-        ledController.update();
 
         // 5. Автосохранение завершенного заезда в энергонезависимую память NVS
         if (curState == RaceState::FINISHED && prevRaceState != RaceState::FINISHED) {
@@ -299,7 +305,7 @@ void TelemetryTask(void* parameter) {
 
 /**
  * ============================================================================
- * ЯДРО 1: BLUETOOTH LOW ENERGY, КНОПКА И ОБРАБОТКА ДАННЫХ
+ * ЯДРО 1: BLUETOOTH LOW ENERGY, КНОПКА ПИТАНИЯ И ОБРАБОТКА ДАННЫХ
  * ============================================================================
  */
 void CommTask(void* parameter) {
@@ -310,28 +316,17 @@ void CommTask(void* parameter) {
     uint32_t lastBatSampleMs = 0;
 
     for (;;) {
-        // 1. Опрос кнопки (GPIO 11)
+        // 1. Опрос кнопки питания (GPIO 11)
         buttonManager.update();
-        ButtonEvent ev = buttonManager.getEvent();
-
-        if (ev == ButtonEvent::CLICK) {
-            // Одиночный клик: Взведение (ARM) или сброс заезда
-            if (telemetryEngine.getState() == RaceState::ARMED || telemetryEngine.getState() == RaceState::MEASURING) {
-                telemetryEngine.reset();
-            } else {
-                telemetryEngine.arm();
+        if (buttonManager.isPressed()) {
+            uint32_t pressDur = buttonManager.getPressDurationMs();
+            if (pressDur >= 400) {
+                // Визуализация обратного отсчета выключения (желтый -> красный)
+                ledController.showPowerOffHolding(buttonManager.getPowerOffProgressPct());
             }
-        } else if (ev == ButtonEvent::DOUBLE_CLICK) {
-            // Двойной клик: переключение дисциплины по кругу (0-100, 100-200, 1/4 мили...)
-            uint8_t nextDisc = ((uint8_t)telemetryEngine.getDiscipline() + 1) % 7;
-            telemetryEngine.setDiscipline((RaceDiscipline)nextDisc);
-        } else if (ev == ButtonEvent::LONG_PRESS) {
-            // Длинное нажатие (>600мс): Калибровка горизонта акселерометра IMU
-            ledController.setMode(LedMode::CALIBRATING);
-            imuEngine.calibrateZero(600);
-            imuEngine.getOffsets(deviceSettings.imuOffsetGx, deviceSettings.imuOffsetGy, deviceSettings.imuOffsetGz);
-            storageManager.saveSettings(deviceSettings);
-            runSystemDiagnostics();
+        }
+        if (buttonManager.isPowerOffTriggered()) {
+            enterPowerOffDeepSleep();
         }
 
         // 2. Периодический замер напряжения батареи (раз в 500 мс с фильтрацией)
@@ -424,6 +419,35 @@ void CommTask(void* parameter) {
 
 void loop() {
     vTaskDelay(pdMS_TO_TICKS(1000));
+}
+
+/**
+ * ============================================================================
+ * ФУНКЦИЯ ВЫКЛЮЧЕНИЯ ПИТАНИЯ (DEEP SLEEP C ПРОБУЖДЕНИЕМ ПО КНОПКЕ)
+ * ============================================================================
+ */
+void enterPowerOffDeepSleep() {
+    Serial.println("\n[DRAGon] Powering OFF... Entering Ultra-Low-Power Deep Sleep.");
+
+    // 1. Уведомляем подключенный смартфон по BLE
+    bleEngine.sendJson("{\"t\":\"shutdown\"}\n");
+    delay(50);
+
+    // 2. Анимация выключения на светодиоде (3 красные вспышки и плавное затухание)
+    ledController.showPowerOffAnimation();
+    ledController.turnOff();
+
+    // 3. Настройка пробуждения по нажатию кнопки на GPIO 11 (LOW level)
+    esp_sleep_enable_ext0_wakeup((gpio_num_t)PIN_BTN, 0);
+
+    // 4. Ожидаем отпускания кнопки перед сном, чтобы исключить мгновенное повторное пробуждение
+    while (digitalRead(PIN_BTN) == LOW) {
+        delay(10);
+    }
+    delay(150);
+
+    // 5. Переход в глубокий сон
+    esp_deep_sleep_start();
 }
 
 /**
