@@ -31,12 +31,12 @@
 | **GPS u-blox M10Q** | TX | `RX (GPIO 44)` | RX ESP32 (Hardware Serial1) |
 | | RX | `TX (GPIO 43)` | TX ESP32 (Команды UBX) |
 | | VCC / GND | `3.3V / 5V` | Питание GPS |
-| **IMU MPU-9250** | SDA | `GPIO 9` | I2C Data (400 кГц) |
-| | SCL | `GPIO 10` | I2C Clock |
+| **IMU MPU-9250** | SCL | `GPIO 12` | I2C Clock |
+| | SDA | `GPIO 13` | I2C Data (400 кГц) |
 | | VCC / GND | `3.3V / GND` | Питание датчика (AD0 к GND) |
 | **WS2812B RGB LED** | DIN | `GPIO 11` | RMT управление |
-| **Кнопка 1 (Left / Mode)** | Pin | `GPIO 12` | Вторая ножка к `GND` (INPUT_PULLUP) |
-| **Кнопка 2 (Right / Action)** | Pin | `GPIO 13` | Вторая ножка к `GND` (INPUT_PULLUP) |
+| **Кнопка 1 (Left / Mode)** | Pin | `GPIO 7` | Вторая ножка к `GND` (INPUT_PULLUP) |
+| **Кнопка 2 (Right / Action)** | Pin | `GPIO 8` | Вторая ножка к `GND` (INPUT_PULLUP) |
 
 > ℹ️ *Все пины легко переназначаются в файле `Config.h`.*
 

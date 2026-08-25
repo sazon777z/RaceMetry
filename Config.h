@@ -39,9 +39,9 @@
 #define GPS_BAUDRATE_TARGET     460800  // Скоростной порт для минимальной латентности (UBX 10-18Hz)
 #define GPS_UPDATE_RATE_HZ      10      // Частота навигации (10 Гц в режиме Multi-GNSS)
 
-// IMU Акселерометр/Гироскоп MPU-9250/6500 (I2C)
-#define PIN_I2C_SDA             9   // I2C SDA (GPIO 9)
-#define PIN_I2C_SCL             10  // I2C SCL (GPIO 10)
+// IMU Акселерометр/Гироскоп MPU-9250/6500 (I2C) — Фактическое подключение
+#define PIN_I2C_SCL             12  // I2C SCL -> GPIO 12
+#define PIN_I2C_SDA             13  // I2C SDA -> GPIO 13
 #define I2C_FREQUENCY           400000  // 400 кГц (Fast Mode)
 #define IMU_I2C_ADDR            0x68    // Адрес 0x68 (если AD0 к GND) или 0x69
 #define IMU_SAMPLE_RATE_HZ      200     // Частота дискретизации акселерометра (200 Гц)
@@ -51,8 +51,8 @@
 #define NUM_WS2812_LEDS         1
 
 // Кнопки управления (активный уровень - LOW, INPUT_PULLUP)
-#define PIN_BTN_LEFT            12  // Кнопка 1 (Навигация / Режим) -> GPIO 12
-#define PIN_BTN_RIGHT           13  // Кнопка 2 (Действие / Сброс / Старт) -> GPIO 13
+#define PIN_BTN_LEFT            7   // Кнопка 1 (Навигация / Режим) -> GPIO 7
+#define PIN_BTN_RIGHT           8   // Кнопка 2 (Действие / Сброс / Старт) -> GPIO 8
 #define BTN_DEBOUNCE_MS         35  // Защита от дребезга (мс)
 #define BTN_LONG_PRESS_MS       600 // Порог длинного нажатия (мс)
 
