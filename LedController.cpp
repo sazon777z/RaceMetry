@@ -18,6 +18,19 @@ LedController::LedController()
 void LedController::begin(uint8_t pin) {
     _pin = pin;
     pinMode(_pin, OUTPUT);
+
+    // Принудительно отключаем встроенный RGB светодиод на плате (GPIO 48)
+    neopixelWrite(48, 0, 0, 0);
+#ifdef RGB_BUILTIN
+    neopixelWrite(RGB_BUILTIN, 0, 0, 0);
+#endif
+
+    // Принудительно отключаем встроенный синий светодиод на плате (GPIO 8 / LED_BUILTIN)
+    pinMode(8, INPUT);
+#ifdef LED_BUILTIN
+    pinMode(LED_BUILTIN, INPUT);
+#endif
+
     setMode(LedMode::GPS_SEARCH);
 }
 

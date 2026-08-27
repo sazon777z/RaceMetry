@@ -104,8 +104,18 @@ void setup() {
     }
 
     Serial.begin(115200);
-    delay(200);
+    delay(100);
     Serial.println("\n[RaceMetry] Initializing Pro 20Hz BLE Telemetry System...");
+
+    // Полное отключение всех встроенных светодиодов на плате (GPIO 48 / GPIO 8)
+    neopixelWrite(48, 0, 0, 0);
+#ifdef RGB_BUILTIN
+    neopixelWrite(RGB_BUILTIN, 0, 0, 0);
+#endif
+    pinMode(8, INPUT);
+#ifdef LED_BUILTIN
+    pinMode(LED_BUILTIN, INPUT);
+#endif
 
     // 1. Инициализация хранилища NVS (настройки и рекорды)
     storageManager.begin();
