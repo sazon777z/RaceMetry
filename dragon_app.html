@@ -1866,8 +1866,12 @@
                     sendBleCmd('get_info');
                 }, 300);
                 setTimeout(() => {
+                    let batMode = localStorage.getItem('racemetry_bat_mode') || '0';
+                    sendBleCmd('set_bat_mode', batMode);
+                }, 500);
+                setTimeout(() => {
                     sendBleCmd('get_history');
-                }, 700);
+                }, 800);
 
             } catch (err) {
                 console.error("BLE Error:", err);
@@ -2461,6 +2465,13 @@
         function updateDeviceInfo(info) {
             document.getElementById('diagFwVer').innerText = info.fw;
             document.getElementById('setRolloutToggle').checked = info.rollout;
+            if (info.bat_mode !== undefined) {
+                let batSel = document.getElementById('setBatIndMode');
+                if (batSel) batSel.value = String(info.bat_mode);
+                try {
+                    localStorage.setItem('racemetry_bat_mode', String(info.bat_mode));
+                } catch(e) {}
+            }
             if (info.bat !== undefined) {
                 renderBatteryStatus(info.bat, info.pct);
             }

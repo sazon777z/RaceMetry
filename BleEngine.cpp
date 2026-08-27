@@ -344,7 +344,7 @@ void BleEngine::sendDeviceInfo(const DeviceSettings& settings, uint8_t runsCount
 
     snprintf(
         _txBuffer, sizeof(_txBuffer),
-        "{\"t\":\"info\",\"fw\":\"%s\",\"name\":\"%s\",\"rollout\":%s,\"metric\":%s,\"slope_tol\":%.2f,\"runs_cnt\":%u,\"calibrated\":true,\"gps_ready\":%s,\"sats\":%u,\"bat\":%.2f,\"pct\":%u}\n",
+        "{\"t\":\"info\",\"fw\":\"%s\",\"name\":\"%s\",\"rollout\":%s,\"metric\":%s,\"slope_tol\":%.2f,\"runs_cnt\":%u,\"calibrated\":true,\"gps_ready\":%s,\"sats\":%u,\"bat\":%.2f,\"pct\":%u,\"bat_mode\":%u}\n",
         DRAGON_FW_VERSION,
         BLE_DEVICE_NAME,
         settings.use1FootRollout ? "true" : "false",
@@ -354,7 +354,8 @@ void BleEngine::sendDeviceInfo(const DeviceSettings& settings, uint8_t runsCount
         gpsReady ? "true" : "false",
         sats,
         batVolts,
-        batPct
+        batPct,
+        settings.batteryIndicationMode
     );
 
     sendJson(_txBuffer);

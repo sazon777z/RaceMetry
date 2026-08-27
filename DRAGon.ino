@@ -189,6 +189,8 @@ void setup() {
             deviceSettings.batteryIndicationMode = (uint8_t)val.toInt();
             storageManager.saveSettings(deviceSettings);
             Serial.printf("[RaceMetry] Battery Indication Mode set to: %d\n", deviceSettings.batteryIndicationMode);
+            // Мгновенная демонстрация выбранного режима на светодиоде
+            ledController.showBatteryStatus(currentBatPercent, deviceSettings.batteryIndicationMode);
         } else if (cmd == "calibrate_imu") {
             ledController.setMode(LedMode::CALIBRATING);
             imuEngine.calibrateZero(600);
@@ -273,6 +275,9 @@ void TelemetryTask(void* parameter) {
             vTaskDelayUntil(&xLastWakeTime, pdMS_TO_TICKS(2));
             continue;
         }
+
+        // 0. Высокоскоростной опрос аппаратной кнопки (500 Гц)
+        buttonManager.update();
 
         // 1. Потоковый разбор бинарных пакетов UBX GPS (20 Гц)
         gpsEngine.update();
