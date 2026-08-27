@@ -1157,8 +1157,8 @@
                         <div style="font-size: 11px; font-weight: 700; color: var(--text-muted); letter-spacing: 1px;">СПУТНИКОВАЯ СИСТЕМА</div>
                         <div style="font-size: 20px; font-weight: 900; color: var(--accent-cyan);">u-blox M10Q 20Hz</div>
                     </div>
-                    <div id="gpsHeroFixBadge" class="state-badge" style="background: rgba(0, 230, 118, 0.2); color: var(--accent-green); border: 1px solid var(--accent-green);">
-                        3D FIX
+                    <div id="gpsHeroFixBadge" class="state-badge" style="background: rgba(255, 23, 68, 0.15); color: var(--accent-red); border: 1px solid var(--accent-red);">
+                        🔴 ПОИСК GPS
                     </div>
                 </div>
 
@@ -1447,7 +1447,7 @@
         </button>
         <button class="tab-btn" onclick="switchTab('tabResults', this)">
             <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/></svg>
-            Графика
+            Графики
         </button>
         <button class="tab-btn" onclick="switchTab('tabGps', this)">
             <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>
@@ -1748,15 +1748,16 @@
 
             if (!batPctEl || !batFillEl) return;
 
-            if (vBat !== undefined && vBat > 2.0) {
-                let p = pct !== undefined ? Math.min(100, Math.max(0, pct)) : 0;
+            let p = pct !== undefined ? Math.min(100, Math.max(0, pct)) : 0;
+
+            if (vBat !== undefined && vBat >= 2.8) {
                 batPctEl.innerText = p + "%";
-                batFillEl.style.width = p + "%";
+                batFillEl.style.width = Math.max(5, p) + "%";
 
                 if (p > 40) {
                     batFillEl.style.background = "var(--accent-green)";
                     batPctEl.style.color = "var(--text-primary)";
-                } else if (p > 20) {
+                } else if (p > 15) {
                     batFillEl.style.background = "var(--accent-gold)";
                     batPctEl.style.color = "var(--accent-gold)";
                 } else {
@@ -1766,13 +1767,13 @@
 
                 if (diagBat) diagBat.innerText = p + "% (" + vBat.toFixed(2) + " В)";
                 if (diagBatStatus) diagBatStatus.innerText = "🟢 " + p + "% (" + vBat.toFixed(2) + " В, OK)";
-            } else if (vBat !== undefined && vBat <= 2.0 && vBat > 0.0) {
+            } else if (vBat !== undefined && vBat > 0.0) {
                 batPctEl.innerText = "USB";
                 batFillEl.style.width = "100%";
                 batFillEl.style.background = "var(--accent-cyan)";
                 batPctEl.style.color = "var(--accent-cyan)";
-                if (diagBat) diagBat.innerText = "Питание от USB (5В)";
-                if (diagBatStatus) diagBatStatus.innerText = "🟢 Питание от USB (5В)";
+                if (diagBat) diagBat.innerText = "Питание от USB (" + (vBat > 0.1 ? vBat.toFixed(2) + " В" : "5В") + ")";
+                if (diagBatStatus) diagBatStatus.innerText = "🟢 Питание от USB";
             }
         }
 
@@ -1814,14 +1815,17 @@
             if (heroBadge) {
                 if (d.fix === 3) {
                     heroBadge.innerText = "🟢 3D FIX (" + d.sats + " СВ)";
+                    heroBadge.style.background = "rgba(0, 230, 118, 0.2)";
                     heroBadge.style.color = "var(--accent-green)";
                     heroBadge.style.borderColor = "var(--accent-green)";
                 } else if (d.fix === 2) {
                     heroBadge.innerText = "🟡 2D FIX";
+                    heroBadge.style.background = "rgba(255, 179, 0, 0.2)";
                     heroBadge.style.color = "var(--accent-gold)";
                     heroBadge.style.borderColor = "var(--accent-gold)";
                 } else {
-                    heroBadge.innerText = "🔴 ПОИСК";
+                    heroBadge.innerText = "🔴 ПОИСК GPS";
+                    heroBadge.style.background = "rgba(255, 23, 68, 0.15)";
                     heroBadge.style.color = "var(--accent-red)";
                     heroBadge.style.borderColor = "var(--accent-red)";
                 }

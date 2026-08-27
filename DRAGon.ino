@@ -121,6 +121,8 @@ void setup() {
 #if ENABLE_BATTERY_MONITOR
     pinMode(PIN_BAT_ADC, INPUT);
     analogReadResolution(12);
+    analogSetPinAttenuation(PIN_BAT_ADC, ADC_11db);
+    delay(20);
     currentBatVoltage = readRawBatteryVoltage();
     currentBatPercent = calculateBatteryPercentage(currentBatVoltage);
     Serial.printf("[RaceMetry] Battery Monitor initialized: %.2fV (%u%%)\n", currentBatVoltage, currentBatPercent);
@@ -530,22 +532,29 @@ void runSystemDiagnostics() {
  */
 float readRawBatteryVoltage() {
 #if ENABLE_BATTERY_MONITOR
-    uint32_t mv = analogReadMilliVolts(PIN_BAT_ADC);
-    return (mv / 1000.0f) * BAT_DIVIDER_RATIO;
+    uint32_t sumMv = 0;
+    for (int i = 0; i < 16; i++) {
+        sumMv += analogReadMilliVolts(PIN_BAT_ADC);
+        delayMicroseconds(150);
+    }
+    float avgMv = (float)sumMv / 16.0f;
+    return (avgMv / 1000.0f) * BAT_DIVIDER_RATIO;
 #else
     return 0.0f;
 #endif
 }
 
 uint8_t calculateBatteryPercentage(float v) {
-    if (v < 2.0f) return 0; // Питание без делителя или батарея не подключена
+    if (v < 2.5f) return 0; // Питание от USB без батареи
     if (v >= BAT_VOLTAGE_MAX) return 100;
     if (v <= BAT_VOLTAGE_MIN) return 0;
-    // Аппроксимация разрядной кривой Li-Ion:
-    if (v >= 3.95f) return 80 + (uint8_t)((v - 3.95f) / (4.20f - 3.95f) * 20.0f);
-    if (v >= 3.75f) return 40 + (uint8_t)((v - 3.75f) / (3.95f - 3.75f) * 40.0f);
-    if (v >= 3.55f) return 15 + (uint8_t)((v - 3.55f) / (3.75f - 3.55f) * 25.0f);
-    return (uint8_t)((v - 3.30f) / (3.55f - 3.30f) * 15.0f);
+    // Реалистичная табличная интерполяция разрядной кривой Li-Ion (3.30V - 4.20V):
+    if (v >= 4.05f) return 90 + (uint8_t)((v - 4.05f) / (4.20f - 4.05f) * 10.0f);
+    if (v >= 3.90f) return 70 + (uint8_t)((v - 3.90f) / (4.05f - 3.90f) * 20.0f);
+    if (v >= 3.78f) return 45 + (uint8_t)((v - 3.78f) / (3.90f - 3.78f) * 25.0f);
+    if (v >= 3.65f) return 20 + (uint8_t)((v - 3.65f) / (3.78f - 3.65f) * 25.0f);
+    if (v >= 3.45f) return 5  + (uint8_t)((v - 3.45f) / (3.65f - 3.45f) * 15.0f);
+    return (uint8_t)((v - 3.30f) / (3.45f - 3.30f) * 5.0f);
 }
 
 /**
