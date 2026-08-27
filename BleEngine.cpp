@@ -1,17 +1,6 @@
 #include "BleEngine.h"
-#include <esp_gap_ble_api.h>
 
 static int8_t s_latestRssi = -55;
-static esp_bd_addr_t s_peerBda;
-static bool s_hasPeerBda = false;
-
-static void gapEventHandler(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *param) {
-    if (event == ESP_GAP_BLE_READ_RSSI_COMPLETE_EVT) {
-        if (param && param->read_rssi_cmpl.status == ESP_BT_STATUS_SUCCESS) {
-            s_latestRssi = param->read_rssi_cmpl.rssi;
-        }
-    }
-}
 
 BleEngine::BleEngine()
     : _pServer(nullptr),
@@ -32,7 +21,6 @@ bool BleEngine::begin(const char* deviceName) {
 
     // 1. Инициализация стека BLE Device
     BLEDevice::init(deviceName);
-    BLEDevice::setCustomGapHandler(gapEventHandler);
 
     // 2. Создание BLE Сервера
     _pServer = BLEDevice::createServer();
@@ -89,45 +77,18 @@ void BleEngine::update() {
     if (_deviceConnected && !_oldDeviceConnected) {
         _oldDeviceConnected = true;
     }
-
-    // Периодический опрос уровня сигнала RSSI (каждые 1.5 сек)
-    static uint32_t lastRssiCheckMs = 0;
-    if (_deviceConnected && s_hasPeerBda && (millis() - lastRssiCheckMs >= 1500)) {
-        lastRssiCheckMs = millis();
-        esp_ble_gap_read_rssi(s_peerBda);
-    }
-}
-
-void BleEngine::onConnect(BLEServer* pServer, esp_ble_gatts_cb_param_t *param) {
-    _deviceConnected = true;
-    _oldDeviceConnected = true;
-    if (param) {
-        memcpy(s_peerBda, param->connect.remote_bda, 6);
-        s_hasPeerBda = true;
-        esp_ble_gap_read_rssi(s_peerBda);
-    }
-    Serial.println("[BLE] Smartphone connected to GATT Server!");
 }
 
 void BleEngine::onConnect(BLEServer* pServer) {
     _deviceConnected = true;
     _oldDeviceConnected = true;
+    s_latestRssi = -55;
     Serial.println("[BLE] Smartphone connected to GATT Server!");
-}
-
-void BleEngine::onDisconnect(BLEServer* pServer, esp_ble_gatts_cb_param_t *param) {
-    _deviceConnected = false;
-    _oldDeviceConnected = false;
-    s_hasPeerBda = false;
-    s_latestRssi = -99;
-    Serial.println("[BLE] Smartphone disconnected. Resuming advertising...");
-    pServer->startAdvertising();
 }
 
 void BleEngine::onDisconnect(BLEServer* pServer) {
     _deviceConnected = false;
     _oldDeviceConnected = false;
-    s_hasPeerBda = false;
     s_latestRssi = -99;
     Serial.println("[BLE] Smartphone disconnected. Resuming advertising...");
     pServer->startAdvertising();
