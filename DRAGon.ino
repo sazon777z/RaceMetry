@@ -306,7 +306,7 @@ void TelemetryTask(void* parameter) {
 
         // 3. Обработка математики заезда
         telemetryEngine.process(gpsEngine.getData(), imuEngine.getData());
-        curState = telemetryEngine.getState();
+        RaceState curState = telemetryEngine.getState();
 
         // 4. Управление светодиодной индикацией (если кнопка не удерживается для выключения)
         if (!buttonManager.isPressed() || buttonManager.getPressDurationMs() < 350) {
