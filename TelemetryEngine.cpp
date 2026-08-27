@@ -457,10 +457,14 @@ void TelemetryEngine::_finalizeRun() {
     _currentRun.totalDistanceM = _liveDistanceM;
     _currentRun.totalDurationSec = getCurrentTimeSec();
 
-    // Расчет уклона трассы за заезд
-    if (_currentRun.totalDistanceM > 10.0f) {
+    // Расчет уклона трассы за заезд с защитой от деления на ноль и выбросов
+    if (_currentRun.totalDistanceM > 10.0f && isfinite(_currentRun.finishAltM) && isfinite(_currentRun.startAltM)) {
         _currentRun.slopePct = ((_currentRun.finishAltM - _currentRun.startAltM) / _currentRun.totalDistanceM) * 100.0f;
     } else {
+        _currentRun.slopePct = 0.0f;
+    }
+
+    if (!isfinite(_currentRun.slopePct) || fabsf(_currentRun.slopePct) > 50.0f) {
         _currentRun.slopePct = 0.0f;
     }
 

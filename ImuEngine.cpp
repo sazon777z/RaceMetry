@@ -29,9 +29,20 @@ ImuEngine::ImuEngine()
 }
 
 void ImuEngine::_recoverI2cBus(uint8_t sda, uint8_t scl) {
+    Wire.end();
     pinMode(sda, INPUT_PULLUP);
+    pinMode(scl, OUTPUT);
+    digitalWrite(scl, HIGH);
+    delayMicroseconds(5);
+    // 9 тактов тактирования SCL для принудительного освобождения зависшей шины SDA
+    for (int i = 0; i < 9; i++) {
+        digitalWrite(scl, LOW);
+        delayMicroseconds(5);
+        digitalWrite(scl, HIGH);
+        delayMicroseconds(5);
+    }
     pinMode(scl, INPUT_PULLUP);
-    delay(10);
+    delay(5);
 }
 
 bool ImuEngine::begin(uint8_t sdaPin, uint8_t sclPin, uint32_t freq) {
@@ -39,6 +50,9 @@ bool ImuEngine::begin(uint8_t sdaPin, uint8_t sclPin, uint32_t freq) {
     _sclPin = sclPin;
     _freq = freq;
     _errorCount = 0;
+
+    // Аппаратная защита: таймаут 25 мс исключает любые зависания I2C на уровне драйвера
+    Wire.setTimeOut(25);
 
     Serial.printf("[IMU] Probing I2C for MPU-9250/6500/6050 (Primary SDA: %u, SCL: %u)...\n", sdaPin, sclPin);
 
@@ -56,10 +70,10 @@ bool ImuEngine::begin(uint8_t sdaPin, uint8_t sclPin, uint32_t freq) {
         uint8_t curSda = pinPairs[p][0];
         uint8_t curScl = pinPairs[p][1];
 
-        Wire.end();
-        delay(15);
+        _recoverI2cBus(curSda, curScl);
         Wire.begin(curSda, curScl, freq);
-        delay(30);
+        Wire.setTimeOut(25);
+        delay(20);
 
         // Проверяем адреса 0x68 и 0x69
         uint8_t addrs[2] = { 0x68, 0x69 };

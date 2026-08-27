@@ -10,10 +10,11 @@ BleEngine::BleEngine()
       _deviceConnected(false),
       _oldDeviceConnected(false),
       _lastTxTimeMs(0),
-      _cmdHandler(nullptr)
+      _cmdHandler(nullptr),
+      _rxAccumulatorLen(0)
 {
     memset(_txBuffer, 0, sizeof(_txBuffer));
-    _rxAccumulator.reserve(256);
+    memset(_rxAccumulator, 0, sizeof(_rxAccumulator));
 }
 
 bool BleEngine::begin(const char* deviceName) {
@@ -102,21 +103,29 @@ void BleEngine::onWrite(BLECharacteristic* pCharacteristic) {
     for (size_t i = 0; i < rxVal.length(); i++) {
         char c = rxVal[i];
         if (c == '\n' || c == '\r') {
-            if (_rxAccumulator.length() > 0) {
+            if (_rxAccumulatorLen > 0) {
+                _rxAccumulator[_rxAccumulatorLen] = '\0';
                 _parseIncomingLine(_rxAccumulator);
-                _rxAccumulator = "";
+                _rxAccumulatorLen = 0;
             }
         } else {
-            _rxAccumulator += c;
-            if (c == '}' && _rxAccumulator.startsWith("{")) {
-                _parseIncomingLine(_rxAccumulator);
-                _rxAccumulator = "";
+            if (_rxAccumulatorLen < sizeof(_rxAccumulator) - 1) {
+                _rxAccumulator[_rxAccumulatorLen++] = c;
+                if (c == '}' && _rxAccumulator[0] == '{') {
+                    _rxAccumulator[_rxAccumulatorLen] = '\0';
+                    _parseIncomingLine(_rxAccumulator);
+                    _rxAccumulatorLen = 0;
+                }
+            } else {
+                _rxAccumulatorLen = 0; // Защита от переполнения
             }
         }
     }
 }
 
-void BleEngine::_parseIncomingLine(const String& line) {
+void BleEngine::_parseIncomingLine(const char* line) {
+    if (!line || line[0] == '\0') return;
+
     String trimmed = line;
     trimmed.trim();
     if (trimmed.length() == 0) return;
@@ -377,7 +386,7 @@ void BleEngine::sendDiagnostics(
 
     snprintf(
         _txBuffer, sizeof(_txBuffer),
-        "{\"t\":\"diag\",\"imu_ok\":%s,\"imu_msg\":\"%s\",\"gps_ok\":%s,\"gps_msg\":\"%s\",\"gps_rate\":%u,\"gps_baud\":%u,\"storage_ok\":%s,\"bat_ok\":%s,\"bat_v\":%.2f,\"bat_pct\":%u,\"fw\":\"%s\"}\n",
+        "{\"t\":\"diag\",\"imu_ok\":%s,\"imu_msg\":\"%s\",\"gps_ok\":%s,\"gps_msg\":\"%s\",\"gps_rate\":%u,\"gps_baud\":%u,\"storage_ok\":%s,\"bat_ok\":%s,\"bat_v\":%.2f,\"bat_pct\":%u,\"heap\":%u,\"min_heap\":%u,\"fw\":\"%s\"}\n",
         imuOk ? "true" : "false",
         imuMsg ? imuMsg : "OK",
         gpsOk ? "true" : "false",
@@ -388,6 +397,8 @@ void BleEngine::sendDiagnostics(
         batOk ? "true" : "false",
         batVolts,
         batPct,
+        (unsigned int)esp_get_free_heap_size(),
+        (unsigned int)esp_get_minimum_free_heap_size(),
         DRAGON_FW_VERSION
     );
 

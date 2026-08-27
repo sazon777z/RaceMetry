@@ -1571,6 +1571,15 @@
             return audioCtx;
         }
 
+        // Автоматическое пробуждение AudioContext на мобильных устройствах при клике / тапе
+        ['click', 'touchstart'].forEach(evt => {
+            document.addEventListener(evt, () => {
+                if (audioCtx && audioCtx.state === 'suspended') {
+                    audioCtx.resume();
+                }
+            }, { once: false, passive: true });
+        });
+
         function getSoundMode() {
             try {
                 return localStorage.getItem('racemetry_sound_mode') || 'off';

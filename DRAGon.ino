@@ -229,7 +229,7 @@ void setup() {
     xTaskCreatePinnedToCore(
         TelemetryTask,        // Функция задачи
         "TelemetryTask",      // Имя
-        8192,                 // Стек (байт)
+        4096,                 // Оптимизированный стек (4КБ)
         NULL,                 // Параметры
         2,                    // Приоритет (высокий)
         NULL,                 // Дескриптор
@@ -370,12 +370,13 @@ void TelemetryTask(void* parameter) {
         safeImuData = imuEngine.getData();
         safeRaceState = curState;
         safeDiscipline = telemetryEngine.getDiscipline();
-        safeCurrentRun = telemetryEngine.getCurrentRun();
-        safeLastRun = telemetryEngine.getLastRun();
         safeLiveTimeSec = telemetryEngine.getCurrentTimeSec();
         safeLiveDistanceM = telemetryEngine.getCurrentDistanceM();
         safeLiveSpeedKmh = telemetryEngine.getCurrentSpeedKmh();
         safeLiveSlopePct = telemetryEngine.getCurrentSlopePct();
+        if (newRunSaved) {
+            safeLastRun = telemetryEngine.getLastRun();
+        }
         portEXIT_CRITICAL(&stateMutex);
 
         vTaskDelayUntil(&xLastWakeTime, xFrequency);

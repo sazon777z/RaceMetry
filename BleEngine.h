@@ -104,7 +104,8 @@ private:
     BleCommandHandler   _cmdHandler;
 
     char                _txBuffer[512];
-    String              _rxAccumulator;
+    char                _rxAccumulator[256];
+    uint16_t            _rxAccumulatorLen;
 
-    void _parseIncomingLine(const String& line);
+    void _parseIncomingLine(const char* line);
 };
