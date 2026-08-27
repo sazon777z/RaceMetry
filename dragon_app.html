@@ -150,14 +150,14 @@
             color: var(--text-primary);
         }
 
-        /* Smartphone-style Signal & Battery Header Widgets (Identical Size & Proportions) */
+        /* Smartphone-style Signal & Battery Header Widgets */
         .signal-widget, .bat-widget {
             display: inline-flex;
             align-items: center;
             justify-content: center;
             gap: 6px;
             height: 30px;
-            padding: 0 10px;
+            padding: 0 8px;
             background: rgba(255, 255, 255, 0.05);
             border-radius: 15px;
             border: 1px solid var(--border-color);
@@ -169,12 +169,16 @@
             transition: all 0.3s ease;
         }
 
+        .signal-widget {
+            padding: 0 9px;
+            cursor: default;
+        }
+
         .signal-bars-icon {
-            width: 15px;
-            height: 13px;
+            width: 17px;
+            height: 15px;
             display: inline-block;
             vertical-align: middle;
-            color: var(--accent-green);
         }
 
         .bat-icon-pill {
@@ -938,14 +942,13 @@
             <span class="brand-logo">RaceMetry</span>
         </div>
         <div class="header-right">
-            <div class="signal-widget" id="statSignalWidget" title="Уровень сигнала Bluetooth">
+            <div class="signal-widget" id="statSignalWidget" title="Уровень связи Bluetooth">
                 <svg class="signal-bars-icon" viewBox="0 0 24 24">
-                    <rect x="2" y="16" width="3.5" height="6" rx="1" id="sigBar1" fill="currentColor" opacity="0.2"/>
-                    <rect x="7.5" y="12" width="3.5" height="10" rx="1" id="sigBar2" fill="currentColor" opacity="0.2"/>
-                    <rect x="13" y="7" width="3.5" height="15" rx="1" id="sigBar3" fill="currentColor" opacity="0.2"/>
-                    <rect x="18.5" y="2" width="3.5" height="20" rx="1" id="sigBar4" fill="currentColor" opacity="0.2"/>
+                    <rect x="2" y="16" width="3.8" height="6" rx="1" id="sigBar1" fill="currentColor" opacity="0.2"/>
+                    <rect x="7.5" y="11.5" width="3.8" height="10.5" rx="1" id="sigBar2" fill="currentColor" opacity="0.2"/>
+                    <rect x="13" y="7" width="3.8" height="15" rx="1" id="sigBar3" fill="currentColor" opacity="0.2"/>
+                    <rect x="18.5" y="2" width="3.8" height="20" rx="1" id="sigBar4" fill="currentColor" opacity="0.2"/>
                 </svg>
-                <span id="statSignalText">--</span>
             </div>
             <div class="bat-widget" id="statBatItem" title="Уровень заряда аккумулятора">
                 <div class="bat-icon-pill">
@@ -1774,55 +1777,50 @@
 
         function renderSignalStatus(rssi) {
             let widget = document.getElementById('statSignalWidget');
-            let sigText = document.getElementById('statSignalText');
             let b1 = document.getElementById('sigBar1');
             let b2 = document.getElementById('sigBar2');
             let b3 = document.getElementById('sigBar3');
             let b4 = document.getElementById('sigBar4');
 
-            if (!widget || !sigText) return;
+            if (!widget) return;
 
             if (!isBleConnected || rssi === undefined || rssi < -110 || rssi === 0) {
-                sigText.innerText = "--";
-                sigText.style.color = "var(--text-muted)";
                 if (b1) { b1.style.opacity = "0.2"; b1.style.fill = "currentColor"; }
                 if (b2) { b2.style.opacity = "0.2"; b2.style.fill = "currentColor"; }
                 if (b3) { b3.style.opacity = "0.2"; b3.style.fill = "currentColor"; }
                 if (b4) { b4.style.opacity = "0.2"; b4.style.fill = "currentColor"; }
+                widget.style.borderColor = "var(--border-color)";
                 return;
             }
 
-            sigText.innerText = rssi + " dBm";
-
-            // Signal bar levels
+            // 4 bars (Отличный) >= -65
             if (rssi >= -65) {
-                // 4 bars (Отличный)
                 if (b1) { b1.style.opacity = "1"; b1.style.fill = "var(--accent-green)"; }
                 if (b2) { b2.style.opacity = "1"; b2.style.fill = "var(--accent-green)"; }
                 if (b3) { b3.style.opacity = "1"; b3.style.fill = "var(--accent-green)"; }
                 if (b4) { b4.style.opacity = "1"; b4.style.fill = "var(--accent-green)"; }
-                sigText.style.color = "var(--accent-green)";
+                widget.style.borderColor = "rgba(0, 230, 118, 0.4)";
             } else if (rssi >= -78) {
                 // 3 bars (Хороший)
                 if (b1) { b1.style.opacity = "1"; b1.style.fill = "var(--accent-cyan)"; }
                 if (b2) { b2.style.opacity = "1"; b2.style.fill = "var(--accent-cyan)"; }
                 if (b3) { b3.style.opacity = "1"; b3.style.fill = "var(--accent-cyan)"; }
                 if (b4) { b4.style.opacity = "0.2"; b4.style.fill = "currentColor"; }
-                sigText.style.color = "var(--accent-cyan)";
+                widget.style.borderColor = "rgba(0, 229, 255, 0.4)";
             } else if (rssi >= -88) {
                 // 2 bars (Средний)
                 if (b1) { b1.style.opacity = "1"; b1.style.fill = "var(--accent-gold)"; }
                 if (b2) { b2.style.opacity = "1"; b2.style.fill = "var(--accent-gold)"; }
                 if (b3) { b3.style.opacity = "0.2"; b3.style.fill = "currentColor"; }
                 if (b4) { b4.style.opacity = "0.2"; b4.style.fill = "currentColor"; }
-                sigText.style.color = "var(--accent-gold)";
+                widget.style.borderColor = "rgba(255, 179, 0, 0.4)";
             } else {
                 // 1 bar (Слабый)
                 if (b1) { b1.style.opacity = "1"; b1.style.fill = "var(--accent-red)"; }
                 if (b2) { b2.style.opacity = "0.2"; b2.style.fill = "currentColor"; }
                 if (b3) { b3.style.opacity = "0.2"; b3.style.fill = "currentColor"; }
                 if (b4) { b4.style.opacity = "0.2"; b4.style.fill = "currentColor"; }
-                sigText.style.color = "var(--accent-red)";
+                widget.style.borderColor = "rgba(255, 23, 68, 0.4)";
             }
 
             let diagSig = document.getElementById('diagSignal');
