@@ -1337,16 +1337,18 @@
 
                 <div class="setting-row">
                     <div class="setting-label">
-                        <span class="setting-name">Голосовой помощник (Озвучка отсечек)</span>
-                        <span class="setting-desc">Озвучивание старта, 0-100, 1/4 мили и финиша</span>
+                        <span class="setting-name">Звуковые оповещения</span>
+                        <span class="setting-desc">Звуковые сигналы (бипы как в Dragy) или голосовая озвучка</span>
                     </div>
-                    <label class="switch">
-                        <input type="checkbox" id="setVoiceToggle" onchange="toggleVoiceAssistant(this.checked)">
-                        <span class="slider"></span>
-                    </label>
+                    <select id="setSoundMode" class="chip" style="background: #182030; color: var(--text-primary); border: 1px solid var(--border-color); padding: 5px 8px; font-weight: 600; cursor: pointer;" onchange="setSoundMode(this.value)">
+                        <option value="off">🔇 Без звука</option>
+                        <option value="beeps">🔊 Сигналы Dragy (Бипы)</option>
+                        <option value="voice">🗣️ Голосовая озвучка</option>
+                        <option value="both">⚡ Сигналы + Голос</option>
+                    </select>
                 </div>
 
-                <div class="setting-row" id="voiceSelectRow">
+                <div class="setting-row" id="voiceSelectRow" style="display: none;">
                     <div class="setting-label">
                         <span class="setting-name">Голос озвучки</span>
                         <span class="setting-desc">Выбор нейросетевого русского голоса системы</span>
@@ -1357,6 +1359,21 @@
                         </select>
                         <button class="chip" style="background: rgba(0, 255, 204, 0.15); color: var(--accent-cyan); border: 1px solid var(--accent-cyan);" onclick="testVoice()">
                             🔊 Тест
+                        </button>
+                    </div>
+                </div>
+
+                <div class="setting-row" id="beepTestRow" style="display: none;">
+                    <div class="setting-label">
+                        <span class="setting-name">Тест сигналов Dragy</span>
+                        <span class="setting-desc">Прослушать отсечку и победный финиш</span>
+                    </div>
+                    <div style="display: flex; gap: 6px;">
+                        <button class="chip" style="background: rgba(0, 255, 204, 0.15); color: var(--accent-cyan); border: 1px solid var(--accent-cyan);" onclick="playDragyBeep('split')">
+                            🏁 Отсечка
+                        </button>
+                        <button class="chip" style="background: rgba(0, 230, 118, 0.15); color: var(--accent-green); border: 1px solid var(--accent-green);" onclick="playDragyBeep('finish_valid')">
+                            🏆 Финиш
                         </button>
                     </div>
                 </div>
@@ -1521,16 +1538,112 @@
         let lastRunData = null;
         let lastLiveTelemetry = {};
 
-        // Sound / Speech Engine with High-Quality Neural Voice Selector
+        // Sound & Audio Engine: Web Audio API (Dragy Beeps) + Neural TTS (Speech)
         const speechSynth = window.speechSynthesis;
         let availableVoices = [];
         let selectedVoice = null;
+        let audioCtx = null;
+
+        function getAudioContext() {
+            if (!audioCtx) {
+                const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+                if (AudioContextClass) {
+                    audioCtx = new AudioContextClass();
+                }
+            }
+            if (audioCtx && audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+            return audioCtx;
+        }
+
+        function getSoundMode() {
+            try {
+                return localStorage.getItem('racemetry_sound_mode') || 'off';
+            } catch(e) {
+                return 'off';
+            }
+        }
+
+        function setSoundMode(mode) {
+            try {
+                localStorage.setItem('racemetry_sound_mode', mode);
+            } catch(e) {}
+
+            let voiceRow = document.getElementById('voiceSelectRow');
+            let beepRow = document.getElementById('beepTestRow');
+
+            if (voiceRow) voiceRow.style.display = (mode === 'voice' || mode === 'both') ? 'flex' : 'none';
+            if (beepRow) beepRow.style.display = (mode === 'beeps' || mode === 'both') ? 'flex' : 'none';
+
+            if (mode === 'beeps') {
+                showToast("Звук: Сигналы Dragy (Бипы)");
+                playDragyBeep('split');
+            } else if (mode === 'voice') {
+                showToast("Звук: Голосовая озвучка");
+                speak("Голосовая озвучка включена");
+            } else if (mode === 'both') {
+                showToast("Звук: Сигналы + Голос");
+                playDragyBeep('split');
+            } else {
+                showToast("Звук отключен");
+            }
+        }
+
+        function playTone(freq, durationSec = 0.08, type = 'sine', volume = 0.35) {
+            try {
+                let ctx = getAudioContext();
+                if (!ctx) return;
+                let osc = ctx.createOscillator();
+                let gain = ctx.createGain();
+
+                osc.type = type;
+                osc.frequency.setValueAtTime(freq, ctx.currentTime);
+
+                gain.gain.setValueAtTime(volume, ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + durationSec);
+
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+
+                osc.start(ctx.currentTime);
+                osc.stop(ctx.currentTime + durationSec);
+            } catch(e) {}
+        }
+
+        // Dragy-style Sound Triggers
+        function playDragyBeep(type) {
+            let mode = getSoundMode();
+            if (mode !== 'beeps' && mode !== 'both') return;
+
+            let ctx = getAudioContext();
+            if (!ctx) return;
+
+            if (type === 'ready') {
+                // Двойной восходящий чип "Готов к старту" (880Hz -> 1175Hz)
+                playTone(880, 0.07, 'sine', 0.3);
+                setTimeout(() => playTone(1175, 0.12, 'sine', 0.35), 80);
+            } else if (type === 'launch') {
+                // Короткий стартовый пик (1320Hz)
+                playTone(1320, 0.06, 'sine', 0.4);
+            } else if (type === 'split') {
+                // Одиночный четкий Dragy-бип на отсечке (1046.5Hz)
+                playTone(1046.5, 0.09, 'sine', 0.45);
+            } else if (type === 'finish_valid') {
+                // Двойной победный мажорный аккорд финиша (1046Hz -> 1318Hz)
+                playTone(1046.5, 0.08, 'sine', 0.4);
+                setTimeout(() => playTone(1318.5, 0.18, 'sine', 0.45), 90);
+            } else if (type === 'finish_invalid' || type === 'warning') {
+                // Предупреждающий низкий двойной зуммер
+                playTone(370, 0.10, 'triangle', 0.35);
+                setTimeout(() => playTone(260, 0.18, 'triangle', 0.35), 110);
+            }
+        }
 
         function initVoices() {
             if (!speechSynth) return;
             availableVoices = speechSynth.getVoices().filter(v => v.lang && v.lang.startsWith('ru'));
             
-            // Priority: Google Russian / Natural / Yandex / Premium Cloud voices
             if (availableVoices.length > 0) {
                 let savedUri = localStorage.getItem('racemetry_voice_uri');
                 if (savedUri) {
@@ -1574,16 +1687,6 @@
             }
         }
 
-        function toggleVoiceAssistant(enabled) {
-            try {
-                localStorage.setItem('racemetry_voice_enabled', enabled ? 'true' : 'false');
-            } catch(e) {}
-            showToast(enabled ? "Голосовой помощник включен" : "Голосовой помощник отключен");
-            if (enabled) {
-                speak("Голосовой помощник активирован");
-            }
-        }
-
         function formatSportsTime(seconds) {
             if (isNaN(seconds) || seconds <= 0) return "";
             let sec = Math.floor(seconds);
@@ -1594,15 +1697,14 @@
         }
 
         function speak(text) {
-            let voiceToggle = document.getElementById('setVoiceToggle');
-            let voiceEnabled = voiceToggle ? voiceToggle.checked : false;
-            if (!voiceEnabled) return;
+            let mode = getSoundMode();
+            if (mode !== 'voice' && mode !== 'both') return;
             if (!speechSynth) return;
             try {
                 speechSynth.cancel();
                 const utter = new SpeechSynthesisUtterance(text);
                 utter.lang = 'ru-RU';
-                utter.rate = 1.08; // Энергичный спортивный темп
+                utter.rate = 1.08;
                 utter.pitch = 1.0;
                 if (selectedVoice) utter.voice = selectedVoice;
                 speechSynth.speak(utter);
@@ -2104,12 +2206,18 @@
                     } else {
                         badge.innerText = "ГОТОВ К СТАРТУ";
                         badge.classList.add('armed');
-                        if (prevState !== 1) speak("Готов к старту");
+                        if (prevState !== 1) {
+                            playDragyBeep('ready');
+                            speak("Готов к старту");
+                        }
                     }
                 } else if (d.state === 2 || d.state === 3) {
                     badge.innerText = "ИДЕТ ЗАЕЗД...";
                     badge.classList.add('measuring');
-                    if (prevState === 1) speak("Старт");
+                    if (prevState === 1) {
+                        playDragyBeep('launch');
+                        speak("Старт");
+                    }
                 } else if (d.state === 4) {
                     badge.innerText = "ФИНИШ";
                     badge.classList.add('finished');
@@ -2126,6 +2234,7 @@
         function handleArmClick() {
             if (!isBleConnected) {
                 showToast("⚠️ Прибор не подключен по Bluetooth!");
+                playDragyBeep('warning');
                 speak("Прибор не подключен");
                 return;
             }
@@ -2133,6 +2242,7 @@
             // 1. Проверка фикса GPS и спутников
             if (!lastLiveTelemetry.fix || lastLiveTelemetry.fix < 3 || (lastLiveTelemetry.sats !== undefined && lastLiveTelemetry.sats < 5)) {
                 showToast("⚠️ Ожидание 3D Fix GPS! Спутников: " + (lastLiveTelemetry.sats || 0));
+                playDragyBeep('warning');
                 speak("Ожидание сигнала GPS");
                 let badge = document.getElementById('cockpitStateBadge');
                 if (badge) {
@@ -2145,6 +2255,7 @@
             // 2. Проверка неподвижности авто
             if (lastLiveTelemetry.spd !== undefined && lastLiveTelemetry.spd >= 1.0) {
                 showToast("⚠️ Автомобиль движется (" + Math.round(lastLiveTelemetry.spd) + " км/ч)! Для замера остановитесь.");
+                playDragyBeep('warning');
                 speak("Остановите автомобиль для старта");
                 let badge = document.getElementById('cockpitStateBadge');
                 if (badge) {
@@ -2157,6 +2268,7 @@
             // 3. Проверка точности GPS
             if (lastLiveTelemetry.hacc !== undefined && lastLiveTelemetry.hacc > 3.5) {
                 showToast("⚠️ Точность GPS недостаточна (±" + lastLiveTelemetry.hacc.toFixed(1) + "м)");
+                playDragyBeep('warning');
                 speak("Ожидание точности GPS");
                 let badge = document.getElementById('cockpitStateBadge');
                 if (badge) {
@@ -2172,6 +2284,7 @@
 
         function handleSplitAchieved(s) {
             console.log("Split reached:", s);
+            playDragyBeep('split');
             let name = s.name.replace("0-100 km/h", "Ноль сто")
                              .replace("0-60 km/h", "Ноль шестьдесят")
                              .replace("100-200 km/h", "Сто двести")
@@ -2219,6 +2332,7 @@
             if (run.valid) {
                 slopeBadge.className = 'slope-badge valid';
                 slopeBadge.innerText = "VALID " + (run.slope !== undefined ? run.slope.toFixed(1) : "0.0") + "%";
+                playDragyBeep('finish_valid');
                 if (run.s0_100 > 0) {
                     speak(`Финиш! Ноль сто: ${formatSportsTime(run.s0_100)}`);
                 } else if (run.s1_4mi > 0) {
@@ -2231,6 +2345,7 @@
             } else {
                 slopeBadge.className = 'slope-badge invalid';
                 slopeBadge.innerText = "INVALID SLOPE " + (run.slope !== undefined ? run.slope.toFixed(1) : "0.0") + "%";
+                playDragyBeep('finish_invalid');
                 speak("Внимание! Уклон превышает норму.");
             }
 
@@ -2503,12 +2618,15 @@
                 renderHistoryList();
             }
 
-            // Загрузка состояния голосового помощника (по умолчанию выключен)
-            let voiceSaved = localStorage.getItem('racemetry_voice_enabled');
-            let voiceEl = document.getElementById('setVoiceToggle');
-            if (voiceEl) {
-                voiceEl.checked = (voiceSaved === 'true');
-            }
+            // Загрузка состояния звуковых оповещений (по умолчанию 'off')
+            let soundModeSaved = localStorage.getItem('racemetry_sound_mode') || 'off';
+            let soundSel = document.getElementById('setSoundMode');
+            if (soundSel) soundSel.value = soundModeSaved;
+
+            let voiceRow = document.getElementById('voiceSelectRow');
+            let beepRow = document.getElementById('beepTestRow');
+            if (voiceRow) voiceRow.style.display = (soundModeSaved === 'voice' || soundModeSaved === 'both') ? 'flex' : 'none';
+            if (beepRow) beepRow.style.display = (soundModeSaved === 'beeps' || soundModeSaved === 'both') ? 'flex' : 'none';
 
             let batModeSaved = localStorage.getItem('racemetry_bat_mode');
             if (batModeSaved !== null) {
