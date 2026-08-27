@@ -69,18 +69,18 @@
   <circle cx="136" cy="366" r="5" fill="#00e676"/>
   <circle cx="376" cy="366" r="6" fill="#ff1744" stroke="#ffffff" stroke-width="2"/>
 
-  <!-- Dynamic Red Tachometer Needle -->
-  <line x1="256" y1="256" x2="368" y2="144" stroke="url(#needleGrad)" stroke-width="5" stroke-linecap="round" filter="url(#softGlow)"/>
-  <circle cx="256" cy="256" r="10" fill="#0c121c" stroke="#ff1744" stroke-width="3"/>
+  <!-- Short Bold Red Needle at Track (Pointing Down-Right to Finish) -->
+  <path d="M 312 284 L 372 344 L 358 358 L 298 298 Z" fill="url(#needleGrad)" filter="url(#softGlow)"/>
+  <polygon points="372,344 346,334 358,358" fill="#ffffff"/>
 
-  <!-- Central Monogram "RM" -->
+  <!-- Central Monogram "RM" (Clean Center without any hubs) -->
   <g font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" text-anchor="middle">
-    <text x="246" y="254" font-size="116" font-weight="900" font-style="italic" letter-spacing="-1">
+    <text x="252" y="254" font-size="118" font-weight="900" font-style="italic" letter-spacing="-1">
       <tspan fill="#ffffff">R</tspan><tspan fill="#00ffcc">M</tspan>
     </text>
   </g>
 
-  <!-- Clean, Bold, Large "0-100" Badge Below (No small clutters) -->
+  <!-- Clean, Bold, Large "0-100" Badge Below -->
   <g transform="translate(176, 296)">
     <rect width="160" height="46" rx="23" fill="#0c121c" stroke="rgba(0, 255, 204, 0.7)" stroke-width="2.2"/>
     <text x="80" y="32" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="25" font-weight="900" fill="#00ffcc" letter-spacing="3" text-anchor="middle">0-100</text>
