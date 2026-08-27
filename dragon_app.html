@@ -88,38 +88,52 @@
             gap: 8px;
         }
 
-        .ble-btn {
-            display: flex;
+        /* Smartphone-style Header Widgets: BLE Button, Signal & Battery */
+        .signal-widget, .bat-widget, .ble-btn {
+            display: inline-flex;
             align-items: center;
+            justify-content: center;
             gap: 6px;
-            background: #182030;
-            color: var(--text-primary);
+            height: 30px;
+            padding: 0 10px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 15px;
             border: 1px solid var(--border-color);
-            padding: 7px 12px;
-            border-radius: var(--radius-md);
             font-size: 12px;
-            font-weight: 600;
+            font-weight: 700;
+            color: var(--text-primary);
+            box-sizing: border-box;
+            white-space: nowrap;
+            transition: all 0.25s ease;
+        }
+
+        .ble-btn {
             cursor: pointer;
-            transition: all 0.2s ease;
+            outline: none;
+            user-select: none;
         }
 
         .ble-btn:hover {
-            background: #222c42;
-            border-color: var(--accent-cyan);
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .ble-btn:active {
+            transform: scale(0.97);
         }
 
         .ble-btn.connected {
-            background: rgba(0, 230, 118, 0.15);
-            color: var(--accent-green);
-            border-color: var(--accent-green);
-            box-shadow: var(--glow-green);
+            background: rgba(255, 255, 255, 0.05);
+            border-color: var(--border-color);
+            color: var(--text-primary);
+            box-shadow: none;
         }
 
         .ble-dot {
-            width: 8px;
-            height: 8px;
+            width: 7px;
+            height: 7px;
             border-radius: 50%;
             background: var(--accent-red);
+            display: inline-block;
         }
 
         .ble-btn.connected .ble-dot {
@@ -153,25 +167,6 @@
 
         .status-item strong {
             color: var(--text-primary);
-        }
-
-        /* Smartphone-style Signal & Battery Header Widgets */
-        .signal-widget, .bat-widget {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 6px;
-            height: 30px;
-            padding: 0 8px;
-            background: rgba(255, 255, 255, 0.05);
-            border-radius: 15px;
-            border: 1px solid var(--border-color);
-            font-size: 12px;
-            font-weight: 700;
-            color: var(--text-primary);
-            box-sizing: border-box;
-            white-space: nowrap;
-            transition: all 0.3s ease;
         }
 
         .signal-widget {
