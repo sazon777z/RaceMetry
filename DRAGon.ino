@@ -151,7 +151,14 @@ void setup() {
         Serial.printf("[RaceMetry CMD] cmd: %s, val: %s\n", cmd.c_str(), val.c_str());
 
         if (cmd == "arm") {
-            telemetryEngine.arm();
+            const GpsData& gps = gpsEngine.getData();
+            if (gpsEngine.isReadyForRace() && gps.speedKmh <= 1.5f) {
+                telemetryEngine.arm();
+                Serial.println("[RaceMetry] ARMED: Race ready for launch!");
+            } else {
+                Serial.printf("[RaceMetry] Arm rejected: Fix=%d, Sats=%d, Spd=%.1f km/h, Acc=%.1fm\n",
+                    gps.fixType, gps.numSats, gps.speedKmh, gps.hAccM);
+            }
         } else if (cmd == "reset") {
             telemetryEngine.reset();
         } else if (cmd == "set_disc") {
