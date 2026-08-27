@@ -21,6 +21,7 @@ bool BleEngine::begin(const char* deviceName) {
 
     // 1. Инициализация стека BLE Device
     BLEDevice::init(deviceName);
+    BLEDevice::setMTU(517);
 
     // 2. Создание BLE Сервера
     _pServer = BLEDevice::createServer();
@@ -179,8 +180,24 @@ void BleEngine::sendJson(const char* jsonStr) {
     size_t len = strlen(jsonStr);
     if (len == 0) return;
 
-    _pTxCharacteristic->setValue((uint8_t*)jsonStr, len);
-    _pTxCharacteristic->notify();
+    // Чанкирование по 100 байт: гарантирует передачу полных строк с \n при любом MTU
+    const size_t CHUNK_SIZE = 100;
+    if (len <= CHUNK_SIZE) {
+        _pTxCharacteristic->setValue((uint8_t*)jsonStr, len);
+        _pTxCharacteristic->notify();
+    } else {
+        size_t sent = 0;
+        while (sent < len) {
+            size_t toSend = len - sent;
+            if (toSend > CHUNK_SIZE) toSend = CHUNK_SIZE;
+            _pTxCharacteristic->setValue((uint8_t*)(jsonStr + sent), toSend);
+            _pTxCharacteristic->notify();
+            sent += toSend;
+            if (sent < len) {
+                delay(3); // Небольшая пауза между фрагментами для буфера стека
+            }
+        }
+    }
 }
 
 void BleEngine::sendJson(const String& jsonStr) {
