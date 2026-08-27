@@ -1,121 +1,140 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
   <defs>
-    <!-- Dark Metallic Background Gradient -->
-    <radialGradient id="bgGlowCar" cx="50%" cy="40%" r="70%">
-      <stop offset="0%" stop-color="#162030"/>
-      <stop offset="100%" stop-color="#080b10"/>
+    <!-- Background Gradient -->
+    <radialGradient id="bgGrad" cx="50%" cy="38%" r="70%">
+      <stop offset="0%" stop-color="#1e2838"/>
+      <stop offset="100%" stop-color="#0a0e14"/>
     </radialGradient>
     
-    <!-- Bar 1 Gradient (Red/Orange Launch) -->
-    <linearGradient id="barGrad1" x1="0%" y1="100%" x2="0%" y2="0%">
-      <stop offset="0%" stop-color="#ff3d00"/>
-      <stop offset="100%" stop-color="#ff9100"/>
+    <!-- Bar 1 Gradient (Orange / Red) -->
+    <linearGradient id="bar1Grad" x1="0%" y1="100%" x2="0%" y2="0%">
+      <stop offset="0%" stop-color="#ff4500"/>
+      <stop offset="100%" stop-color="#ff9900"/>
     </linearGradient>
 
-    <!-- Bar 2 Gradient (Gold / Cyan Transition) -->
-    <linearGradient id="barGrad2" x1="0%" y1="100%" x2="0%" y2="0%">
-      <stop offset="0%" stop-color="#ffab00"/>
-      <stop offset="100%" stop-color="#00e5ff"/>
+    <!-- Bar 2 Gradient (Yellow / Gold) -->
+    <linearGradient id="bar2Grad" x1="0%" y1="100%" x2="0%" y2="0%">
+      <stop offset="0%" stop-color="#ff8800"/>
+      <stop offset="100%" stop-color="#ffcc00"/>
     </linearGradient>
 
-    <!-- Bar 3 Gradient (Neon Lime Peak) -->
-    <linearGradient id="barGrad3" x1="0%" y1="100%" x2="0%" y2="0%">
-      <stop offset="0%" stop-color="#00e5ff"/>
-      <stop offset="100%" stop-color="#00e676"/>
+    <!-- Bar 3 Gradient (Neon Lime Green) -->
+    <linearGradient id="bar3Grad" x1="0%" y1="100%" x2="0%" y2="0%">
+      <stop offset="0%" stop-color="#00dd55"/>
+      <stop offset="100%" stop-color="#76ff03"/>
     </linearGradient>
 
-    <!-- Metallic Car Body Shading -->
-    <linearGradient id="carBodyGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+    <!-- Car Body Metallic Gradient -->
+    <linearGradient id="carBody" x1="0%" y1="0%" x2="0%" y2="100%">
       <stop offset="0%" stop-color="#ffffff"/>
-      <stop offset="60%" stop-color="#e2e8f0"/>
-      <stop offset="100%" stop-color="#94a3b8"/>
+      <stop offset="55%" stop-color="#edf2f7"/>
+      <stop offset="100%" stop-color="#cbd5e1"/>
     </linearGradient>
 
-    <!-- Soft Glow Filter -->
-    <filter id="softGlowCar" x="-20%" y="-20%" width="140%" height="140%">
-      <feGaussianBlur stdDeviation="8" result="blur"/>
+    <!-- Drop Shadow / Glow -->
+    <filter id="softGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="6" result="blur"/>
       <feComposite in="SourceGraphic" in2="blur" operator="over"/>
     </filter>
   </defs>
 
-  <!-- Dark Rounded App Squircle -->
-  <rect width="512" height="512" rx="115" fill="url(#bgGlowCar)" stroke="#1e293b" stroke-width="4"/>
+  <!-- App Squircle -->
+  <rect width="512" height="512" rx="115" fill="url(#bgGrad)" stroke="#263445" stroke-width="3"/>
 
-  <!-- Telemetry Performance Bars (Rising Slanted Parallelograms) -->
+  <!-- 3 Slanted Telemetry Bars (Exact Proportions from Reference) -->
   <g>
     <!-- Bar 1 (Short) -->
-    <path d="M 152 236 L 206 236 L 226 172 L 172 172 Z" fill="url(#barGrad1)"/>
+    <polygon points="160,230 224,230 252,148 188,148" fill="url(#bar1Grad)"/>
     <!-- Bar 2 (Medium) -->
-    <path d="M 230 236 L 294 236 L 322 138 L 258 138 Z" fill="url(#barGrad2)"/>
-    <!-- Bar 3 (Tall - Peak Power) with Neon Glow -->
-    <path d="M 318 236 L 392 236 L 428 92 L 354 92 Z" fill="url(#barGrad3)" filter="url(#softGlowCar)"/>
-    <path d="M 318 236 L 392 236 L 428 92 L 354 92 Z" fill="url(#barGrad3)"/>
+    <polygon points="238,230 306,230 342,106 274,106" fill="url(#bar2Grad)"/>
+    <!-- Bar 3 (Tall) with Soft Neon Glow -->
+    <polygon points="320,230 396,230 440,64 364,64" fill="url(#bar3Grad)" filter="url(#softGlow)"/>
+    <polygon points="320,230 396,230 440,64 364,64" fill="url(#bar3Grad)"/>
   </g>
 
-  <!-- Speed & Exhaust Trails Behind Car -->
+  <!-- 3 Speed Streaks (Left) -->
   <g stroke-linecap="round">
-    <line x1="88" y1="236" x2="148" y2="236" stroke="#ff9100" stroke-width="4.5"/>
-    <line x1="72" y1="262" x2="132" y2="262" stroke="#ff3d00" stroke-width="4"/>
-    <line x1="96" y1="288" x2="138" y2="288" stroke="#00e676" stroke-width="3.5"/>
+    <path d="M 88 230 L 152 230" stroke="#ff7700" stroke-width="5"/>
+    <path d="M 68 258 L 138 258" stroke="#ff4400" stroke-width="4.5"/>
+    <path d="M 98 286 L 144 286" stroke="#00e676" stroke-width="4"/>
   </g>
 
-  <!-- White Supercar Silhouette Profile (Facing Right) -->
-  <g transform="translate(108, 192)">
-    <!-- Shadow -->
-    <ellipse cx="148" cy="116" rx="146" ry="12" fill="#000000" opacity="0.6" filter="blur(4px)"/>
+  <!-- Supercar Group -->
+  <g id="supercar">
+    <!-- Ground Shadow -->
+    <ellipse cx="270" cy="308" rx="150" ry="14" fill="#000000" opacity="0.65" filter="blur(6px)"/>
 
-    <!-- Main Body Shell -->
-    <path d="M 18 84 
-             C 12 78, 18 64, 30 60 
-             L 60 56 
-             C 82 46, 110 32, 142 32 
-             L 194 36 
-             C 228 48, 258 68, 282 82 
-             L 294 88 
-             C 298 94, 296 102, 288 106 
-             L 272 108 
-             C 264 108, 260 102, 256 94 
-             C 248 76, 222 76, 214 94 
-             L 208 108 
-             L 96 108 
-             C 92 98, 86 78, 70 78 
-             C 54 78, 48 98, 44 108 
-             L 24 106 
-             C 16 102, 12 92, 18 84 Z" 
-          fill="url(#carBodyGrad)" stroke="#0f172a" stroke-width="3.5" stroke-linejoin="round"/>
+    <!-- Main Outer White Car Silhouette -->
+    <!-- Front nose at right (395, 290), rear tail at left (135, 240) -->
+    <path d="
+      M 136 242
+      C 134 235, 142 228, 150 228
+      L 182 226
+      C 204 212, 235 194, 276 194
+      L 332 198
+      C 362 216, 388 238, 412 262
+      L 416 268
+      C 420 274, 416 282, 404 288
+      L 396 296
+      C 392 300, 382 300, 376 296
+      L 364 294
+      C 358 274, 338 258, 314 258
+      C 290 258, 270 274, 264 294
+      L 204 294
+      C 198 274, 178 258, 154 258
+      C 130 258, 110 274, 104 294
+      L 98 290
+      C 94 286, 92 278, 96 270
+      L 104 252
+      C 106 244, 116 240, 124 240
+      Z
+    " fill="url(#carBody)" stroke="#090d14" stroke-width="4.5" stroke-linejoin="round" transform="translate(32, 10)"/>
 
-    <!-- Side Air Scoops / Vent Insets -->
-    <path d="M 134 68 L 176 68 L 166 94 L 126 94 Z" fill="#0f172a"/>
-    <path d="M 124 94 L 164 94 L 158 102 L 120 102 Z" fill="#1e293b"/>
+    <!-- Car Interior / Dark Window Cutouts & Panels -->
+    <g transform="translate(32, 10)">
+      <!-- Main Window Cockpit Frame -->
+      <!-- Windshield & Front Side Window -->
+      <path d="M 232 208 L 290 208 L 282 228 L 218 228 Z" fill="#090e17" stroke="#1e293b" stroke-width="2"/>
+      <path d="M 296 208 L 340 216 L 334 232 L 288 230 Z" fill="#090e17" stroke="#1e293b" stroke-width="2"/>
+      <polygon points="344,218 368,244 336,244 336,234" fill="#090e17"/>
 
-    <!-- Dark Tinted Windows & Roof Pillar -->
-    <path d="M 94 54 L 140 40 L 192 44 L 174 62 L 98 62 Z" fill="#090d14" stroke="#1e293b" stroke-width="2"/>
-    <!-- Windshield Reflection -->
-    <path d="M 148 43 L 188 47 L 172 61 L 142 55 Z" fill="#00e5ff" opacity="0.3"/>
+      <!-- Window Glass Reflection Line -->
+      <line x1="240" y1="211" x2="330" y2="228" stroke="#ffffff" stroke-width="2" opacity="0.6"/>
 
-    <!-- Slim Cyan LED Headlight -->
-    <polygon points="282,88 292,89 284,94 278,92" fill="#00ffcc" filter="drop-shadow(0 0 3px #00ffcc)"/>
-    <!-- Slim Red LED Taillight -->
-    <line x1="16" y1="80" x2="24" y2="82" stroke="#ff1744" stroke-width="3.5" stroke-linecap="round"/>
+      <!-- Black Door / Quarter Intake (The iconic trapezoid scoop) -->
+      <polygon points="214,244 268,244 254,272 198,272" fill="#090e17"/>
+      <!-- Body Crease line above scoop -->
+      <line x1="184" y1="238" x2="274" y2="238" stroke="#94a3b8" stroke-width="2.5" stroke-linecap="round"/>
 
+      <!-- Front Headlight (Sharp Cyan Angle) -->
+      <polygon points="396,268 412,274 402,280 392,274" fill="#00ffcc" filter="drop-shadow(0 0 3px #00ffcc)"/>
+
+      <!-- Front Bumper Chin Intake -->
+      <polygon points="394,286 406,286 400,294 386,294" fill="#090e17"/>
+
+      <!-- Rear Taillight / Vent Accent -->
+      <line x1="102" y1="256" x2="114" y2="258" stroke="#ff1744" stroke-width="4" stroke-linecap="round"/>
+    </g>
+
+    <!-- Wheels (Crisp Black Tires with Gray Rings & Center Hub) -->
     <!-- Rear Wheel -->
-    <g transform="translate(57, 94)">
-      <circle cx="0" cy="0" r="22" fill="#0b0f17" stroke="#475569" stroke-width="3.5"/>
-      <circle cx="0" cy="0" r="14" fill="#1e293b"/>
-      <circle cx="0" cy="0" r="6" fill="#00e5ff"/>
+    <g transform="translate(186, 304)">
+      <circle cx="0" cy="0" r="26" fill="#090d14" stroke="#475569" stroke-width="5"/>
+      <circle cx="0" cy="0" r="16" fill="#1e293b" stroke="#00e5ff" stroke-width="1.5"/>
+      <circle cx="0" cy="0" r="7" fill="#090d14"/>
     </g>
 
     <!-- Front Wheel -->
-    <g transform="translate(235, 94)">
-      <circle cx="0" cy="0" r="22" fill="#0b0f17" stroke="#475569" stroke-width="3.5"/>
-      <circle cx="0" cy="0" r="14" fill="#1e293b"/>
-      <circle cx="0" cy="0" r="6" fill="#00e5ff"/>
+    <g transform="translate(346, 304)">
+      <circle cx="0" cy="0" r="26" fill="#090d14" stroke="#475569" stroke-width="5"/>
+      <circle cx="0" cy="0" r="16" fill="#1e293b" stroke="#00e5ff" stroke-width="1.5"/>
+      <circle cx="0" cy="0" r="7" fill="#090d14"/>
     </g>
   </g>
 
-  <!-- Clean Bold Racing Title Below -->
+  <!-- Title Text Below: RACEMETRY PRO -->
   <g font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" text-anchor="middle">
-    <text x="256" y="386" font-size="34" font-weight="900" font-style="italic" letter-spacing="2">
+    <text x="256" y="394" font-size="36" font-weight="900" font-style="italic" letter-spacing="2">
       <tspan fill="#ffffff">RACEMETRY </tspan><tspan fill="#00ffcc">PRO</tspan>
     </text>
   </g>
