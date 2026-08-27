@@ -1341,9 +1341,24 @@
                         <span class="setting-desc">Озвучивание старта, 0-100, 1/4 мили и финиша</span>
                     </div>
                     <label class="switch">
-                        <input type="checkbox" id="setVoiceToggle" checked>
+                        <input type="checkbox" id="setVoiceToggle" onchange="toggleVoiceAssistant(this.checked)">
                         <span class="slider"></span>
                     </label>
+                </div>
+
+                <div class="setting-row" id="voiceSelectRow">
+                    <div class="setting-label">
+                        <span class="setting-name">Голос озвучки</span>
+                        <span class="setting-desc">Выбор нейросетевого русского голоса системы</span>
+                    </div>
+                    <div style="display: flex; gap: 6px; align-items: center;">
+                        <select id="voiceSelect" class="chip" style="background: #182030; color: var(--text-primary); border: 1px solid var(--border-color); padding: 5px 8px; font-weight: 600; cursor: pointer; max-width: 160px;" onchange="changeVoice(this.value)">
+                            <option value="">Поиск голосов...</option>
+                        </select>
+                        <button class="chip" style="background: rgba(0, 255, 204, 0.15); color: var(--accent-cyan); border: 1px solid var(--accent-cyan);" onclick="testVoice()">
+                            🔊 Тест
+                        </button>
+                    </div>
                 </div>
 
                 <div class="setting-row">
@@ -1506,16 +1521,102 @@
         let lastRunData = null;
         let lastLiveTelemetry = {};
 
-        // Sound / Speech Engine
+        // Sound / Speech Engine with High-Quality Neural Voice Selector
         const speechSynth = window.speechSynthesis;
+        let availableVoices = [];
+        let selectedVoice = null;
+
+        function initVoices() {
+            if (!speechSynth) return;
+            availableVoices = speechSynth.getVoices().filter(v => v.lang && v.lang.startsWith('ru'));
+            
+            // Priority: Google Russian / Natural / Yandex / Premium Cloud voices
+            if (availableVoices.length > 0) {
+                let savedUri = localStorage.getItem('racemetry_voice_uri');
+                if (savedUri) {
+                    selectedVoice = availableVoices.find(v => v.voiceURI === savedUri);
+                }
+                if (!selectedVoice) {
+                    selectedVoice = availableVoices.find(v => v.name.includes('Google') || v.name.includes('Natural') || v.name.includes('Yandex'))
+                                 || availableVoices[0];
+                }
+            }
+            populateVoiceSelect();
+        }
+
+        if (speechSynth) {
+            speechSynth.onvoiceschanged = initVoices;
+            initVoices();
+        }
+
+        function populateVoiceSelect() {
+            let select = document.getElementById('voiceSelect');
+            if (!select) return;
+            select.innerHTML = '';
+            if (availableVoices.length === 0) {
+                select.innerHTML = '<option value="">Стандартный голос</option>';
+                return;
+            }
+            availableVoices.forEach(v => {
+                let opt = document.createElement('option');
+                opt.value = v.voiceURI;
+                opt.innerText = v.name.replace("Microsoft ", "").replace(" Desktop", "") + (v.name.includes('Google') ? ' ⭐' : '');
+                if (selectedVoice && selectedVoice.voiceURI === v.voiceURI) opt.selected = true;
+                select.appendChild(opt);
+            });
+        }
+
+        function changeVoice(uri) {
+            selectedVoice = availableVoices.find(v => v.voiceURI === uri) || null;
+            if (selectedVoice) {
+                localStorage.setItem('racemetry_voice_uri', selectedVoice.voiceURI);
+                testVoice();
+            }
+        }
+
+        function toggleVoiceAssistant(enabled) {
+            try {
+                localStorage.setItem('racemetry_voice_enabled', enabled ? 'true' : 'false');
+            } catch(e) {}
+            showToast(enabled ? "Голосовой помощник включен" : "Голосовой помощник отключен");
+            if (enabled) {
+                speak("Голосовой помощник активирован");
+            }
+        }
+
+        function formatSportsTime(seconds) {
+            if (isNaN(seconds) || seconds <= 0) return "";
+            let sec = Math.floor(seconds);
+            let hundredths = Math.round((seconds - sec) * 100);
+            if (hundredths === 0) return `${sec} ровно`;
+            if (hundredths < 10) return `${sec} и ноль ${hundredths}`;
+            return `${sec} и ${hundredths}`;
+        }
+
         function speak(text) {
-            if (!document.getElementById('setVoiceToggle').checked) return;
+            let voiceToggle = document.getElementById('setVoiceToggle');
+            let voiceEnabled = voiceToggle ? voiceToggle.checked : false;
+            if (!voiceEnabled) return;
             if (!speechSynth) return;
             try {
                 speechSynth.cancel();
                 const utter = new SpeechSynthesisUtterance(text);
                 utter.lang = 'ru-RU';
-                utter.rate = 1.1;
+                utter.rate = 1.08; // Энергичный спортивный темп
+                utter.pitch = 1.0;
+                if (selectedVoice) utter.voice = selectedVoice;
+                speechSynth.speak(utter);
+            } catch(e) {}
+        }
+
+        function testVoice() {
+            if (!speechSynth) return;
+            try {
+                speechSynth.cancel();
+                const utter = new SpeechSynthesisUtterance("Ноль сто: три и сорок пять сотых. Заезд валиден!");
+                utter.lang = 'ru-RU';
+                utter.rate = 1.08;
+                if (selectedVoice) utter.voice = selectedVoice;
                 speechSynth.speak(utter);
             } catch(e) {}
         }
@@ -2071,7 +2172,16 @@
 
         function handleSplitAchieved(s) {
             console.log("Split reached:", s);
-            speak(s.name + ": " + s.time.toFixed(2) + " секунды");
+            let name = s.name.replace("0-100 km/h", "Ноль сто")
+                             .replace("0-60 km/h", "Ноль шестьдесят")
+                             .replace("100-200 km/h", "Сто двести")
+                             .replace("0-200 km/h", "Ноль двести")
+                             .replace("1/4 Mile", "Четверть мили")
+                             .replace("1/8 Mile", "Одна восьмая мили")
+                             .replace("1000 ft", "Тысяча футов")
+                             .replace("60 ft", "Шестьдесят футов");
+            let spokenTime = formatSportsTime(s.time);
+            speak(`${name}: ${spokenTime}`);
         }
 
         function handleRunFinished(run) {
@@ -2109,7 +2219,15 @@
             if (run.valid) {
                 slopeBadge.className = 'slope-badge valid';
                 slopeBadge.innerText = "VALID " + (run.slope !== undefined ? run.slope.toFixed(1) : "0.0") + "%";
-                speak("Заезд завершен. Валидный уклон.");
+                if (run.s0_100 > 0) {
+                    speak(`Финиш! Ноль сто: ${formatSportsTime(run.s0_100)}`);
+                } else if (run.s1_4mi > 0) {
+                    speak(`Финиш! Четверть мили: ${formatSportsTime(run.s1_4mi)}`);
+                } else if (run.s0_60 > 0) {
+                    speak(`Финиш! Ноль шестьдесят: ${formatSportsTime(run.s0_60)}`);
+                } else {
+                    speak("Финиш! Заезд завершен.");
+                }
             } else {
                 slopeBadge.className = 'slope-badge invalid';
                 slopeBadge.innerText = "INVALID SLOPE " + (run.slope !== undefined ? run.slope.toFixed(1) : "0.0") + "%";
@@ -2383,6 +2501,19 @@
             if (cached) {
                 savedRuns = JSON.parse(cached);
                 renderHistoryList();
+            }
+
+            // Загрузка состояния голосового помощника (по умолчанию выключен)
+            let voiceSaved = localStorage.getItem('racemetry_voice_enabled');
+            let voiceEl = document.getElementById('setVoiceToggle');
+            if (voiceEl) {
+                voiceEl.checked = (voiceSaved === 'true');
+            }
+
+            let batModeSaved = localStorage.getItem('racemetry_bat_mode');
+            if (batModeSaved !== null) {
+                let batSel = document.getElementById('setBatIndMode');
+                if (batSel) batSel.value = batModeSaved;
             }
         } catch(e) {}
 

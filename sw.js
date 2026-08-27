@@ -3,7 +3,7 @@
  * Provides 100% offline capability and instant background auto-updates
  */
 
-const CACHE_NAME = 'racemetry-v2.5';
+const CACHE_NAME = 'racemetry-v2.6';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
