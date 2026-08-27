@@ -20,8 +20,8 @@ public:
     void begin(uint8_t pin = PIN_BTN);
     void update();
 
-    // Проверка нажатия кнопки
-    bool isPressed() const { return _btn.isPressed; }
+    // Текущее физическое состояние кнопки (с учетом антидребезга)
+    bool isPressed() const { return _debouncedPressed; }
 
     // Длительность текущего удержания кнопки (мс)
     uint32_t getPressDurationMs() const;
@@ -33,15 +33,15 @@ public:
     ButtonEvent popEvent();
 
 private:
-    struct ButtonState {
-        uint8_t pin;
-        bool isPressed;
-        uint32_t pressStartMs;
-        uint32_t lastReleaseMs;
-        uint8_t clickCount;
-        bool longPressFired;
-    };
+    uint8_t _pin;
+    bool _rawState;
+    bool _debouncedPressed;
+    uint32_t _lastDebounceTimeMs;
 
-    ButtonState _btn;
+    uint32_t _pressStartMs;
+    uint32_t _lastReleaseMs;
+    uint8_t _clickCount;
+    bool _longPressTriggered;
+
     ButtonEvent _pendingEvent;
 };
