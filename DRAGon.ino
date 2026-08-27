@@ -71,12 +71,14 @@ void runUcenterBridgeMode();
 
 void setup() {
     // 0. Снятие аппаратной фиксации GPIO после сна
-    gpio_hold_dis((gpio_num_t)PIN_BTN);
+    if (PIN_BTN != 255) {
+        gpio_hold_dis((gpio_num_t)PIN_BTN);
+    }
     gpio_hold_dis((gpio_num_t)PIN_GPS_TX);
 
     // Проверка причины старта: если пробуждение по кнопке из сна
     esp_sleep_wakeup_cause_t wakeup_reason = esp_sleep_get_wakeup_cause();
-    if (wakeup_reason == ESP_SLEEP_WAKEUP_EXT0 || wakeup_reason == ESP_SLEEP_WAKEUP_EXT1) {
+    if (PIN_BTN != 255 && (wakeup_reason == ESP_SLEEP_WAKEUP_EXT0 || wakeup_reason == ESP_SLEEP_WAKEUP_EXT1)) {
         pinMode(PIN_BTN, INPUT_PULLUP);
         // Защита от дребезга и ложного включения: требуем удержание кнопки 350 мс для включения
         uint32_t pressStart = millis();
@@ -487,31 +489,32 @@ void enterPowerOffDeepSleep() {
     ledController.showPowerOffAnimation();
     ledController.turnOff();
 
-    // 4. Ожидаем физического отпускания кнопки, пока палец еще зажат на кнопке
-    pinMode(PIN_BTN, INPUT_PULLUP);
-    while (digitalRead(PIN_BTN) == LOW) {
-        delay(10);
+    // 4. Обработка кнопки при наличии
+    if (PIN_BTN != 255) {
+        pinMode(PIN_BTN, INPUT_PULLUP);
+        while (digitalRead(PIN_BTN) == LOW) {
+            delay(10);
+        }
+        delay(250);
     }
-    // Антидребезговая задержка после физического отпускания кнопки
-    delay(250);
 
     // 5. Фиксация линии UART TX в HIGH для исключения паразитных токов через GPS
     pinMode(PIN_GPS_TX, OUTPUT);
     digitalWrite(PIN_GPS_TX, HIGH);
     gpio_hold_en((gpio_num_t)PIN_GPS_TX);
 
-    // 6. Включение внутренней подтяжки к VCC в домене RTC и аппаратная фиксация состояния
-    rtc_gpio_init((gpio_num_t)PIN_BTN);
-    rtc_gpio_set_direction((gpio_num_t)PIN_BTN, RTC_GPIO_MODE_INPUT_ONLY);
-    rtc_gpio_pullup_en((gpio_num_t)PIN_BTN);
-    rtc_gpio_pulldown_dis((gpio_num_t)PIN_BTN);
-    gpio_hold_en((gpio_num_t)PIN_BTN);
-    gpio_deep_sleep_hold_en();
+    // 6. Настройка пробуждения (если кнопка назначена)
+    if (PIN_BTN != 255) {
+        rtc_gpio_init((gpio_num_t)PIN_BTN);
+        rtc_gpio_set_direction((gpio_num_t)PIN_BTN, RTC_GPIO_MODE_INPUT_ONLY);
+        rtc_gpio_pullup_en((gpio_num_t)PIN_BTN);
+        rtc_gpio_pulldown_dis((gpio_num_t)PIN_BTN);
+        gpio_hold_en((gpio_num_t)PIN_BTN);
+        gpio_deep_sleep_hold_en();
+        esp_sleep_enable_ext0_wakeup((gpio_num_t)PIN_BTN, 0);
+    }
 
-    // 7. Настройка пробуждения по нажатию кнопки к GND (LOW level на GPIO 11)
-    esp_sleep_enable_ext0_wakeup((gpio_num_t)PIN_BTN, 0);
-
-    // 8. Переход в глубокий сон
+    // 7. Переход в глубокий сон
     esp_deep_sleep_start();
 }
 

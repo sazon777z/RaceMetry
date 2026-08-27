@@ -6,6 +6,7 @@ ButtonManager::ButtonManager() {
 
 void ButtonManager::begin(uint8_t pin) {
     _btn.pin = pin;
+    if (_btn.pin == 255) return;
     pinMode(_btn.pin, INPUT_PULLUP);
     _btn.isPressed = (digitalRead(_btn.pin) == LOW);
     _btn.pressStartMs = millis();
@@ -13,6 +14,7 @@ void ButtonManager::begin(uint8_t pin) {
 }
 
 void ButtonManager::update() {
+    if (_btn.pin == 255) return;
     bool rawReading = (digitalRead(_btn.pin) == LOW); // LOW = нажата к GND
     uint32_t now = millis();
 

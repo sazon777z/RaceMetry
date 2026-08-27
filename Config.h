@@ -33,18 +33,12 @@
 #define IMU_I2C_ADDR            0x68    // Адрес 0x68 (если AD0 к GND) или 0x69
 #define IMU_SAMPLE_RATE_HZ      200     // Частота дискретизации акселерометра (200 Гц)
 
-// Встроенный светодиод платы ESP32-S3 Super Mini
-#ifdef RGB_BUILTIN
-#define PIN_WS2812              RGB_BUILTIN
-#elif defined(LED_BUILTIN)
-#define PIN_WS2812              LED_BUILTIN
-#else
-#define PIN_WS2812              48  // Встроенный RGB светодиод на ESP32-S3 Super Mini (GPIO 48)
-#endif
+// Внешний адресный RGB светодиод WS2812B (GPIO 11)
+#define PIN_WS2812              11  // Внешний адресный светодиод WS2812B на GPIO 11
 #define NUM_WS2812_LEDS         1
 
-// Кнопка включения и выключения питания на GPIO 11 (замыкание на GND)
-#define PIN_BTN                 11      // Кнопка питания -> GPIO 11 (к GND)
+// Аппаратная кнопка питания (GPIO 11 отдан под адресный светодиод WS2812B)
+#define PIN_BTN                 255     // Не используется
 #define BTN_HOLD_POWER_OFF_MS   1800    // Удержание кнопки для выключения (1.8 сек)
 #define BTN_HOLD_POWER_ON_MS    400     // Удержание кнопки для включения (0.4 сек)
 
