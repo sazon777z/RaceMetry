@@ -1338,13 +1338,13 @@
                 <div class="setting-row">
                     <div class="setting-label">
                         <span class="setting-name">Звуковые оповещения</span>
-                        <span class="setting-desc">Звуковые сигналы (бипы как в Dragy) или голосовая озвучка</span>
+                        <span class="setting-desc">Звуковые сигналы или голосовая озвучка заезда</span>
                     </div>
                     <select id="setSoundMode" class="chip" style="background: #182030; color: var(--text-primary); border: 1px solid var(--border-color); padding: 5px 8px; font-weight: 600; cursor: pointer;" onchange="setSoundMode(this.value)">
                         <option value="off">🔇 Без звука</option>
-                        <option value="beeps">🔊 Сигналы Dragy (Бипы)</option>
+                        <option value="beeps">🔊 Сигналы</option>
                         <option value="voice">🗣️ Голосовая озвучка</option>
-                        <option value="both">⚡ Сигналы + Голос</option>
+                        <option value="both">⚡ Сигналы + Голосовая озвучка</option>
                     </select>
                 </div>
 
@@ -1365,7 +1365,7 @@
 
                 <div class="setting-row" id="beepTestRow" style="display: none;">
                     <div class="setting-label">
-                        <span class="setting-name">Тест сигналов Dragy</span>
+                        <span class="setting-name">Тест звуковых сигналов</span>
                         <span class="setting-desc">Прослушать отсечку и победный финиш</span>
                     </div>
                     <div style="display: flex; gap: 6px;">
@@ -1577,13 +1577,13 @@
             if (beepRow) beepRow.style.display = (mode === 'beeps' || mode === 'both') ? 'flex' : 'none';
 
             if (mode === 'beeps') {
-                showToast("Звук: Сигналы Dragy (Бипы)");
+                showToast("Звук: Сигналы");
                 playDragyBeep('split');
             } else if (mode === 'voice') {
                 showToast("Звук: Голосовая озвучка");
                 speak("Голосовая озвучка включена");
             } else if (mode === 'both') {
-                showToast("Звук: Сигналы + Голос");
+                showToast("Звук: Сигналы + Голосовая озвучка");
                 playDragyBeep('split');
             } else {
                 showToast("Звук отключен");
