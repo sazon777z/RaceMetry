@@ -26,6 +26,7 @@ bool StorageManager::loadSettings(DeviceSettings& settings) {
         settings.imuOffsetGy = 0.0f;
         settings.imuOffsetGz = 0.0f;
         settings.defaultScreen = 0;
+        settings.batteryIndicationMode = 0;
         saveSettings(settings);
         return true;
     }
@@ -38,6 +39,7 @@ bool StorageManager::loadSettings(DeviceSettings& settings) {
     settings.imuOffsetGy = _prefs.getFloat("off_gy", 0.0f);
     settings.imuOffsetGz = _prefs.getFloat("off_gz", 0.0f);
     settings.defaultScreen = _prefs.getUChar("def_scr", 0);
+    settings.batteryIndicationMode = _prefs.getUChar("bat_mode", 0);
     return true;
 }
 
@@ -51,6 +53,7 @@ bool StorageManager::saveSettings(const DeviceSettings& settings) {
     _prefs.putFloat("off_gy", settings.imuOffsetGy);
     _prefs.putFloat("off_gz", settings.imuOffsetGz);
     _prefs.putUChar("def_scr", settings.defaultScreen);
+    _prefs.putUChar("bat_mode", settings.batteryIndicationMode);
     return true;
 }
 

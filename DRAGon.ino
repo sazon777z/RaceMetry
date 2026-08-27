@@ -175,6 +175,10 @@ void setup() {
         } else if (cmd == "set_units") {
             deviceSettings.metricUnits = (val == "true" || val == "1" || val == "metric");
             storageManager.saveSettings(deviceSettings);
+        } else if (cmd == "set_bat_mode") {
+            deviceSettings.batteryIndicationMode = (uint8_t)val.toInt();
+            storageManager.saveSettings(deviceSettings);
+            Serial.printf("[RaceMetry] Battery Indication Mode set to: %d\n", deviceSettings.batteryIndicationMode);
         } else if (cmd == "calibrate_imu") {
             ledController.setMode(LedMode::CALIBRATING);
             imuEngine.calibrateZero(600);
@@ -356,7 +360,7 @@ void CommTask(void* parameter) {
     uint32_t lastBatSampleMs = 0;
 
     for (;;) {
-        // 1. Опрос кнопки питания (GPIO 11)
+        // 1. Опрос аппаратной кнопки на корпусе (GPIO 10)
         buttonManager.update();
         if (buttonManager.isPressed()) {
             uint32_t pressDur = buttonManager.getPressDurationMs();
@@ -365,7 +369,29 @@ void CommTask(void* parameter) {
                 ledController.showPowerOffHolding(buttonManager.getPowerOffProgressPct());
             }
         }
-        if (buttonManager.isPowerOffTriggered()) {
+
+        ButtonEvent btnEvt = buttonManager.popEvent();
+        if (btnEvt == ButtonEvent::CLICK) {
+            Serial.println("[RaceMetry BTN] Single Click -> Arm / Reset Toggle");
+            if (safeRaceState == RaceState::ARMED) {
+                telemetryEngine.reset();
+                ledController.setMode(LedMode::GPS_SEARCH);
+            } else {
+                if (gpsEngine.isReadyForRace() && safeGpsData.speedKmh <= 1.5f) {
+                    telemetryEngine.arm();
+                    ledController.setMode(LedMode::ARMED_READY);
+                    Serial.println("[RaceMetry] ARMED via Physical Button!");
+                } else {
+                    Serial.printf("[RaceMetry] Button Arm rejected: Fix=%d, Sats=%d, Spd=%.1f\n",
+                        safeGpsData.fixType, safeGpsData.numSats, safeGpsData.speedKmh);
+                }
+            }
+        } else if (btnEvt == ButtonEvent::DOUBLE_CLICK) {
+            Serial.printf("[RaceMetry BTN] Double Click -> Battery Status (%d%%, Mode %d)\n",
+                currentBatPercent, deviceSettings.batteryIndicationMode);
+            ledController.showBatteryStatus(currentBatPercent, deviceSettings.batteryIndicationMode);
+        } else if (btnEvt == ButtonEvent::LONG_PRESS) {
+            Serial.println("[RaceMetry BTN] Long Press (1.8s) -> Power Off");
             enterPowerOffDeepSleep();
         }
 

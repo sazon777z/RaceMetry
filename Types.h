@@ -175,4 +175,5 @@ struct DeviceSettings {
     float imuOffsetGy;          // Калибровочный оффсет Y
     float imuOffsetGz;          // Калибровочный оффсет Z
     uint8_t defaultScreen;      // Резерв для обратной совместимости NVS
+    uint8_t batteryIndicationMode; // 0 = Градация цветами (Green/Yellow/Red), 1 = Серия вспышек (1-4)
 };

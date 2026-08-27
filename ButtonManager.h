@@ -29,16 +29,19 @@ public:
     // Прогресс удержания кнопки для выключения (0..100%)
     uint8_t getPowerOffProgressPct() const;
 
-    // Проверка, сработало ли событие выключения
-    bool isPowerOffTriggered();
+    // Извлечь и сбросить накопленное событие кнопки
+    ButtonEvent popEvent();
 
 private:
     struct ButtonState {
         uint8_t pin;
         bool isPressed;
         uint32_t pressStartMs;
-        bool powerOffFired;
+        uint32_t lastReleaseMs;
+        uint8_t clickCount;
+        bool longPressFired;
     };
 
     ButtonState _btn;
+    ButtonEvent _pendingEvent;
 };

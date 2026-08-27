@@ -7,7 +7,11 @@ LedController::LedController()
       _animStep(0),
       _curR(0), _curG(0), _curB(0),
       _splitFlashUntilMs(0),
-      _fixAcquiredUntilMs(0)
+      _fixAcquiredUntilMs(0),
+      _batteryAnimActive(false),
+      _batteryAnimUntilMs(0),
+      _batteryPct(100),
+      _batteryMode(0)
 {
 }
 
@@ -44,6 +48,21 @@ void LedController::setRgb(uint8_t r, uint8_t g, uint8_t b) {
     _writeLed(r, g, b);
 }
 
+void LedController::showBatteryStatus(uint8_t percentage, uint8_t mode) {
+    _batteryAnimActive = true;
+    _batteryPct = percentage;
+    _batteryMode = mode;
+    
+    if (mode == 0) {
+        // Режим 1: Световая градация по цветам (непрерывное свечение 2.5 сек)
+        _batteryAnimUntilMs = millis() + 2500;
+    } else {
+        // Режим 2: Серия вспышек (450 мс на цикл)
+        uint8_t totalBlinks = (_batteryPct >= 80) ? 4 : ((_batteryPct >= 50) ? 3 : ((_batteryPct >= 25) ? 2 : 1));
+        _batteryAnimUntilMs = millis() + (totalBlinks * 450) + 350;
+    }
+}
+
 void LedController::update() {
     uint32_t now = millis();
 
@@ -53,7 +72,56 @@ void LedController::update() {
         return;
     }
 
-    // 2. Обработка режимов анимации
+    // 2. Индикация уровня заряда аккумулятора (по двойному клику)
+    if (_batteryAnimActive) {
+        if (now >= _batteryAnimUntilMs) {
+            _batteryAnimActive = false;
+        } else {
+            if (_batteryMode == 0) {
+                // Градация по цветам:
+                // >= 80%: Насыщенный зелёный
+                // 40..79%: Желтый / Золотой
+                // 20..39%: Оранжевый / Янтарный
+                // < 20%: Предупреждающее частое мигание красным цветом
+                if (_batteryPct >= 80) {
+                    _writeLed(0, 255, 60);
+                } else if (_batteryPct >= 40) {
+                    _writeLed(255, 180, 0);
+                } else if (_batteryPct >= 20) {
+                    _writeLed(255, 60, 0);
+                } else {
+                    if ((now / 130) % 2 == 0) _writeLed(255, 0, 0);
+                    else _writeLed(0, 0, 0);
+                }
+            } else {
+                // Серия вспышек (Blink Count):
+                // >= 80%: 4 зеленые вспышки
+                // 50..79%: 3 зеленые вспышки
+                // 25..49%: 2 желтые вспышки
+                // < 25%: 1 красная вспышка
+                uint8_t totalBlinks = (_batteryPct >= 80) ? 4 : ((_batteryPct >= 50) ? 3 : ((_batteryPct >= 25) ? 2 : 1));
+                uint8_t r = (_batteryPct >= 50) ? 0 : 255;
+                uint8_t g = (_batteryPct >= 50) ? 255 : ((_batteryPct >= 25) ? 180 : 0);
+                uint8_t b = (_batteryPct >= 80) ? 60 : 0;
+
+                uint32_t remaining = _batteryAnimUntilMs - now;
+                uint32_t totalDur = (totalBlinks * 450) + 350;
+                uint32_t elapsed = (totalDur > remaining) ? (totalDur - remaining) : 0;
+
+                uint8_t curCycle = elapsed / 450;
+                uint16_t inCycle = elapsed % 450;
+
+                if (curCycle < totalBlinks && inCycle < 240) {
+                    _writeLed(r, g, b);
+                } else {
+                    _writeLed(0, 0, 0);
+                }
+            }
+            return;
+        }
+    }
+
+    // 3. Обработка стандартных режимов гонки и навигации
     switch (_mode) {
         case LedMode::OFF:
             _writeLed(0, 0, 0);

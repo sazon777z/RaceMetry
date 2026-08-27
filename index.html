@@ -1348,6 +1348,17 @@
 
                 <div class="setting-row">
                     <div class="setting-label">
+                        <span class="setting-name">Индикация батареи (двойной клик на приборе)</span>
+                        <span class="setting-desc">Цвета (Зел/Желт/Красн) или серия вспышек (1-4 импульса)</span>
+                    </div>
+                    <select id="setBatIndMode" class="chip" style="background: #182030; color: var(--text-primary); border: 1px solid var(--border-color); padding: 5px 8px; font-weight: 600; cursor: pointer;" onchange="setBatteryIndMode(this.value)">
+                        <option value="0">🎨 Градация цветами</option>
+                        <option value="1">⚡ Серия вспышек (1-4)</option>
+                    </select>
+                </div>
+
+                <div class="setting-row">
+                    <div class="setting-label">
                         <span class="setting-name">Калибровка горизонта IMU</span>
                         <span class="setting-desc">Поставьте авто на ровную плоскость перед калибровкой</span>
                     </div>
@@ -2171,6 +2182,14 @@
         function toggleRollout(enabled) {
             sendBleCmd('set_rollout', enabled);
             showToast("1-Foot Rollout: " + (enabled ? "Включен" : "Выключен"));
+        }
+
+        function setBatteryIndMode(val) {
+            sendBleCmd('set_bat_mode', val);
+            try {
+                localStorage.setItem('racemetry_bat_mode', val);
+            } catch(e) {}
+            showToast(val === '0' ? "Индикация батареи: Градация цветами" : "Индикация батареи: Серия вспышек");
         }
 
         function clearHistory() {

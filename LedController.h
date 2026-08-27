@@ -48,6 +48,10 @@ public:
     void showPowerOffHolding(uint8_t progressPct);
     void turnOff();
 
+    // Индикация уровня заряда батареи (mode: 0 = цветами, 1 = серия вспышек)
+    void showBatteryStatus(uint8_t percentage, uint8_t mode = 0);
+    bool isBatteryAnimationActive() const { return _batteryAnimActive; }
+
 private:
     uint8_t _pin;
     LedMode _mode;
@@ -56,6 +60,12 @@ private:
     uint8_t _curR, _curG, _curB;
     uint32_t _splitFlashUntilMs;
     uint32_t _fixAcquiredUntilMs;
+
+    // Состояние анимации заряда батареи
+    bool _batteryAnimActive;
+    uint32_t _batteryAnimUntilMs;
+    uint8_t _batteryPct;
+    uint8_t _batteryMode;
 
     void _writeLed(uint8_t r, uint8_t g, uint8_t b);
 };
