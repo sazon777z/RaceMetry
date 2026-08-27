@@ -62,6 +62,8 @@ bool BleEngine::begin(const char* deviceName) {
     pAdvertising->setScanResponse(true);
     pAdvertising->setMinPreferred(0x06); // 7.5ms (совместимость с iOS и Android)
     pAdvertising->setMaxPreferred(0x12); // 22.5ms
+    pAdvertising->setMinInterval(32);    // 20ms интервал рекламы для мгновенного первого подключения
+    pAdvertising->setMaxInterval(64);    // 40ms интервал рекламы
     BLEDevice::startAdvertising();
 
     Serial.println("[BLE] Advertising started. Waiting for smartphone connection...");
@@ -69,14 +71,24 @@ bool BleEngine::begin(const char* deviceName) {
 }
 
 void BleEngine::update() {
-    // Внутренний контроль статуса
-    if (!_deviceConnected && _oldDeviceConnected) {
-        _oldDeviceConnected = false;
-        if (_pServer) {
-            _pServer->startAdvertising();
+    // Внутренний контроль статуса и сторож активности рекламы
+    if (!_deviceConnected) {
+        if (_oldDeviceConnected) {
+            _oldDeviceConnected = false;
+            if (_pServer) {
+                _pServer->startAdvertising();
+            }
+        } else {
+            // Каждые 2.5 секунды при отсутствии подключения гарантируем активность рекламы
+            static uint32_t lastAdvCheck = 0;
+            if (millis() - lastAdvCheck > 2500) {
+                lastAdvCheck = millis();
+                if (_pServer) {
+                    _pServer->startAdvertising();
+                }
+            }
         }
-    }
-    if (_deviceConnected && !_oldDeviceConnected) {
+    } else if (!_oldDeviceConnected) {
         _oldDeviceConnected = true;
     }
 }
@@ -93,6 +105,7 @@ void BleEngine::onDisconnect(BLEServer* pServer) {
     _oldDeviceConnected = false;
     s_latestRssi = -99;
     Serial.println("[BLE] Smartphone disconnected. Resuming advertising...");
+    delay(20);
     pServer->startAdvertising();
 }
 

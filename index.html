@@ -1814,11 +1814,23 @@
             setTimeout(() => toast.classList.remove('show'), 2500);
         }
 
+        // Корректное закрытие старой BLE-сессии при обновлении страницы или закрытии вкладки
+        window.addEventListener('pagehide', () => {
+            if (bleDevice && bleDevice.gatt && bleDevice.gatt.connected) {
+                try { bleDevice.gatt.disconnect(); } catch(e) {}
+            }
+        });
+        window.addEventListener('beforeunload', () => {
+            if (bleDevice && bleDevice.gatt && bleDevice.gatt.connected) {
+                try { bleDevice.gatt.disconnect(); } catch(e) {}
+            }
+        });
+
         // Web Bluetooth Connect / Disconnect
         async function toggleBleConnection() {
             if (isBleConnected) {
-                if (bleDevice && bleDevice.gatt.connected) {
-                    bleDevice.gatt.disconnect();
+                if (bleDevice && bleDevice.gatt && bleDevice.gatt.connected) {
+                    try { bleDevice.gatt.disconnect(); } catch(e) {}
                 }
                 return;
             }
@@ -1837,17 +1849,19 @@
 
                 showToast("Подключение к GATT серверу...");
                 
-                // На Android даем время на установку соединения и обнаружение сервисов
+                // Небольшая задержка 120мс для завершения сканирования перед GATT рукопожатием
+                await new Promise(r => setTimeout(r, 120));
+
                 let server = null;
-                for (let attempt = 1; attempt <= 3; attempt++) {
+                for (let attempt = 1; attempt <= 4; attempt++) {
                     try {
                         server = await bleDevice.gatt.connect();
-                        // Пауза 250мс для стабилизации GATT кэша на Android
-                        await new Promise(r => setTimeout(r, 250));
+                        // Пауза 200мс для стабилизации GATT кэша на Android и iOS
+                        await new Promise(r => setTimeout(r, 200));
                         if (server.connected) break;
                     } catch (err) {
-                        console.warn(`GATT connect attempt ${attempt} failed:`, err);
-                        await new Promise(r => setTimeout(r, 400));
+                        console.warn(`GATT connect attempt ${attempt} failed, retrying...`, err);
+                        await new Promise(r => setTimeout(r, 300));
                     }
                 }
 
@@ -1856,8 +1870,8 @@
                 }
                 bleServer = server;
 
-                showToast("Получение сервиса телеметрии...");
-                await new Promise(r => setTimeout(r, 200));
+                showToast("Инициализация сервиса телеметрии...");
+                await new Promise(r => setTimeout(r, 150));
 
                 const service = await bleServer.getPrimaryService(NUS_SERVICE_UUID);
                 rxCharacteristic = await service.getCharacteristic(NUS_RX_CHAR_UUID);
