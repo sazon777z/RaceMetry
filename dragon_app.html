@@ -1348,19 +1348,33 @@
                     </select>
                 </div>
 
-                <div class="setting-row" id="voiceSelectRow" style="display: none;">
+                <div class="setting-row" id="voicePresetRow" style="display: none;">
                     <div class="setting-label">
-                        <span class="setting-name">Голос озвучки</span>
-                        <span class="setting-desc">Выбор нейросетевого русского голоса системы</span>
+                        <span class="setting-name">Тембр и стиль озвучки</span>
+                        <span class="setting-desc">Спортивный штурман, телеметрия или глубокий бас</span>
                     </div>
                     <div style="display: flex; gap: 6px; align-items: center;">
-                        <select id="voiceSelect" class="chip" style="background: #182030; color: var(--text-primary); border: 1px solid var(--border-color); padding: 5px 8px; font-weight: 600; cursor: pointer; max-width: 160px;" onchange="changeVoice(this.value)">
-                            <option value="">Поиск голосов...</option>
+                        <select id="voicePresetSelect" class="chip" style="background: #182030; color: var(--text-primary); border: 1px solid var(--border-color); padding: 5px 8px; font-weight: 600; cursor: pointer; max-width: 170px;" onchange="changeVoicePreset(this.value)">
+                            <option value="sportsman">🏎️ Спортивный штурман</option>
+                            <option value="telemetry">⏱️ Четкая телеметрия</option>
+                            <option value="classic">🎙️ Классический диктор</option>
+                            <option value="deep">🔊 Глубокий бас</option>
+                            <option value="fast">⚡ Быстрый темп</option>
                         </select>
                         <button class="chip" style="background: rgba(0, 255, 204, 0.15); color: var(--accent-cyan); border: 1px solid var(--accent-cyan);" onclick="testVoice()">
                             🔊 Тест
                         </button>
                     </div>
+                </div>
+
+                <div class="setting-row" id="voiceSelectRow" style="display: none;">
+                    <div class="setting-label">
+                        <span class="setting-name">Голосовой пакет системы</span>
+                        <span class="setting-desc" id="voiceCountDesc">Пакеты речи, установленные в телефоне</span>
+                    </div>
+                    <select id="voiceSelect" class="chip" style="background: #182030; color: var(--text-primary); border: 1px solid var(--border-color); padding: 5px 8px; font-weight: 600; cursor: pointer; max-width: 170px;" onchange="changeVoice(this.value)">
+                        <option value="">Поиск пакетов речи...</option>
+                    </select>
                 </div>
 
                 <div class="setting-row" id="beepTestRow" style="display: none;">
@@ -1565,16 +1579,44 @@
             }
         }
 
+        const VOICE_PRESETS = {
+            'sportsman': { name: "Спортивный штурман", pitch: 0.85, rate: 1.08 },
+            'telemetry': { name: "Четкая телеметрия", pitch: 1.05, rate: 1.15 },
+            'classic': { name: "Классический диктор", pitch: 1.00, rate: 1.00 },
+            'deep': { name: "Глубокий бас", pitch: 0.75, rate: 1.02 },
+            'fast': { name: "Быстрый темп", pitch: 1.10, rate: 1.25 }
+        };
+
+        function getVoicePreset() {
+            try {
+                return localStorage.getItem('racemetry_voice_preset') || 'sportsman';
+            } catch(e) {
+                return 'sportsman';
+            }
+        }
+
+        function changeVoicePreset(presetKey) {
+            try {
+                localStorage.setItem('racemetry_voice_preset', presetKey);
+            } catch(e) {}
+            testVoice();
+        }
+
         function setSoundMode(mode) {
             try {
                 localStorage.setItem('racemetry_sound_mode', mode);
             } catch(e) {}
 
+            let presetRow = document.getElementById('voicePresetRow');
             let voiceRow = document.getElementById('voiceSelectRow');
             let beepRow = document.getElementById('beepTestRow');
 
-            if (voiceRow) voiceRow.style.display = (mode === 'voice' || mode === 'both') ? 'flex' : 'none';
-            if (beepRow) beepRow.style.display = (mode === 'beeps' || mode === 'both') ? 'flex' : 'none';
+            let showVoice = (mode === 'voice' || mode === 'both');
+            let showBeeps = (mode === 'beeps' || mode === 'both');
+
+            if (presetRow) presetRow.style.display = showVoice ? 'flex' : 'none';
+            if (voiceRow) voiceRow.style.display = showVoice ? 'flex' : 'none';
+            if (beepRow) beepRow.style.display = showBeeps ? 'flex' : 'none';
 
             if (mode === 'beeps') {
                 showToast("Звук: Сигналы");
@@ -1642,7 +1684,11 @@
 
         function initVoices() {
             if (!speechSynth) return;
-            availableVoices = speechSynth.getVoices().filter(v => v.lang && v.lang.startsWith('ru'));
+            let all = speechSynth.getVoices();
+            availableVoices = all.filter(v => v.lang && v.lang.toLowerCase().includes('ru'));
+            if (availableVoices.length === 0) {
+                availableVoices = all.filter(v => !v.lang || v.lang.toLowerCase().startsWith('ru') || v.lang === '');
+            }
             
             if (availableVoices.length > 0) {
                 let savedUri = localStorage.getItem('racemetry_voice_uri');
@@ -1664,16 +1710,24 @@
 
         function populateVoiceSelect() {
             let select = document.getElementById('voiceSelect');
+            let countDesc = document.getElementById('voiceCountDesc');
             if (!select) return;
             select.innerHTML = '';
             if (availableVoices.length === 0) {
-                select.innerHTML = '<option value="">Стандартный голос</option>';
+                select.innerHTML = '<option value="">Системный синтезатор (по умолчанию)</option>';
+                if (countDesc) countDesc.innerText = "Используется встроенный речевой движок телефона";
                 return;
+            }
+            if (countDesc) {
+                countDesc.innerText = availableVoices.length > 1 
+                    ? `Найдено ${availableVoices.length} установленных пакетов речи` 
+                    : "1 пакет речи (для добавления голосов см. настройки Android)";
             }
             availableVoices.forEach(v => {
                 let opt = document.createElement('option');
                 opt.value = v.voiceURI;
-                opt.innerText = v.name.replace("Microsoft ", "").replace(" Desktop", "") + (v.name.includes('Google') ? ' ⭐' : '');
+                let cleanName = v.name.replace("Microsoft ", "").replace(" Desktop", "");
+                opt.innerText = cleanName + (v.name.includes('Google') ? ' ⭐' : '');
                 if (selectedVoice && selectedVoice.voiceURI === v.voiceURI) opt.selected = true;
                 select.appendChild(opt);
             });
@@ -1704,8 +1758,12 @@
                 speechSynth.cancel();
                 const utter = new SpeechSynthesisUtterance(text);
                 utter.lang = 'ru-RU';
-                utter.rate = 1.08;
-                utter.pitch = 1.0;
+                
+                let presetKey = getVoicePreset();
+                let params = VOICE_PRESETS[presetKey] || VOICE_PRESETS['sportsman'];
+                utter.pitch = params.pitch;
+                utter.rate = params.rate;
+
                 if (selectedVoice) utter.voice = selectedVoice;
                 speechSynth.speak(utter);
             } catch(e) {}
@@ -1715,9 +1773,12 @@
             if (!speechSynth) return;
             try {
                 speechSynth.cancel();
+                let presetKey = getVoicePreset();
+                let params = VOICE_PRESETS[presetKey] || VOICE_PRESETS['sportsman'];
                 const utter = new SpeechSynthesisUtterance("Ноль сто: три и сорок пять сотых. Заезд валиден!");
                 utter.lang = 'ru-RU';
-                utter.rate = 1.08;
+                utter.pitch = params.pitch;
+                utter.rate = params.rate;
                 if (selectedVoice) utter.voice = selectedVoice;
                 speechSynth.speak(utter);
             } catch(e) {}
@@ -2623,10 +2684,18 @@
             let soundSel = document.getElementById('setSoundMode');
             if (soundSel) soundSel.value = soundModeSaved;
 
+            let presetRow = document.getElementById('voicePresetRow');
             let voiceRow = document.getElementById('voiceSelectRow');
             let beepRow = document.getElementById('beepTestRow');
-            if (voiceRow) voiceRow.style.display = (soundModeSaved === 'voice' || soundModeSaved === 'both') ? 'flex' : 'none';
-            if (beepRow) beepRow.style.display = (soundModeSaved === 'beeps' || soundModeSaved === 'both') ? 'flex' : 'none';
+            let isVoice = (soundModeSaved === 'voice' || soundModeSaved === 'both');
+            let isBeep = (soundModeSaved === 'beeps' || soundModeSaved === 'both');
+            if (presetRow) presetRow.style.display = isVoice ? 'flex' : 'none';
+            if (voiceRow) voiceRow.style.display = isVoice ? 'flex' : 'none';
+            if (beepRow) beepRow.style.display = isBeep ? 'flex' : 'none';
+
+            let presetSaved = localStorage.getItem('racemetry_voice_preset') || 'sportsman';
+            let presetSel = document.getElementById('voicePresetSelect');
+            if (presetSel) presetSel.value = presetSaved;
 
             let batModeSaved = localStorage.getItem('racemetry_bat_mode');
             if (batModeSaved !== null) {
