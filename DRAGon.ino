@@ -14,6 +14,8 @@
  */
 
 #include <Arduino.h>
+#include "driver/rtc_io.h"
+#include "driver/gpio.h"
 #include "Config.h"
 #include "Types.h"
 #include "GpsEngine.h"
@@ -68,6 +70,31 @@ void CommTask(void* parameter);
 void runUcenterBridgeMode();
 
 void setup() {
+    // 0. Снятие аппаратной фиксации GPIO после сна
+    gpio_hold_dis((gpio_num_t)PIN_BTN);
+
+    // Проверка причины старта: если пробуждение по кнопке из сна
+    esp_sleep_wakeup_cause_t wakeup_reason = esp_sleep_get_wakeup_cause();
+    if (wakeup_reason == ESP_SLEEP_WAKEUP_EXT0 || wakeup_reason == ESP_SLEEP_WAKEUP_EXT1) {
+        pinMode(PIN_BTN, INPUT_PULLUP);
+        // Защита от дребезга и ложного включения: требуем удержание кнопки 350 мс для включения
+        uint32_t pressStart = millis();
+        bool validPress = true;
+        while (millis() - pressStart < 350) {
+            if (digitalRead(PIN_BTN) != LOW) {
+                validPress = false;
+                break;
+            }
+            delay(10);
+        }
+
+        if (!validPress) {
+            // Кнопка не удерживалась (дребезг отпускания) -> немедленно возвращаемся в глубокий сон
+            enterPowerOffDeepSleep();
+            return;
+        }
+    }
+
     if (GPS_BRIDGE_MODE) {
         runUcenterBridgeMode();
         return;
@@ -436,7 +463,7 @@ void loop() {
  * ============================================================================
  */
 void enterPowerOffDeepSleep() {
-    Serial.println("\n[DRAGon] Powering OFF... Entering Ultra-Low-Power Deep Sleep.");
+    Serial.println("\n[RaceMetry] Powering OFF... Entering Ultra-Low-Power Deep Sleep.");
 
     // 1. Уведомляем подключенный смартфон по BLE
     bleEngine.sendJson("{\"t\":\"shutdown\"}\n");
@@ -446,16 +473,26 @@ void enterPowerOffDeepSleep() {
     ledController.showPowerOffAnimation();
     ledController.turnOff();
 
-    // 3. Настройка пробуждения по нажатию кнопки на GPIO 11 (LOW level)
-    esp_sleep_enable_ext0_wakeup((gpio_num_t)PIN_BTN, 0);
-
-    // 4. Ожидаем отпускания кнопки перед сном, чтобы исключить мгновенное повторное пробуждение
+    // 3. Ожидаем физического отпускания кнопки, пока палец еще зажат на кнопке
+    pinMode(PIN_BTN, INPUT_PULLUP);
     while (digitalRead(PIN_BTN) == LOW) {
         delay(10);
     }
-    delay(150);
+    // Антидребезговая задержка после физического отпускания кнопки
+    delay(250);
 
-    // 5. Переход в глубокий сон
+    // 4. Включение внутренней подтяжки к VCC в домене RTC и аппаратная фиксация состояния
+    rtc_gpio_init((gpio_num_t)PIN_BTN);
+    rtc_gpio_set_direction((gpio_num_t)PIN_BTN, RTC_GPIO_MODE_INPUT_ONLY);
+    rtc_gpio_pullup_en((gpio_num_t)PIN_BTN);
+    rtc_gpio_pulldown_dis((gpio_num_t)PIN_BTN);
+    gpio_hold_en((gpio_num_t)PIN_BTN);
+    gpio_deep_sleep_hold_en();
+
+    // 5. Настройка пробуждения по нажатию кнопки к GND (LOW level на GPIO 11)
+    esp_sleep_enable_ext0_wakeup((gpio_num_t)PIN_BTN, 0);
+
+    // 6. Переход в глубокий сон
     esp_deep_sleep_start();
 }
 
