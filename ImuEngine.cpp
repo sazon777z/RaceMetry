@@ -40,45 +40,81 @@ bool ImuEngine::begin(uint8_t sdaPin, uint8_t sclPin, uint32_t freq) {
     _freq = freq;
     _errorCount = 0;
 
-    Serial.printf("[IMU] Initializing MPU on SDA: %u, SCL: %u (%u Hz)...\n", sdaPin, sclPin, freq);
+    Serial.printf("[IMU] Probing I2C for MPU-9250/6500/6050 (Primary SDA: %u, SCL: %u)...\n", sdaPin, sclPin);
 
-    // 1. Инициализация I2C шины
-    Wire.end();
-    delay(10);
-    Wire.begin(sdaPin, sclPin, freq);
-    delay(30);
+    // Пары пинов для проверки: 1) основные (13,12), 2) реверсивные (12,13)
+    uint8_t pinPairs[2][2] = {
+        { sdaPin, sclPin },
+        { sclPin, sdaPin }
+    };
 
-    // 2. Проверяем адрес 0x68 и 0x69
     bool found = false;
-    uint8_t addrs[2] = { 0x68, 0x69 };
-    for (uint8_t a : addrs) {
-        Wire.beginTransmission(a);
-        if (Wire.endTransmission() == 0) {
-            _i2cAddr = a;
-            found = true;
-            Serial.printf("[IMU] Detected I2C device at 0x%02X\n", a);
-            break;
-        }
-    }
+    uint8_t activeSda = sdaPin;
+    uint8_t activeScl = sclPin;
 
-    if (!found) {
-        // Попробуем на 100 кГц
+    for (int p = 0; p < 2; p++) {
+        uint8_t curSda = pinPairs[p][0];
+        uint8_t curScl = pinPairs[p][1];
+
+        Wire.end();
+        delay(15);
+        Wire.begin(curSda, curScl, freq);
+        delay(30);
+
+        // Проверяем адреса 0x68 и 0x69
+        uint8_t addrs[2] = { 0x68, 0x69 };
+        for (uint8_t a : addrs) {
+            Wire.beginTransmission(a);
+            if (Wire.endTransmission() == 0) {
+                _i2cAddr = a;
+                activeSda = curSda;
+                activeScl = curScl;
+                found = true;
+                Serial.printf("[IMU] SUCCESS: Found I2C device at 0x%02X on SDA: %u, SCL: %u!\n", a, curSda, curScl);
+                break;
+            }
+        }
+        if (found) break;
+
+        // Попробуем на пониженной частоте 100 кГц
         Wire.setClock(100000);
         for (uint8_t a : addrs) {
             Wire.beginTransmission(a);
             if (Wire.endTransmission() == 0) {
                 _i2cAddr = a;
+                activeSda = curSda;
+                activeScl = curScl;
                 found = true;
-                Serial.printf("[IMU] Detected I2C device at 0x%02X (100kHz)\n", a);
+                Serial.printf("[IMU] SUCCESS: Found I2C device at 0x%02X on SDA: %u, SCL: %u (100kHz)!\n", a, curSda, curScl);
                 break;
             }
         }
+        if (found) break;
     }
 
+    // Если не найден на 0x68/0x69, сканируем всю шину I2C (1..127)
     if (!found) {
-        Serial.println("[IMU] WARNING: No I2C response at 0x68 or 0x69. Defaulting to 0x68.");
-        _i2cAddr = 0x68;
+        Serial.println("[IMU] Full I2C bus scan (addresses 1..127):");
+        Wire.end();
+        Wire.begin(sdaPin, sclPin, 100000);
+        int devCount = 0;
+        for (uint8_t a = 1; a < 128; a++) {
+            Wire.beginTransmission(a);
+            if (Wire.endTransmission() == 0) {
+                Serial.printf("[IMU] -> Detected unknown I2C device at address 0x%02X\n", a);
+                _i2cAddr = a;
+                found = true;
+                devCount++;
+            }
+        }
+        if (devCount == 0) {
+            Serial.println("[IMU] CRITICAL: No I2C devices found on bus! Check SDA/SCL wiring and 3.3V power.");
+            _i2cAddr = 0x68;
+        }
     }
+
+    _sdaPin = activeSda;
+    _sclPin = activeScl;
 
     // 3. Сброс и пробуждение
     _writeRegister(MPU_REG_PWR_MGMT_1, 0x80); // Reset
@@ -98,7 +134,18 @@ bool ImuEngine::begin(uint8_t sdaPin, uint8_t sclPin, uint32_t freq) {
     _writeRegister(MPU_REG_SMPLRT_DIV, 0x04);      // 200 Hz
 
     _isInitialized = true;
-    Serial.printf("[IMU] MPU-9250 initialized on 0x%02X at 200 Hz\n", _i2cAddr);
+
+    // 5. Тестовое считывание для валидации данных
+    uint8_t testBuf[6] = {0};
+    if (_readRegisters(MPU_REG_ACCEL_XOUT_H, testBuf, 6)) {
+        int16_t ax = (int16_t)((testBuf[0] << 8) | testBuf[1]);
+        int16_t ay = (int16_t)((testBuf[2] << 8) | testBuf[3]);
+        int16_t az = (int16_t)((testBuf[4] << 8) | testBuf[5]);
+        Serial.printf("[IMU LIVE TEST] Accelerometer OK: Ax=%d, Ay=%d, Az=%d (~%.2f G)\n", ax, ay, az, (float)az / ACCEL_SCALE);
+    } else {
+        Serial.println("[IMU LIVE TEST] Warning: Direct register read failed.");
+    }
+
     return true;
 }
 
