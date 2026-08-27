@@ -69,9 +69,9 @@
   <circle cx="136" cy="366" r="5" fill="#00e676"/>
   <circle cx="376" cy="366" r="6" fill="#ff1744" stroke="#ffffff" stroke-width="2"/>
 
-  <!-- Short Bold Red Needle at Track (Pointing Down-Right to Finish) -->
-  <path d="M 312 284 L 372 344 L 358 358 L 298 298 Z" fill="url(#needleGrad)" filter="url(#softGlow)"/>
-  <polygon points="372,344 346,334 358,358" fill="#ffffff"/>
+  <!-- Short Bold Red Needle with Smooth Rounded Caps (Pointing Down-Right) -->
+  <line x1="308" y1="288" x2="366" y2="346" stroke="url(#needleGrad)" stroke-width="14" stroke-linecap="round" filter="url(#softGlow)"/>
+  <line x1="334" y1="314" x2="362" y2="342" stroke="#ffffff" stroke-width="4.5" stroke-linecap="round"/>
 
   <!-- Central Monogram "RM" (Clean Center without any hubs) -->
   <g font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" text-anchor="middle">
