@@ -1,46 +1,46 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
   <defs>
-    <radialGradient id="bgGrad" cx="50%" cy="35%" r="65%">
-      <stop offset="0%" stop-color="#182232"/>
+    <!-- Background Gradient -->
+    <radialGradient id="bgGlow" cx="50%" cy="38%" r="65%">
+      <stop offset="0%" stop-color="#151b27"/>
       <stop offset="100%" stop-color="#07090d"/>
     </radialGradient>
-    <linearGradient id="cyanGlow" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#00ffcc"/>
-      <stop offset="100%" stop-color="#00e676"/>
+    
+    <!-- Neon Cyan to Green Gradient -->
+    <linearGradient id="neonCyan" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#00e676"/>
+      <stop offset="60%" stop-color="#00ffcc"/>
+      <stop offset="100%" stop-color="#00b0ff"/>
     </linearGradient>
-    <linearGradient id="goldGlow" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#ffb300"/>
-      <stop offset="100%" stop-color="#ff3366"/>
-    </linearGradient>
-    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
-      <feGaussianBlur stdDeviation="8" result="blur" />
-      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+
+    <!-- Soft Glow Filter -->
+    <filter id="softGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="9" result="blur"/>
+      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
     </filter>
   </defs>
 
-  <!-- App Icon Background -->
-  <rect width="512" height="512" rx="112" fill="url(#bgGrad)" stroke="#1e293b" stroke-width="6"/>
+  <!-- Dark Rounded App Squircle -->
+  <rect width="512" height="512" rx="120" fill="url(#bgGlow)" stroke="#1a2233" stroke-width="4"/>
 
-  <!-- Gauge Arc -->
-  <path d="M 120 360 A 160 160 0 1 1 392 360" fill="none" stroke="#1e2638" stroke-width="28" stroke-linecap="round"/>
-  <path d="M 120 360 A 160 160 0 1 1 360 180" fill="none" stroke="url(#cyanGlow)" stroke-width="28" stroke-linecap="round" filter="url(#glow)"/>
+  <!-- Minimalist Speedometer Track (Background Arc) -->
+  <path d="M 128 356 A 150 150 0 1 1 384 356" fill="none" stroke="#161c28" stroke-width="22" stroke-linecap="round"/>
 
-  <!-- Tick Marks -->
-  <circle cx="256" cy="96" r="4" fill="#00ffcc"/>
-  <circle cx="160" cy="136" r="4" fill="#00ffcc"/>
-  <circle cx="352" cy="136" r="4" fill="#ffb300"/>
+  <!-- Active Neon Speed Arc (0 to 100 Power Curve) -->
+  <path d="M 128 356 A 150 150 0 1 1 368 190" fill="none" stroke="url(#neonCyan)" stroke-width="22" stroke-linecap="round" filter="url(#softGlow)"/>
 
-  <!-- Needle Center Hub -->
-  <circle cx="256" cy="270" r="32" fill="#121722" stroke="url(#cyanGlow)" stroke-width="6"/>
-  <circle cx="256" cy="270" r="14" fill="#00ffcc"/>
+  <!-- Redline / Peak Accent Pip -->
+  <circle cx="384" cy="356" r="8" fill="#ff3366"/>
 
-  <!-- Gauge Needle pointing to high speed -->
-  <polygon points="250,270 262,270 295,140 256,130" fill="url(#cyanGlow)" filter="url(#glow)"/>
-
-  <!-- 20Hz Badge -->
-  <rect x="186" y="340" width="140" height="42" rx="21" fill="#121824" stroke="url(#cyanGlow)" stroke-width="2.5"/>
-  <text x="256" y="368" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="22" font-weight="900" fill="#00ffcc" text-anchor="middle" letter-spacing="1.5">20 Hz</text>
-
-  <!-- Brand Text -->
-  <text x="256" y="440" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="34" font-weight="900" fill="#f0f4f8" text-anchor="middle" letter-spacing="2">RaceMetry</text>
+  <!-- Central Clean Monogram "RM" & "0-100" -->
+  <g font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif" text-anchor="middle">
+    <!-- RM Big Monogram -->
+    <text x="256" y="278" font-size="124" font-weight="900" letter-spacing="-3">
+      <tspan fill="#f0f4f8">R</tspan><tspan fill="#00ffcc">M</tspan>
+    </text>
+    
+    <!-- "0-100" Pill Badge -->
+    <rect x="196" y="318" width="120" height="34" rx="17" fill="rgba(0, 255, 204, 0.08)" stroke="rgba(0, 255, 204, 0.6)" stroke-width="1.8"/>
+    <text x="256" y="341" font-size="16" font-weight="800" fill="#00ffcc" letter-spacing="2">0-100</text>
+  </g>
 </svg>
