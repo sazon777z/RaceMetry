@@ -56,6 +56,7 @@ struct GpsData {
     uint8_t hour;           // Часы UTC (0-23)
     uint8_t min;            // Минуты UTC (0-59)
     uint8_t sec;            // Секунды UTC (0-59)
+    uint32_t epochSeconds;  // Unix Epoch Timestamp (секунды с 01.01.1970 UTC)
     uint32_t lastUpdateMs;  // Время последнего полученного пакета (millis)
     float pDOP;             // Position Dilution of Precision
 };

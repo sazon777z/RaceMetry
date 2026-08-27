@@ -96,16 +96,7 @@ void TelemetryEngine::_handleStateTransitions(const GpsData& gps, const ImuData&
 
     switch (_state) {
         case RaceState::IDLE_WAIT_STOP:
-            if (gps.validFix && gps.speedKmh <= STOP_SPEED_THRESHOLD) {
-                if (_stopStartMs == 0) {
-                    _stopStartMs = nowMs;
-                } else if ((nowMs - _stopStartMs) >= STOP_TIME_STABLE_MS) {
-                    // Автомобиль неподвижен более 1.2 с — переходим в режим готовности (ARMED)
-                    arm();
-                }
-            } else {
-                _stopStartMs = 0;
-            }
+            // Взведение выполняется только вручную по кнопке «ГОТОВ К СТАРТУ»
             break;
 
         case RaceState::ARMED:
@@ -113,7 +104,7 @@ void TelemetryEngine::_handleStateTransitions(const GpsData& gps, const ImuData&
             if (imu.isLaunchDetected() || gps.speedKmh >= LAUNCH_SPEED_KMH) {
                 _state = RaceState::LAUNCH_DETECTED;
                 _launchTimeUs = micros();
-                _currentRun.timestampUtc = (uint32_t)(gps.towMs / 1000);
+                _currentRun.timestampUtc = (gps.epochSeconds > 0) ? gps.epochSeconds : (uint32_t)(gps.towMs / 1000);
                 _currentRun.startAltM = gps.altMSL;
                 _currentRun.maxAccelG = imu.gLongitudinal;
                 _currentRun.maxSpeedKmh = gps.speedKmh;
@@ -154,15 +145,7 @@ void TelemetryEngine::_handleStateTransitions(const GpsData& gps, const ImuData&
 
         case RaceState::FINISHED:
         case RaceState::ABORTED:
-            // Ожидание повторной остановки авто для нового заезда
-            if (gps.speedKmh <= STOP_SPEED_THRESHOLD) {
-                if (_stopStartMs == 0) _stopStartMs = nowMs;
-                else if ((nowMs - _stopStartMs) >= (STOP_TIME_STABLE_MS + 1000)) {
-                    arm();
-                }
-            } else {
-                _stopStartMs = 0;
-            }
+            // Заезд завершен: ожидание нажатия «ГОТОВ К СТАРТУ» для нового заезда
             break;
     }
 }

@@ -298,6 +298,28 @@ bool GpsEngine::update() {
     return newPvtReceived;
 }
 
+// Вспомогательная функция вычисления Unix Epoch Timestamp из UTC
+static uint32_t calculateEpochSeconds(uint16_t year, uint8_t month, uint8_t day, uint8_t hour, uint8_t min, uint8_t sec) {
+    if (year < 2024 || month < 1 || month > 12 || day < 1 || day > 31) return 0;
+    
+    const uint16_t daysBeforeMonth[12] = {
+        0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334
+    };
+
+    uint32_t days = 0;
+    for (uint16_t y = 1970; y < year; y++) {
+        days += (y % 4 == 0 && (y % 100 != 0 || y % 400 == 0)) ? 366 : 365;
+    }
+
+    days += daysBeforeMonth[month - 1];
+    if (month > 2 && (year % 4 == 0 && (year % 100 != 0 || year % 400 == 0))) {
+        days += 1;
+    }
+    days += (day - 1);
+
+    return (days * 86400UL) + (hour * 3600UL) + (min * 60UL) + sec;
+}
+
 void GpsEngine::_processUbxPayload() {
     if (_payloadLen < 84) return;
 
@@ -313,6 +335,9 @@ void GpsEngine::_processUbxPayload() {
     _data.min   = _payloadBuf[9];
     _data.sec   = _payloadBuf[10];
 
+    // Вычисление точного Unix Epoch Timestamp
+    _data.epochSeconds = calculateEpochSeconds(_data.year, _data.month, _data.day, _data.hour, _data.min, _data.sec);
+
     // FixType & Flags
     _data.fixType = _payloadBuf[20];
     uint8_t flags = _payloadBuf[21];
@@ -321,12 +346,13 @@ void GpsEngine::_processUbxPayload() {
     // Number of satellites
     _data.numSats = _payloadBuf[23];
 
-    // Если данные UBX-NAV-SAT еще не получены, распределяем спутники пропорционально
-    if (_data.satsGps == 0 && _data.satsGlonass == 0 && _data.numSats > 0) {
+    // Синхронизация спутников по созвездиям: сумма всегда равна общему числу numSats
+    uint16_t currentSum = _data.satsGps + _data.satsGlonass + _data.satsGalileo + _data.satsBeidou;
+    if (_data.numSats > 0 && currentSum != _data.numSats) {
         _data.satsGps = (_data.numSats * 9) / 24;
         _data.satsGlonass = (_data.numSats * 6) / 24;
         _data.satsGalileo = (_data.numSats * 4) / 24;
-        _data.satsBeidou = _data.numSats - _data.satsGps - _data.satsGlonass - _data.satsGalileo;
+        _data.satsBeidou = _data.numSats - (_data.satsGps + _data.satsGlonass + _data.satsGalileo);
     }
 
     // Longitude & Latitude (1e-7 deg)
