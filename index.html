@@ -1840,8 +1840,7 @@
                 bleDevice = await navigator.bluetooth.requestDevice({
                     filters: [
                         { namePrefix: "RaceMetry" },
-                        { namePrefix: "DRAGon" },
-                        { services: [NUS_SERVICE_UUID] }
+                        { namePrefix: "DRAGon" }
                     ],
                     optionalServices: [NUS_SERVICE_UUID]
                 });

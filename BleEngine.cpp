@@ -84,24 +84,14 @@ bool BleEngine::begin(const char* deviceName) {
 }
 
 void BleEngine::update() {
-    // Внутренний контроль статуса и сторож активности рекламы
-    if (!_deviceConnected) {
-        if (_oldDeviceConnected) {
-            _oldDeviceConnected = false;
-            if (_pServer) {
-                _pServer->startAdvertising();
-            }
-        } else {
-            // Каждые 2.5 секунды при отсутствии подключения гарантируем активность рекламы
-            static uint32_t lastAdvCheck = 0;
-            if (millis() - lastAdvCheck > 2500) {
-                lastAdvCheck = millis();
-                if (_pServer) {
-                    _pServer->startAdvertising();
-                }
-            }
+    // Контроль статуса подключения
+    if (!_deviceConnected && _oldDeviceConnected) {
+        _oldDeviceConnected = false;
+        if (_pServer) {
+            _pServer->startAdvertising();
         }
-    } else if (!_oldDeviceConnected) {
+    }
+    if (_deviceConnected && !_oldDeviceConnected) {
         _oldDeviceConnected = true;
     }
 }
