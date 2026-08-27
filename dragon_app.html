@@ -4,9 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>RaceMetry — Профессиональная Телеметрия 20Hz</title>
-    <meta name="theme-color" content="#0d0f14">
+    <meta name="theme-color" content="#0a0c10">
+    <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="RaceMetry">
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" type="image/svg+xml" href="icon.svg">
+    <link rel="apple-touch-icon" href="icon-192.png">
     <style>
         :root {
             --bg-primary: #0a0c10;
@@ -1328,13 +1333,13 @@
                     </button>
                 </div>
 
-                <div class="setting-row">
+                <div class="setting-row" id="pwaInstallRow" style="display: none;">
                     <div class="setting-label">
-                        <span class="setting-name">Питание (Выключение в Deep Sleep)</span>
-                        <span class="setting-desc">Для повторного включения удерживайте кнопку на приборе</span>
+                        <span class="setting-name">Установка на главный экран (PWA)</span>
+                        <span class="setting-desc">Установить как полноэкранное приложение с иконкой</span>
                     </div>
-                    <button class="chip" style="background: rgba(255, 23, 68, 0.2); color: var(--accent-red); border: 1px solid var(--accent-red);" onclick="powerOffDevice()">
-                        ⏻ Выключить
+                    <button class="chip" style="background: var(--accent-cyan); color: #000; font-weight: 700;" onclick="triggerPwaInstall()">
+                        📲 Установить
                     </button>
                 </div>
             </div>
@@ -2273,6 +2278,50 @@
                 renderHistoryList();
             }
         } catch(e) {}
+
+        // Progressive Web App (PWA) & Service Worker
+        let deferredPrompt = null;
+
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            let installRow = document.getElementById('pwaInstallRow');
+            if (installRow) installRow.style.display = 'flex';
+        });
+
+        function triggerPwaInstall() {
+            if (!deferredPrompt) {
+                showToast("Для установки откройте меню браузера ⋮ и нажмите «Добавить на гл. экран»");
+                return;
+            }
+            deferredPrompt.prompt();
+            deferredPrompt.userChoice.then((choiceResult) => {
+                if (choiceResult.outcome === 'accepted') {
+                    showToast("Приложение RaceMetry установлено!");
+                    let installRow = document.getElementById('pwaInstallRow');
+                    if (installRow) installRow.style.display = 'none';
+                }
+                deferredPrompt = null;
+            });
+        }
+
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then(reg => {
+                        console.log('[PWA] Service Worker active, scope:', reg.scope);
+                        reg.onupdatefound = () => {
+                            const installingWorker = reg.installing;
+                            installingWorker.onstatechange = () => {
+                                if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                                    showToast("Доступна новая версия! Обновлено.");
+                                }
+                            };
+                        };
+                    })
+                    .catch(err => console.warn('[PWA] Service Worker registration failed:', err));
+            });
+        }
 
         window.addEventListener('resize', renderChart);
     </script>

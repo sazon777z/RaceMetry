@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <radialGradient id="bgGrad" cx="50%" cy="35%" r="65%">
+      <stop offset="0%" stop-color="#182232"/>
+      <stop offset="100%" stop-color="#07090d"/>
+    </radialGradient>
+    <linearGradient id="cyanGlow" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00ffcc"/>
+      <stop offset="100%" stop-color="#00e676"/>
+    </linearGradient>
+    <linearGradient id="goldGlow" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffb300"/>
+      <stop offset="100%" stop-color="#ff3366"/>
+    </linearGradient>
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="8" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+  </defs>
+
+  <!-- App Icon Background -->
+  <rect width="512" height="512" rx="112" fill="url(#bgGrad)" stroke="#1e293b" stroke-width="6"/>
+
+  <!-- Gauge Arc -->
+  <path d="M 120 360 A 160 160 0 1 1 392 360" fill="none" stroke="#1e2638" stroke-width="28" stroke-linecap="round"/>
+  <path d="M 120 360 A 160 160 0 1 1 360 180" fill="none" stroke="url(#cyanGlow)" stroke-width="28" stroke-linecap="round" filter="url(#glow)"/>
+
+  <!-- Tick Marks -->
+  <circle cx="256" cy="96" r="4" fill="#00ffcc"/>
+  <circle cx="160" cy="136" r="4" fill="#00ffcc"/>
+  <circle cx="352" cy="136" r="4" fill="#ffb300"/>
+
+  <!-- Needle Center Hub -->
+  <circle cx="256" cy="270" r="32" fill="#121722" stroke="url(#cyanGlow)" stroke-width="6"/>
+  <circle cx="256" cy="270" r="14" fill="#00ffcc"/>
+
+  <!-- Gauge Needle pointing to high speed -->
+  <polygon points="250,270 262,270 295,140 256,130" fill="url(#cyanGlow)" filter="url(#glow)"/>
+
+  <!-- 20Hz Badge -->
+  <rect x="186" y="340" width="140" height="42" rx="21" fill="#121824" stroke="url(#cyanGlow)" stroke-width="2.5"/>
+  <text x="256" y="368" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="22" font-weight="900" fill="#00ffcc" text-anchor="middle" letter-spacing="1.5">20 Hz</text>
+
+  <!-- Brand Text -->
+  <text x="256" y="440" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="34" font-weight="900" fill="#f0f4f8" text-anchor="middle" letter-spacing="2">RaceMetry</text>
+</svg>
