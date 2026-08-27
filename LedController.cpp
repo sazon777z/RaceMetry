@@ -43,15 +43,15 @@ void LedController::setMode(LedMode mode) {
 }
 
 void LedController::triggerSplitFlash() {
-    // Вспышка на 90 мс при взятии отсечки (0-100, 100-200, 402м и т.д.)
-    _splitFlashUntilMs = millis() + 90;
+    // Яркая белая/изумрудная вспышка на 110 мс при старте или взятии отсечки (60, 100, 200, 402м)
+    _splitFlashUntilMs = millis() + 110;
 }
 
 void LedController::notifyFixAcquired() {
-    // Запуск двойной подтверждающей зеленой вспышки на 600 мс
+    // Запуск двойной подтверждающей зеленой вспышки на 500 мс при первом захвате спутников
     _mode = LedMode::GPS_FIX_ACQUIRED;
     _animStep = 0;
-    _fixAcquiredUntilMs = millis() + 600;
+    _fixAcquiredUntilMs = millis() + 500;
 }
 
 void LedController::setRgb(uint8_t r, uint8_t g, uint8_t b) {
@@ -79,9 +79,9 @@ void LedController::showBatteryStatus(uint8_t percentage, uint8_t mode) {
 void LedController::update() {
     uint32_t now = millis();
 
-    // 1. Приоритетная моментальная вспышка отсечки (бело-зеленый супер-яркий импульс)
+    // 1. Приоритетная моментальная яркая вспышка старта и отсечек (0-60, 0-100, 100-200, 402м)
     if (now < _splitFlashUntilMs) {
-        _writeLed(220, 255, 220);
+        _writeLed(220, 255, 220); // Супер-яркий строб-импульс
         return;
     }
 
@@ -91,11 +91,7 @@ void LedController::update() {
             _batteryAnimActive = false;
         } else {
             if (_batteryMode == 0) {
-                // Градация по цветам:
-                // >= 80%: Насыщенный зелёный
-                // 40..79%: Желтый / Золотой
-                // 20..39%: Оранжевый / Янтарный
-                // < 20%: Предупреждающее частое мигание красным цветом
+                // Градация по цветам (яркое свечение 2.5 сек):
                 if (_batteryPct >= 80) {
                     _writeLed(0, 255, 60);
                 } else if (_batteryPct >= 40) {
@@ -108,10 +104,6 @@ void LedController::update() {
                 }
             } else {
                 // Серия вспышек (Blink Count):
-                // >= 80%: 4 зеленые вспышки
-                // 50..79%: 3 зеленые вспышки
-                // 25..49%: 2 желтые вспышки
-                // < 25%: 1 красная вспышка
                 uint8_t totalBlinks = (_batteryPct >= 80) ? 4 : ((_batteryPct >= 50) ? 3 : ((_batteryPct >= 25) ? 2 : 1));
                 uint8_t r = (_batteryPct >= 50) ? 0 : 255;
                 uint8_t g = (_batteryPct >= 50) ? 255 : ((_batteryPct >= 25) ? 180 : 0);
@@ -141,13 +133,13 @@ void LedController::update() {
             break;
 
         case LedMode::GPS_SEARCH:
-            // Плавное мерцание/пульсация глубоким синим цветом (период 1.2 сек)
+            // Мягкое тусклое мерцание синим цветом в поиске GPS (комфортно для глаз)
             if (now - _lastUpdateMs >= 20) {
                 _lastUpdateMs = now;
-                _animStep = (_animStep + 1) % 80;
-                float breath = (sinf((float)_animStep * 0.0785f) + 1.0f) * 0.5f;
-                uint8_t b = (uint8_t)(40.0f + breath * 215.0f);
-                uint8_t g = (uint8_t)(breath * 35.0f);
+                _animStep = (_animStep + 1) % 90;
+                float breath = (sinf((float)_animStep * 0.0698f) + 1.0f) * 0.5f;
+                uint8_t b = (uint8_t)(15.0f + breath * 65.0f);
+                uint8_t g = (uint8_t)(breath * 10.0f);
                 _writeLed(0, g, b);
             }
             break;
@@ -158,7 +150,7 @@ void LedController::update() {
                 _lastUpdateMs = now;
                 _animStep++;
                 if (_animStep == 1 || _animStep == 3) {
-                    _writeLed(0, 255, 0); // Вспышка ВКЛ
+                    _writeLed(0, 255, 60); // Яркая вспышка ВКЛ
                 } else {
                     _writeLed(0, 0, 0);   // Вспышка ВЫКЛ
                 }
@@ -170,25 +162,14 @@ void LedController::update() {
             break;
 
         case LedMode::ARMED_READY:
-            // Постоянный сочный чистый зеленый (машина стоит, готова к старту)
-            _writeLed(0, 255, 0);
-            break;
-
-        case LedMode::LAUNCH_DETECTED:
         case LedMode::MEASURING:
-            // Динамическая скоростная пульсация неоновым синим/цианом во время разгона
-            if (now - _lastUpdateMs >= 15) {
-                _lastUpdateMs = now;
-                _animStep = (_animStep + 1) % 40;
-                float pulse = (sinf((float)_animStep * 0.157f) + 1.0f) * 0.5f;
-                uint8_t b = (uint8_t)(120.0f + pulse * 135.0f);
-                uint8_t g = (uint8_t)(40.0f + pulse * 180.0f);
-                _writeLed(0, g, b);
-            }
+        case LedMode::LAUNCH_DETECTED:
+            // Комфортное тусклое ровное свечение зеленым цветом (GPS пойман)
+            _writeLed(0, 40, 10);
             break;
 
         case LedMode::BRAKING_ACTIVE:
-            // Агрессивный красный стробоскоп торможения (как у болидов F1)
+            // Агрессивный красный стробоскоп торможения
             if (now - _lastUpdateMs >= 50) {
                 _lastUpdateMs = now;
                 _animStep = (_animStep + 1) % 2;
@@ -198,15 +179,15 @@ void LedController::update() {
             break;
 
         case LedMode::FINISHED_VALID:
-            // Тройная победная зеленая вспышка, затем ровный зеленый
+            // Тройная победная зеленая вспышка, затем возврат в тусклый зеленый
             if (now - _lastUpdateMs >= 75) {
                 _lastUpdateMs = now;
                 if (_animStep < 6) {
-                    if (_animStep % 2 == 0) _writeLed(0, 255, 0);
+                    if (_animStep % 2 == 0) _writeLed(0, 255, 60);
                     else _writeLed(0, 0, 0);
                     _animStep++;
                 } else {
-                    _writeLed(0, 220, 0);
+                    _writeLed(0, 40, 10); // Возврат в тусклый зеленый
                 }
             }
             break;
@@ -216,11 +197,11 @@ void LedController::update() {
             if (now - _lastUpdateMs >= 75) {
                 _lastUpdateMs = now;
                 if (_animStep < 6) {
-                    if (_animStep % 2 == 0) _writeLed(255, 110, 0);
+                    if (_animStep % 2 == 0) _writeLed(255, 120, 0);
                     else _writeLed(0, 0, 0);
                     _animStep++;
                 } else {
-                    _writeLed(200, 70, 0);
+                    _writeLed(0, 40, 10); // Возврат в тусклый зеленый
                 }
             }
             break;
@@ -248,38 +229,33 @@ void LedController::turnOff() {
 }
 
 void LedController::showPowerOnAnimation() {
-    // Плавное нарастание изумрудно-зеленого свечения (fade-in), затем двойной подтверждающий импульс
+    // Плавное нарастание изумрудно-зеленого свечения (fade-in), затем подтверждающий импульс
     for (int i = 0; i <= 255; i += 15) {
-        _writeLed(0, i, (uint8_t)(i * 0.4f));
+        _writeLed(0, i, (uint8_t)(i * 0.3f));
         delay(15);
     }
     delay(100);
     _writeLed(0, 0, 0);
-    delay(70);
-    _writeLed(0, 255, 120);
+    delay(60);
+    _writeLed(0, 255, 100);
     delay(120);
-    _writeLed(0, 0, 0);
-    delay(50);
+    _writeLed(0, 40, 10);
 }
 
 void LedController::showPowerOffAnimation() {
-    // 3 предупреждающие красные вспышки и плавное затухание в 0
-    for (int k = 0; k < 3; k++) {
+    // 2 четкие предупреждающие красные вспышки перед глубоким сном
+    for (int k = 0; k < 2; k++) {
         _writeLed(255, 0, 0);
-        delay(80);
+        delay(110);
         _writeLed(0, 0, 0);
-        delay(60);
-    }
-    for (int i = 255; i >= 0; i -= 20) {
-        _writeLed(i, 0, 0);
-        delay(20);
+        delay(80);
     }
     _writeLed(0, 0, 0);
 }
 
 void LedController::showPowerOffHolding(uint8_t progressPct) {
-    // Отображение прогресса удержания кнопки (от желтого к ярко-красному)
+    // Плавный обратный отсчет удержания кнопки (от золотого к ярко-красному)
     uint8_t r = 255;
-    uint8_t g = (progressPct < 100) ? (uint8_t)((100 - progressPct) * 1.5f) : 0;
+    uint8_t g = (progressPct < 100) ? (uint8_t)((100 - progressPct) * 1.6f) : 0;
     _writeLed(r, g, 0);
 }

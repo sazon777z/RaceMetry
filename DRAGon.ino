@@ -287,24 +287,9 @@ void TelemetryTask(void* parameter) {
             }
         }
 
-        // Диспетчер событий кнопки
+        // Диспетчер событий кнопки (только двойной клик для батареи и удержание для выключения)
         ButtonEvent btnEvt = buttonManager.popEvent();
-        if (btnEvt == ButtonEvent::CLICK) {
-            Serial.println("[RaceMetry BTN] Single Click -> Arm / Reset Toggle");
-            if (curState == RaceState::ARMED) {
-                telemetryEngine.reset();
-                ledController.setMode(LedMode::GPS_SEARCH);
-            } else {
-                if (gpsEngine.isReadyForRace() && safeGpsData.speedKmh <= 1.5f) {
-                    telemetryEngine.arm();
-                    ledController.setMode(LedMode::ARMED_READY);
-                    Serial.println("[RaceMetry] ARMED via Physical Button!");
-                } else {
-                    Serial.printf("[RaceMetry] Button Arm rejected: Fix=%d, Sats=%d, Spd=%.1f\n",
-                        safeGpsData.fixType, safeGpsData.numSats, safeGpsData.speedKmh);
-                }
-            }
-        } else if (btnEvt == ButtonEvent::DOUBLE_CLICK) {
+        if (btnEvt == ButtonEvent::DOUBLE_CLICK) {
             Serial.printf("[RaceMetry BTN] Double Click -> Battery Status (%d%%, Mode %d)\n",
                 currentBatPercent, deviceSettings.batteryIndicationMode);
             ledController.showBatteryStatus(currentBatPercent, deviceSettings.batteryIndicationMode);
@@ -328,13 +313,18 @@ void TelemetryTask(void* parameter) {
             static bool wasGpsReady = false;
             bool isGpsReady = gpsEngine.isReadyForRace();
 
-            // Проверка события первого захвата 3D-фикса
+            // Проверка события первого захвата 3D-фикса (двойная зеленая вспышка)
             if (isGpsReady && !wasGpsReady) {
                 ledController.notifyFixAcquired();
             }
             wasGpsReady = isGpsReady;
 
-            // Проверка моментальной вспышки при взятии отсечки (0-100, 100-200, 402м)
+            // Моментальная яркая вспышка при старте заезда (Launch)
+            if (curState == RaceState::LAUNCH_DETECTED && prevRaceState == RaceState::ARMED) {
+                ledController.triggerSplitFlash();
+            }
+
+            // Моментальная яркая вспышка при взятии любой отсечки (60, 100, 200, 402м)
             if (telemetryEngine.checkAndClearSplitTrigger()) {
                 ledController.triggerSplitFlash();
             }
@@ -344,16 +334,12 @@ void TelemetryTask(void* parameter) {
             } else {
                 switch (curState) {
                     case RaceState::ARMED:
-                        ledController.setMode(LedMode::ARMED_READY);
-                        break;
                     case RaceState::LAUNCH_DETECTED:
-                        ledController.setMode(LedMode::LAUNCH_DETECTED);
-                        break;
                     case RaceState::MEASURING:
-                        if (telemetryEngine.getDiscipline() == RaceDiscipline::BRAKE_100_0) {
+                        if (telemetryEngine.getDiscipline() == RaceDiscipline::BRAKE_100_0 && curState == RaceState::MEASURING) {
                             ledController.setMode(LedMode::BRAKING_ACTIVE);
                         } else {
-                            ledController.setMode(LedMode::MEASURING);
+                            ledController.setMode(LedMode::ARMED_READY);
                         }
                         break;
                     case RaceState::FINISHED:
