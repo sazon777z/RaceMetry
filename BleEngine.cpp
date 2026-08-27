@@ -201,20 +201,30 @@ void BleEngine::sendLiveTelemetry(
 ) {
     if (!_deviceConnected) return;
 
+    float gVal = (!isnan(imu.gLongitudinal) && !isinf(imu.gLongitudinal)) ? imu.gLongitudinal : 0.0f;
+    float gxVal = (!isnan(imu.accelX) && !isinf(imu.accelX)) ? imu.accelX : 0.0f;
+    float gyVal = (!isnan(imu.accelY) && !isinf(imu.accelY)) ? imu.accelY : 0.0f;
+    float gzVal = (!isnan(imu.accelZ) && !isinf(imu.accelZ)) ? imu.accelZ : 0.0f;
+    float gPeakVal = (!isnan(imu.gPeakAccel) && !isinf(imu.gPeakAccel)) ? imu.gPeakAccel : 0.0f;
+    float slopeVal = (!isnan(liveSlopePct) && !isinf(liveSlopePct)) ? liveSlopePct : 0.0f;
+    float spdVal = (!isnan(liveSpeedKmh) && !isinf(liveSpeedKmh)) ? liveSpeedKmh : 0.0f;
+    float distVal = (!isnan(liveDistanceM) && !isinf(liveDistanceM)) ? liveDistanceM : 0.0f;
+    float timeVal = (!isnan(liveTimeSec) && !isinf(liveTimeSec)) ? liveTimeSec : 0.0f;
+
     snprintf(
         _txBuffer, sizeof(_txBuffer),
         "{\"t\":\"live\",\"spd\":%.2f,\"dist\":%.1f,\"time\":%.3f,\"g\":%.2f,\"gx\":%.2f,\"gy\":%.2f,\"gz\":%.2f,\"g_peak\":%.2f,"
         "\"sats\":%u,\"gps\":%u,\"glo\":%u,\"gal\":%u,\"bds\":%u,\"fix\":%u,\"hacc\":%.1f,\"vacc\":%.1f,\"sacc\":%.2f,\"pdop\":%.2f,"
         "\"state\":%u,\"disc\":%u,\"slope\":%.2f,\"alt\":%.1f,\"lat\":%.6f,\"lon\":%.6f,\"head\":%.1f,"
         "\"utc\":\"%02u:%02u:%02u\",\"date\":\"%02u.%02u.%04u\",\"bat\":%.2f,\"pct\":%u,\"rssi\":%d}\n",
-        liveSpeedKmh,
-        liveDistanceM,
-        liveTimeSec,
-        imu.gLongitudinal,
-        imu.accelX,
-        imu.accelY,
-        imu.accelZ,
-        imu.gPeakAccel,
+        spdVal,
+        distVal,
+        timeVal,
+        gVal,
+        gxVal,
+        gyVal,
+        gzVal,
+        gPeakVal,
         gps.numSats,
         gps.satsGps,
         gps.satsGlonass,
@@ -227,7 +237,7 @@ void BleEngine::sendLiveTelemetry(
         gps.pDOP,
         (uint8_t)state,
         (uint8_t)disc,
-        liveSlopePct,
+        slopeVal,
         gps.altMSL,
         gps.lat,
         gps.lon,

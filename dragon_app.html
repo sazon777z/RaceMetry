@@ -1402,6 +1402,10 @@
                         <span id="diagImuStatus" style="font-weight: 700; color: var(--accent-green);">🟢 MPU-9250 (200 Гц): OK</span>
                     </div>
                     <div class="g-metric-row">
+                        <span style="color: var(--text-secondary);">Живые перегрузки (X / Y / Z):</span>
+                        <span id="diagImuGVal" style="font-weight: 700; color: var(--accent-cyan);">-- G</span>
+                    </div>
+                    <div class="g-metric-row">
                         <span style="color: var(--text-secondary);">GPS Приемник:</span>
                         <span id="diagGpsStatus" style="font-weight: 700; color: var(--accent-green);">🟢 u-blox M10Q (20 Гц UBX, 460800 бод): OK</span>
                     </div>
@@ -1969,15 +1973,32 @@
             }
 
             // 5. G-Forces & G-Bowl
-            document.getElementById('gLongVal').innerText = (d.g >= 0 ? "+" : "") + d.g.toFixed(2);
-            document.getElementById('gLatVal').innerText = (d.gy >= 0 ? "+" : "") + d.gy.toFixed(2);
-            document.getElementById('gPeakVal').innerText = d.g_peak.toFixed(2);
-            document.getElementById('cockpitSlopeVal').innerText = d.slope.toFixed(1) + "%";
+            let gLong = (d.g !== undefined && !isNaN(d.g)) ? d.g : 0;
+            let gLat = (d.gy !== undefined && !isNaN(d.gy)) ? d.gy : 0;
+            let gGx = (d.gx !== undefined && !isNaN(d.gx)) ? d.gx : gLong;
+            let gGz = (d.gz !== undefined && !isNaN(d.gz)) ? d.gz : 0;
+            let gPeak = (d.g_peak !== undefined && !isNaN(d.g_peak)) ? d.g_peak : 0;
+            let slope = (d.slope !== undefined && !isNaN(d.slope)) ? d.slope : 0;
+
+            let elLong = document.getElementById('gLongVal');
+            let elLat = document.getElementById('gLatVal');
+            let elPeak = document.getElementById('gPeakVal');
+            let elSlope = document.getElementById('cockpitSlopeVal');
+
+            if (elLong) elLong.innerText = (gLong >= 0 ? "+" : "") + gLong.toFixed(2);
+            if (elLat) elLat.innerText = (gLat >= 0 ? "+" : "") + gLat.toFixed(2);
+            if (elPeak) elPeak.innerText = gPeak.toFixed(2);
+            if (elSlope) elSlope.innerText = slope.toFixed(1) + "%";
+
+            let diagImuG = document.getElementById('diagImuGVal');
+            if (diagImuG) {
+                diagImuG.innerText = `X: ${gGx >= 0 ? '+' : ''}${gGx.toFixed(2)} | Y: ${gLat >= 0 ? '+' : ''}${gLat.toFixed(2)} | Z: ${gGz >= 0 ? '+' : ''}${gGz.toFixed(2)} G`;
+            }
 
             let dot = document.getElementById('gDot');
             if (dot) {
-                let posX = Math.max(-55, Math.min(55, d.gy * 55));
-                let posY = Math.max(-55, Math.min(55, -d.gx * 55));
+                let posX = Math.max(-55, Math.min(55, gLat * 55));
+                let posY = Math.max(-55, Math.min(55, -gGx * 55));
                 dot.style.transform = `translate(${posX}px, ${posY}px)`;
             }
 

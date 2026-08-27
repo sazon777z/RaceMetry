@@ -178,10 +178,18 @@ bool ImuEngine::update() {
     float ay = (float)rawAy / ACCEL_SCALE - _offsetY;
     float az = (float)rawAz / ACCEL_SCALE - _offsetZ;
 
+    if (isnan(ax) || isinf(ax)) ax = 0.0f;
+    if (isnan(ay) || isinf(ay)) ay = 0.0f;
+    if (isnan(az) || isinf(az)) az = 0.0f;
+
     // Экспоненциальный фильтр (Alpha = 0.25 для плавности)
     _filtAx += 0.25f * (ax - _filtAx);
     _filtAy += 0.25f * (ay - _filtAy);
     _filtAz += 0.25f * (az - _filtAz);
+
+    if (isnan(_filtAx)) _filtAx = ax;
+    if (isnan(_filtAy)) _filtAy = ay;
+    if (isnan(_filtAz)) _filtAz = az;
 
     _data.accelX = _filtAx;
     _data.accelY = _filtAy;
@@ -233,6 +241,9 @@ void ImuEngine::calibrateZero(uint16_t sampleCount) {
 }
 
 void ImuEngine::setOffsets(float axOffset, float ayOffset, float azOffset) {
+    if (isnan(axOffset) || isinf(axOffset) || fabsf(axOffset) > 8.0f) axOffset = 0.0f;
+    if (isnan(ayOffset) || isinf(ayOffset) || fabsf(ayOffset) > 8.0f) ayOffset = 0.0f;
+    if (isnan(azOffset) || isinf(azOffset) || fabsf(azOffset) > 8.0f) azOffset = 0.0f;
     _offsetX = axOffset;
     _offsetY = ayOffset;
     _offsetZ = azOffset;
