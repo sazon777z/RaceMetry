@@ -525,6 +525,41 @@ bool GpsEngine::isReadyForRace() const {
     return _data.validFix && (_data.numSats >= 6) && ((millis() - _data.lastUpdateMs) < 500);
 }
 
+void GpsEngine::powerOff() {
+    if (!_serial) return;
+    Serial.println("[GPS] Putting u-blox M10 into Ultra-Low-Power Backup Mode (~15 uA)...");
+
+    // 1. UBX-RXM-PMREQ v0 (8 bytes payload) - Backup Mode (0x02)
+    uint8_t pmreqV0[8] = {
+        0x00, 0x00, 0x00, 0x00, // duration: 0 (indefinite until UART activity)
+        0x02, 0x00, 0x00, 0x00  // flags: 0x00000002 (Backup mode)
+    };
+    _sendUbxCommand(0x02, 0x41, pmreqV0, sizeof(pmreqV0));
+    _serial->flush();
+    delay(20);
+
+    // 2. UBX-RXM-PMREQ v1 (16 bytes payload) - Расширенный формат u-blox M10
+    uint8_t pmreqV1[16] = {
+        0x00, 0x00, 0x00, 0x00, // version 0, reserved
+        0x00, 0x00, 0x00, 0x00, // duration = 0
+        0x02, 0x00, 0x00, 0x00, // flags = Backup mode
+        0x08, 0x00, 0x00, 0x00  // wakeupSources = UART RX
+    };
+    _sendUbxCommand(0x02, 0x41, pmreqV1, sizeof(pmreqV1));
+    _serial->flush();
+    delay(30);
+}
+
+void GpsEngine::wakeUp() {
+    if (!_serial) return;
+    // Отправляем поток пустых байт 0xFF для аппаратной активации UART RX детектора u-blox M10
+    for (int i = 0; i < 32; i++) {
+        _serial->write(0xFF);
+    }
+    _serial->flush();
+    delay(80);
+}
+
 void GpsEngine::_sendUbxCommand(uint8_t cls, uint8_t id, const uint8_t* payload, uint16_t len) {
     if (!_serial) return;
 

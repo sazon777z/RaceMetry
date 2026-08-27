@@ -72,6 +72,7 @@ void runUcenterBridgeMode();
 void setup() {
     // 0. Снятие аппаратной фиксации GPIO после сна
     gpio_hold_dis((gpio_num_t)PIN_BTN);
+    gpio_hold_dis((gpio_num_t)PIN_GPS_TX);
 
     // Проверка причины старта: если пробуждение по кнопке из сна
     esp_sleep_wakeup_cause_t wakeup_reason = esp_sleep_get_wakeup_cause();
@@ -136,7 +137,8 @@ void setup() {
         Serial.println("[RaceMetry] IMU MPU-9250 ready (200 Hz)");
     }
 
-    // 6. Инициализация GPS u-blox M10Q (Hardware UART1, 20 Hz)
+    // 6. Пробуждение и инициализация GPS u-blox M10Q (Hardware UART1, 20 Hz)
+    gpsEngine.wakeUp();
     gpsEngine.begin(Serial1, GPS_BAUDRATE_TARGET);
     Serial.printf("[RaceMetry] GPS M10Q configured with UBX %d Hz\n", GPS_UPDATE_RATE_HZ);
 
@@ -471,11 +473,14 @@ void enterPowerOffDeepSleep() {
     bleEngine.sendJson("{\"t\":\"shutdown\"}\n");
     delay(50);
 
-    // 2. Анимация выключения на светодиоде (3 красные вспышки и плавное затухание)
+    // 2. Программный перевод u-blox M10Q в энергосберегающий режим Backup Standby (~15 мкА)
+    gpsEngine.powerOff();
+
+    // 3. Анимация выключения на светодиоде (3 красные вспышки и плавное затухание)
     ledController.showPowerOffAnimation();
     ledController.turnOff();
 
-    // 3. Ожидаем физического отпускания кнопки, пока палец еще зажат на кнопке
+    // 4. Ожидаем физического отпускания кнопки, пока палец еще зажат на кнопке
     pinMode(PIN_BTN, INPUT_PULLUP);
     while (digitalRead(PIN_BTN) == LOW) {
         delay(10);
@@ -483,7 +488,12 @@ void enterPowerOffDeepSleep() {
     // Антидребезговая задержка после физического отпускания кнопки
     delay(250);
 
-    // 4. Включение внутренней подтяжки к VCC в домене RTC и аппаратная фиксация состояния
+    // 5. Фиксация линии UART TX в HIGH для исключения паразитных токов через GPS
+    pinMode(PIN_GPS_TX, OUTPUT);
+    digitalWrite(PIN_GPS_TX, HIGH);
+    gpio_hold_en((gpio_num_t)PIN_GPS_TX);
+
+    // 6. Включение внутренней подтяжки к VCC в домене RTC и аппаратная фиксация состояния
     rtc_gpio_init((gpio_num_t)PIN_BTN);
     rtc_gpio_set_direction((gpio_num_t)PIN_BTN, RTC_GPIO_MODE_INPUT_ONLY);
     rtc_gpio_pullup_en((gpio_num_t)PIN_BTN);
@@ -491,10 +501,10 @@ void enterPowerOffDeepSleep() {
     gpio_hold_en((gpio_num_t)PIN_BTN);
     gpio_deep_sleep_hold_en();
 
-    // 5. Настройка пробуждения по нажатию кнопки к GND (LOW level на GPIO 11)
+    // 7. Настройка пробуждения по нажатию кнопки к GND (LOW level на GPIO 11)
     esp_sleep_enable_ext0_wakeup((gpio_num_t)PIN_BTN, 0);
 
-    // 6. Переход в глубокий сон
+    // 8. Переход в глубокий сон
     esp_deep_sleep_start();
 }
 

@@ -41,6 +41,10 @@ public:
     // Принудительная отправка конфигурации UBX M10
     void configureUblox();
 
+    // Управление питанием u-blox M10 (Software Backup Standby Mode ~15-20 uA)
+    void powerOff();
+    void wakeUp();
+
 private:
     HardwareSerial* _serial;
     GpsData _data;
