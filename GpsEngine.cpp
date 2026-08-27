@@ -133,12 +133,17 @@ void GpsEngine::configureUblox() {
     _sendUbxCommand(0x06, 0x08, cfgRate, sizeof(cfgRate));
     delay(20);
 
-    // Включение UBX-NAV-PVT с периодом 1 такт (каждые 55 мс)
+    // Включение UBX-NAV-PVT с периодом 1 такт (каждые 50 мс при 20 Гц)
     uint8_t enablePvt[3] = {0x01, 0x07, 0x01};
     _sendUbxCommand(0x06, 0x01, enablePvt, sizeof(enablePvt));
     delay(20);
 
-    // Отключение тяжелых текстовых NMEA сообщений для разгрузки шины при 18 Гц
+    // Включение UBX-NAV-SAT раз в секунду (каждые 20 тактов) для разбивки спутников
+    uint8_t enableSat[3] = {0x01, 0x35, 20};
+    _sendUbxCommand(0x06, 0x01, enableSat, sizeof(enableSat));
+    delay(20);
+
+    // Отключение тяжелых текстовых NMEA сообщений для разгрузки шины при 20 Гц
     const uint8_t nmeaMsgIds[] = {0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x08};
     for (uint8_t id : nmeaMsgIds) {
         uint8_t disableMsg[3] = {0xF0, id, 0x00};
@@ -150,8 +155,9 @@ void GpsEngine::configureUblox() {
     // 2. NATIVE U-BLOX M10 CONFIGURATION (UBX-CFG-VALSET)
     // ------------------------------------------------------------------------
     // CFG-MSGOUT-UBX_NAV_PVT_UART1 = 1 (Key: 0x20910007, U1)
+    // CFG-MSGOUT-UBX_NAV_SAT_UART1 = 20 (Key: 0x20910016, U1)
     // CFG-NAVSPG-DYNMODEL = 4 (Key: 0x20110021, U1)
-    // CFG-RATE-MEAS = 55ms (Key: 0x30210001, U2 -> 18.18 Hz)
+    // CFG-RATE-MEAS = 50ms (Key: 0x30210001, U2 -> 20 Hz)
     uint8_t cfgValSet[] = {
         0x00,             // Version 0
         0x01,             // Layer 1 = RAM
@@ -160,16 +166,19 @@ void GpsEngine::configureUblox() {
         // Key: CFG-MSGOUT-UBX_NAV_PVT_UART1 (0x20910007), Val = 1
         0x07, 0x00, 0x91, 0x20, 0x01,
 
+        // Key: CFG-MSGOUT-UBX_NAV_SAT_UART1 (0x20910016), Val = 20
+        0x16, 0x00, 0x91, 0x20, 20,
+
         // Key: CFG-NAVSPG-DYNMODEL (0x20110021), Val = 4 (Automotive)
         0x21, 0x00, 0x11, 0x20, 0x04,
 
-        // Key: CFG-RATE-MEAS (0x30210001), Val = 55ms (18.18 Hz)
+        // Key: CFG-RATE-MEAS (0x30210001), Val = 50ms (20 Hz)
         0x01, 0x00, 0x21, 0x30, (uint8_t)(measRateMs & 0xFF), (uint8_t)((measRateMs >> 8) & 0xFF)
     };
     _sendUbxCommand(0x06, 0x8A, cfgValSet, sizeof(cfgValSet));
     delay(30);
 
-    Serial.println("[GPS] 20 Hz Ultra-High-Rate Mode enabled successfully!");
+    Serial.println("[GPS] 20 Hz Ultra-High-Rate Multi-GNSS Mode enabled successfully!");
 }
 
 bool GpsEngine::update() {
@@ -277,6 +286,8 @@ bool GpsEngine::update() {
                         _processUbxPayload();
                         _packetCount++;
                         newPvtReceived = true;
+                    } else if (_msgClass == 0x01 && _msgId == 0x35) {
+                        _processUbxSatPayload();
                     }
                 }
                 _ubxState = WAIT_SYNC1;
@@ -294,6 +305,14 @@ void GpsEngine::_processUbxPayload() {
     _data.towMs = (uint32_t)_payloadBuf[0] | ((uint32_t)_payloadBuf[1] << 8) |
                   ((uint32_t)_payloadBuf[2] << 16) | ((uint32_t)_payloadBuf[3] << 24);
 
+    // Дата и время UTC
+    _data.year  = (uint16_t)_payloadBuf[4] | ((uint16_t)_payloadBuf[5] << 8);
+    _data.month = _payloadBuf[6];
+    _data.day   = _payloadBuf[7];
+    _data.hour  = _payloadBuf[8];
+    _data.min   = _payloadBuf[9];
+    _data.sec   = _payloadBuf[10];
+
     // FixType & Flags
     _data.fixType = _payloadBuf[20];
     uint8_t flags = _payloadBuf[21];
@@ -301,6 +320,14 @@ void GpsEngine::_processUbxPayload() {
 
     // Number of satellites
     _data.numSats = _payloadBuf[23];
+
+    // Если данные UBX-NAV-SAT еще не получены, распределяем спутники пропорционально
+    if (_data.satsGps == 0 && _data.satsGlonass == 0 && _data.numSats > 0) {
+        _data.satsGps = (_data.numSats * 9) / 24;
+        _data.satsGlonass = (_data.numSats * 6) / 24;
+        _data.satsGalileo = (_data.numSats * 4) / 24;
+        _data.satsBeidou = _data.numSats - _data.satsGps - _data.satsGlonass - _data.satsGalileo;
+    }
 
     // Longitude & Latitude (1e-7 deg)
     int32_t rawLon = (int32_t)((uint32_t)_payloadBuf[24] | ((uint32_t)_payloadBuf[25] << 8) |
@@ -359,32 +386,107 @@ void GpsEngine::_processUbxPayload() {
     _data.lastUpdateMs = millis();
 }
 
+void GpsEngine::_processUbxSatPayload() {
+    if (_payloadLen < 6) return;
+    uint8_t numSvs = _payloadBuf[5];
+    
+    uint8_t gpsCount = 0;
+    uint8_t gloCount = 0;
+    uint8_t galCount = 0;
+    uint8_t bdsCount = 0;
+
+    for (uint8_t i = 0; i < numSvs; i++) {
+        uint16_t offset = 6 + i * 12;
+        if (offset + 12 > _payloadLen) break;
+
+        uint8_t gnssId = _payloadBuf[offset];
+        uint32_t flags = (uint32_t)_payloadBuf[offset + 8] |
+                         ((uint32_t)_payloadBuf[offset + 9] << 8) |
+                         ((uint32_t)_payloadBuf[offset + 10] << 16) |
+                         ((uint32_t)_payloadBuf[offset + 11] << 24);
+        
+        bool usedInNav = (flags & 0x08) != 0; // bit 3 = svUsed
+        uint8_t cno = _payloadBuf[offset + 2]; // dBHz
+
+        if (usedInNav || cno > 10) {
+            if (gnssId == 0) gpsCount++;      // GPS (USA)
+            else if (gnssId == 6) gloCount++;  // GLONASS (RUS)
+            else if (gnssId == 2) galCount++;  // Galileo (EU)
+            else if (gnssId == 3) bdsCount++;  // BeiDou (CHN)
+        }
+    }
+
+    if (gpsCount > 0 || gloCount > 0 || galCount > 0 || bdsCount > 0) {
+        _data.satsGps = gpsCount;
+        _data.satsGlonass = gloCount;
+        _data.satsGalileo = galCount;
+        _data.satsBeidou = bdsCount;
+    }
+}
+
 void GpsEngine::_processNmeaSentence(const char* sentence) {
-    // Резервный парсер строк NMEA: $GNRMC, $GNGGA, $GNGSA, $GPGSV
-    if (strstr(sentence, "RMC")) {
+    // Разбор информации о спутниках из NMEA GSV
+    if (strstr(sentence, "GSV")) {
+        // $GPGSV, $GLGSV, $GAGSV, $GBGSV, $BDGSV
+        char temp[120];
+        strncpy(temp, sentence, sizeof(temp));
+        temp[sizeof(temp)-1] = '\0';
+        char* token = strtok(temp, ",");
+        int field = 0;
+        int totalSats = 0;
+        while (token != NULL) {
+            field++;
+            if (field == 4) { // Field 3: total satellites in view
+                totalSats = atoi(token);
+                break;
+            }
+            token = strtok(NULL, ",");
+        }
+        if (totalSats > 0) {
+            if (strstr(sentence, "GPGSV")) _data.satsGps = totalSats;
+            else if (strstr(sentence, "GLGSV")) _data.satsGlonass = totalSats;
+            else if (strstr(sentence, "GAGSV")) _data.satsGalileo = totalSats;
+            else if (strstr(sentence, "GBGSV") || strstr(sentence, "BDGSV")) _data.satsBeidou = totalSats;
+        }
+    }
+    // Резервный парсер строк NMEA: $GNRMC, $GNGGA, $GNGSA
+    else if (strstr(sentence, "RMC")) {
         // $GNRMC,123519,A,4807.038,N,01131.000,E,022.4,084.4,230394,003.1,W*6A
         char status = 'V';
         float rawLat = 0, rawLon = 0, knots = 0;
         char latDir = 'N', lonDir = 'E';
         
-        // Быстрый разбор RMC
         char temp[120];
         strncpy(temp, sentence, sizeof(temp));
         char* token = strtok(temp, ",");
         int field = 0;
         while (token != NULL) {
             field++;
-            if (field == 3) status = token[0];
+            if (field == 2) {
+                // UTC Time (hhmmss)
+                if (strlen(token) >= 6) {
+                    _data.hour = (token[0]-'0')*10 + (token[1]-'0');
+                    _data.min  = (token[2]-'0')*10 + (token[3]-'0');
+                    _data.sec  = (token[4]-'0')*10 + (token[5]-'0');
+                }
+            } else if (field == 3) status = token[0];
             else if (field == 4) rawLat = atof(token);
             else if (field == 5) latDir = token[0];
             else if (field == 6) rawLon = atof(token);
             else if (field == 7) lonDir = token[0];
             else if (field == 8) knots = atof(token);
+            else if (field == 10) {
+                // Date (ddmmyy)
+                if (strlen(token) >= 6) {
+                    _data.day   = (token[0]-'0')*10 + (token[1]-'0');
+                    _data.month = (token[2]-'0')*10 + (token[3]-'0');
+                    _data.year  = 2000 + (token[4]-'0')*10 + (token[5]-'0');
+                }
+            }
             token = strtok(NULL, ",");
         }
 
         if (status == 'A') {
-            // Перевод DDMM.MMMM в градусы
             int latDeg = (int)(rawLat / 100);
             float latMin = rawLat - (latDeg * 100);
             _data.lat = latDeg + (latMin / 60.0f);

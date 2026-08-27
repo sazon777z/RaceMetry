@@ -199,7 +199,10 @@ void BleEngine::sendLiveTelemetry(
 
     snprintf(
         _txBuffer, sizeof(_txBuffer),
-        "{\"t\":\"live\",\"spd\":%.2f,\"dist\":%.1f,\"time\":%.3f,\"g\":%.2f,\"gx\":%.2f,\"gy\":%.2f,\"gz\":%.2f,\"g_peak\":%.2f,\"sats\":%u,\"fix\":%u,\"hacc\":%.1f,\"sacc\":%.2f,\"state\":%u,\"disc\":%u,\"slope\":%.2f,\"alt\":%.1f,\"bat\":%.2f,\"pct\":%u}\n",
+        "{\"t\":\"live\",\"spd\":%.2f,\"dist\":%.1f,\"time\":%.3f,\"g\":%.2f,\"gx\":%.2f,\"gy\":%.2f,\"gz\":%.2f,\"g_peak\":%.2f,"
+        "\"sats\":%u,\"gps\":%u,\"glo\":%u,\"gal\":%u,\"bds\":%u,\"fix\":%u,\"hacc\":%.1f,\"vacc\":%.1f,\"sacc\":%.2f,\"pdop\":%.2f,"
+        "\"state\":%u,\"disc\":%u,\"slope\":%.2f,\"alt\":%.1f,\"lat\":%.6f,\"lon\":%.6f,\"head\":%.1f,"
+        "\"utc\":\"%02u:%02u:%02u\",\"date\":\"%02u.%02u.%04u\",\"bat\":%.2f,\"pct\":%u}\n",
         liveSpeedKmh,
         liveDistanceM,
         liveTimeSec,
@@ -209,13 +212,24 @@ void BleEngine::sendLiveTelemetry(
         imu.accelZ,
         imu.gPeakAccel,
         gps.numSats,
+        gps.satsGps,
+        gps.satsGlonass,
+        gps.satsGalileo,
+        gps.satsBeidou,
         gps.fixType,
         gps.hAccM,
+        gps.vAccM,
         gps.sAccKmh,
+        gps.pDOP,
         (uint8_t)state,
         (uint8_t)disc,
         liveSlopePct,
         gps.altMSL,
+        gps.lat,
+        gps.lon,
+        gps.headingDeg,
+        gps.hour, gps.min, gps.sec,
+        gps.day, gps.month, gps.year,
         batVolts,
         batPct
     );
@@ -280,7 +294,8 @@ void BleEngine::sendPersonalBests(const PersonalBests& pb) {
 
     snprintf(
         _txBuffer, sizeof(_txBuffer),
-        "{\"t\":\"pb\",\"best0_100\":%.3f,\"best100_200\":%.3f,\"best1_4mi\":%.3f,\"best1_4mi_spd\":%.2f,\"best60ft\":%.3f,\"best100_0_d\":%.2f}\n",
+        "{\"t\":\"pb\",\"best0_60\":%.3f,\"best0_100\":%.3f,\"best100_200\":%.3f,\"best1_4mi\":%.3f,\"best1_4mi_spd\":%.2f,\"best60ft\":%.3f,\"best100_0_d\":%.2f}\n",
+        pb.best0_60,
         pb.best0_100,
         pb.best100_200,
         pb.best1_4mi,

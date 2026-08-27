@@ -125,7 +125,7 @@ void setup() {
             telemetryEngine.reset();
         } else if (cmd == "set_disc") {
             int disc = val.toInt();
-            if (disc >= 0 && disc <= 6) {
+            if (disc >= 0 && disc <= 7) {
                 telemetryEngine.setDiscipline((RaceDiscipline)disc);
             }
         } else if (cmd == "set_rollout") {
@@ -152,7 +152,7 @@ void setup() {
                 RunRecord r;
                 if (storageManager.getRunRecord(i, r)) {
                     bleEngine.sendRunRecord(r);
-                    delay(15);
+                    vTaskDelay(pdMS_TO_TICKS(20));
                 }
             }
         } else if (cmd == "clear_history") {
@@ -355,6 +355,15 @@ void CommTask(void* parameter) {
             PersonalBests pb;
             storageManager.getPersonalBests(pb);
             bleEngine.sendPersonalBests(pb);
+            vTaskDelay(pdMS_TO_TICKS(30));
+            uint8_t count = storageManager.getSavedRunsCount();
+            for (uint8_t i = 0; i < count; i++) {
+                RunRecord r;
+                if (storageManager.getRunRecord(i, r)) {
+                    bleEngine.sendRunRecord(r);
+                    vTaskDelay(pdMS_TO_TICKS(20));
+                }
+            }
         }
         wasConnected = isConnected;
 

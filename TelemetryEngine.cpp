@@ -413,13 +413,30 @@ void TelemetryEngine::_checkRunCompletion() {
 
     switch (_discipline) {
         case RaceDiscipline::ALL_IN_ONE_DRAG:
-            // В универсальном режиме заезд считается завершенным при проезде 1/4 мили (402м) 
-            // или достижении 200 км/ч, либо если пилот сбросил газ (скорость упала ниже 40 км/ч после разгона)
-            if (_currentRun.split1_4mi.achieved || _currentRun.split0_200.achieved) {
-                completed = true;
-            } else if (_currentRun.split0_100.achieved && _liveSpeedKmh < 40.0f) {
+            // 1. При проезде 1/4 мили (402м)
+            if (_currentRun.split1_4mi.achieved) {
                 completed = true;
             }
+            // 2. При достижении 200 км/ч
+            else if (_currentRun.split0_200.achieved) {
+                completed = true;
+            }
+            // 3. После взятия 0-100 км/ч при сбросе газа (замедление от пиковой скорости)
+            else if (_currentRun.split0_100.achieved && (_liveSpeedKmh < (_currentRun.maxSpeedKmh - 5.0f) || _liveSpeedKmh < 60.0f)) {
+                completed = true;
+            }
+            // 4. После взятия 0-60 км/ч при сбросе газа
+            else if (_currentRun.split0_60.achieved && (_liveSpeedKmh < (_currentRun.maxSpeedKmh - 6.0f) || _liveSpeedKmh < 30.0f)) {
+                completed = true;
+            }
+            // 5. При остановке авто после разгона
+            else if (_liveSpeedKmh <= STOP_SPEED_THRESHOLD && _currentRun.maxSpeedKmh >= 20.0f) {
+                completed = true;
+            }
+            break;
+
+        case RaceDiscipline::SPEED_0_60:
+            if (_currentRun.split0_60.achieved) completed = true;
             break;
 
         case RaceDiscipline::SPEED_0_100:

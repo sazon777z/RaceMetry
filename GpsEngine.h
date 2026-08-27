@@ -69,7 +69,7 @@ private:
     uint16_t _payloadCounter;
     uint8_t _ckA, _ckB;
     uint8_t _calcCkA, _calcCkB;
-    uint8_t _payloadBuf[128];
+    uint8_t _payloadBuf[512];
 
     // Буфер парсера NMEA
     char _nmeaBuf[120];
@@ -77,6 +77,7 @@ private:
     bool _inNmea;
 
     void _processUbxPayload();
+    void _processUbxSatPayload();
     void _processNmeaSentence(const char* sentence);
     void _sendUbxCommand(uint8_t cls, uint8_t id, const uint8_t* payload, uint16_t len);
     void _calculateChecksum(uint8_t byte, uint8_t& cka, uint8_t& ckb);

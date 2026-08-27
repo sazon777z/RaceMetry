@@ -488,13 +488,23 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            font-size: 13px;
+            font-size: 12px;
+            gap: 6px;
+        }
+
+        .g-metric-row span:first-child {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            font-size: 11.5px;
         }
 
         .g-metric-val {
             font-weight: 800;
-            font-size: 17px;
+            font-size: 15px;
             font-variant-numeric: tabular-nums;
+            white-space: nowrap;
+            flex-shrink: 0;
         }
 
         /* Action Buttons */
@@ -955,12 +965,13 @@
             <!-- Discipline Selector -->
             <div class="disc-chips">
                 <div class="chip active" onclick="selectDiscipline(0, this)">All-in-One Drag</div>
-                <div class="chip" onclick="selectDiscipline(1, this)">0-100 км/ч</div>
-                <div class="chip" onclick="selectDiscipline(2, this)">100-200 км/ч</div>
-                <div class="chip" onclick="selectDiscipline(3, this)">0-200 км/ч</div>
-                <div class="chip" onclick="selectDiscipline(4, this)">1/4 Мили (402м)</div>
-                <div class="chip" onclick="selectDiscipline(5, this)">1/2 Мили (804м)</div>
-                <div class="chip" onclick="selectDiscipline(6, this)">100-0 Торможение</div>
+                <div class="chip" onclick="selectDiscipline(1, this)">0-60 км/ч</div>
+                <div class="chip" onclick="selectDiscipline(2, this)">0-100 км/ч</div>
+                <div class="chip" onclick="selectDiscipline(3, this)">100-200 км/ч</div>
+                <div class="chip" onclick="selectDiscipline(4, this)">0-200 км/ч</div>
+                <div class="chip" onclick="selectDiscipline(5, this)">1/4 Мили (402м)</div>
+                <div class="chip" onclick="selectDiscipline(6, this)">1/2 Мили (804м)</div>
+                <div class="chip" onclick="selectDiscipline(7, this)">100-0 Торможение</div>
             </div>
 
             <!-- Big Digital Speedometer -->
@@ -1137,12 +1148,134 @@
             </div>
         </div>
 
-        <!-- 4. TAB: HISTORY & PB -->
+        <!-- 4. TAB: GPS / GNSS DETAILED MONITOR -->
+        <div id="tabGps" class="tab-content">
+            <!-- Hero GNSS Status Banner -->
+            <div class="card" style="margin-bottom: 14px; background: linear-gradient(135deg, rgba(0, 255, 204, 0.08) 0%, rgba(20, 26, 38, 0.95) 100%);">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                    <div>
+                        <div style="font-size: 11px; font-weight: 700; color: var(--text-muted); letter-spacing: 1px;">СПУТНИКОВАЯ СИСТЕМА</div>
+                        <div style="font-size: 20px; font-weight: 900; color: var(--accent-cyan);">u-blox M10Q 20Hz</div>
+                    </div>
+                    <div id="gpsHeroFixBadge" class="state-badge" style="background: rgba(0, 230, 118, 0.2); color: var(--accent-green); border: 1px solid var(--accent-green);">
+                        3D FIX
+                    </div>
+                </div>
+
+                <!-- 4-Constellation Grid -->
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px;">
+                    <div class="card" style="padding: 12px; background: #181f2c; border-color: rgba(255,255,255,0.06);">
+                        <div style="font-size: 11px; color: var(--text-secondary); display: flex; align-items: center; gap: 6px;">
+                            <span>🇺🇸 GPS (USA)</span>
+                        </div>
+                        <div style="font-size: 22px; font-weight: 800; color: #fff; margin-top: 4px;" id="gpsCountGps">0</div>
+                        <div style="font-size: 10px; color: var(--text-muted);">активных спутников</div>
+                    </div>
+
+                    <div class="card" style="padding: 12px; background: #181f2c; border-color: rgba(255,255,255,0.06);">
+                        <div style="font-size: 11px; color: var(--text-secondary); display: flex; align-items: center; gap: 6px;">
+                            <span>🇷🇺 ГЛОНАСС (RUS)</span>
+                        </div>
+                        <div style="font-size: 22px; font-weight: 800; color: #fff; margin-top: 4px;" id="gpsCountGlo">0</div>
+                        <div style="font-size: 10px; color: var(--text-muted);">активных спутников</div>
+                    </div>
+
+                    <div class="card" style="padding: 12px; background: #181f2c; border-color: rgba(255,255,255,0.06);">
+                        <div style="font-size: 11px; color: var(--text-secondary); display: flex; align-items: center; gap: 6px;">
+                            <span>🇪🇺 Galileo (EU)</span>
+                        </div>
+                        <div style="font-size: 22px; font-weight: 800; color: #fff; margin-top: 4px;" id="gpsCountGal">0</div>
+                        <div style="font-size: 10px; color: var(--text-muted);">активных спутников</div>
+                    </div>
+
+                    <div class="card" style="padding: 12px; background: #181f2c; border-color: rgba(255,255,255,0.06);">
+                        <div style="font-size: 11px; color: var(--text-secondary); display: flex; align-items: center; gap: 6px;">
+                            <span>🇨🇳 BeiDou (CHN)</span>
+                        </div>
+                        <div style="font-size: 22px; font-weight: 800; color: #fff; margin-top: 4px;" id="gpsCountBds">0</div>
+                        <div style="font-size: 10px; color: var(--text-muted);">активных спутников</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Accuracy & DOP Card -->
+            <div class="card" style="margin-bottom: 14px;">
+                <div class="card-title">ТОЧНОСТЬ И ГЕОМЕТРИЯ (DOP)</div>
+                <div class="g-metrics-list">
+                    <div class="g-metric-row">
+                        <span style="color: var(--text-secondary);">Горизонтальная точность:</span>
+                        <span id="gpsHaccVal" style="font-weight: 800; color: var(--accent-green);">-- м</span>
+                    </div>
+                    <div class="g-metric-row">
+                        <span style="color: var(--text-secondary);">Вертикальная точность:</span>
+                        <span id="gpsVaccVal" style="font-weight: 800;">-- м</span>
+                    </div>
+                    <div class="g-metric-row">
+                        <span style="color: var(--text-secondary);">Точность скорости:</span>
+                        <span id="gpsSaccVal" style="font-weight: 800; color: var(--accent-cyan);">-- км/ч</span>
+                    </div>
+                    <div class="g-metric-row">
+                        <span style="color: var(--text-secondary);">Фактор PDOP:</span>
+                        <span id="gpsPdopVal" style="font-weight: 800; color: var(--accent-gold);">--</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Atomic UTC Time & Date -->
+            <div class="card" style="margin-bottom: 14px;">
+                <div class="card-title">АТОМНОЕ ВРЕМЯ GNSS</div>
+                <div class="g-metrics-list">
+                    <div class="g-metric-row">
+                        <span style="color: var(--text-secondary);">Точное время (UTC):</span>
+                        <span id="gpsUtcTimeVal" style="font-weight: 800; font-family: monospace; font-size: 16px; color: var(--accent-cyan);">--:--:--</span>
+                    </div>
+                    <div class="g-metric-row">
+                        <span style="color: var(--text-secondary);">Дата (UTC):</span>
+                        <span id="gpsUtcDateVal" style="font-weight: 700; font-family: monospace;">--.--.----</span>
+                    </div>
+                    <div class="g-metric-row">
+                        <span style="color: var(--text-secondary);">Частота навигации:</span>
+                        <span style="font-weight: 700; color: var(--accent-green);">20 Гц (каждые 50 мс)</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Geodetic Coordinates -->
+            <div class="card" style="margin-bottom: 14px;">
+                <div class="card-title">ГЕОДЕЗИЧЕСКИЕ КООРДИНАТЫ</div>
+                <div class="g-metrics-list">
+                    <div class="g-metric-row">
+                        <span style="color: var(--text-secondary);">Широта (Latitude):</span>
+                        <span id="gpsLatVal" style="font-weight: 700; font-family: monospace;">--.------°</span>
+                    </div>
+                    <div class="g-metric-row">
+                        <span style="color: var(--text-secondary);">Долгота (Longitude):</span>
+                        <span id="gpsLonVal" style="font-weight: 700; font-family: monospace;">--.------°</span>
+                    </div>
+                    <div class="g-metric-row">
+                        <span style="color: var(--text-secondary);">Высота над уровнем моря:</span>
+                        <span id="gpsAltVal" style="font-weight: 700;">-- м</span>
+                    </div>
+                    <div class="g-metric-row">
+                        <span style="color: var(--text-secondary);">Курс движения:</span>
+                        <span id="gpsHeadVal" style="font-weight: 700;">--°</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 5. TAB: HISTORY & PB -->
         <div id="tabHistory" class="tab-content">
             <!-- Personal Bests Podium -->
             <div class="card" style="margin-bottom: 16px;">
                 <div class="card-title">🏆 ЛИЧНЫЕ РЕКОРДЫ (PERSONAL BESTS)</div>
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                    <div class="history-item" style="margin: 0;">
+                        <div class="history-main">
+                            <span class="history-disc">0 - 60 км/ч</span>
+                        </div>
+                        <div class="history-time" id="pb0_60">--</div>
+                    </div>
                     <div class="history-item" style="margin: 0;">
                         <div class="history-main">
                             <span class="history-disc">0 - 100 км/ч</span>
@@ -1160,12 +1293,6 @@
                             <span class="history-disc">1/4 Мили (402м)</span>
                         </div>
                         <div class="history-time" id="pb1_4mi">--</div>
-                    </div>
-                    <div class="history-item" style="margin: 0;">
-                        <div class="history-main">
-                            <span class="history-disc">60 Футов</span>
-                        </div>
-                        <div class="history-time" id="pb60ft">--</div>
                     </div>
                 </div>
             </div>
@@ -1322,6 +1449,10 @@
             <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/></svg>
             Графика
         </button>
+        <button class="tab-btn" onclick="switchTab('tabGps', this)">
+            <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>
+            GPS
+        </button>
         <button class="tab-btn" onclick="switchTab('tabHistory', this)">
             <svg viewBox="0 0 24 24"><path d="M13 3c-4.97 0-9 4.03-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42C8.27 19.99 10.51 21 13 21c4.97 0 9-4.03 9-9s-4.03-9-9-9zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z"/></svg>
             История
@@ -1375,10 +1506,14 @@
         function switchTab(tabId, btn) {
             document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
             document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
-            document.getElementById(tabId).classList.add('active');
+            let target = document.getElementById(tabId);
+            if (target) target.classList.add('active');
             if (btn) btn.classList.add('active');
             if (tabId === 'tabResults') {
                 renderChart();
+            } else if (tabId === 'tabHistory') {
+                if (isBleConnected) sendBleCmd('get_history');
+                renderHistoryList();
             }
         }
 
@@ -1445,10 +1580,13 @@
                 updateBleUi(true);
                 showToast("RaceMetry подключен успешно!");
 
-                // Запрашиваем информацию и рекорды
+                // Запрашиваем информацию, рекорды и сохраненную историю
                 setTimeout(() => {
                     sendBleCmd('get_info');
                 }, 300);
+                setTimeout(() => {
+                    sendBleCmd('get_history');
+                }, 700);
 
             } catch (err) {
                 console.error("BLE Error:", err);
@@ -1645,10 +1783,15 @@
         }
 
         function updateLiveTelemetry(d) {
-            // Speed
-            document.getElementById('cockpitSpeedVal').innerText = Math.round(d.spd);
+            // 1. Digital Speedometer (Snap to 0 if < 0.6 km/h to eliminate Doppler jitter at stop)
+            let rawSpd = d.spd;
+            let dispSpd = 0;
+            if (rawSpd >= 0.6) {
+                dispSpd = Math.round(rawSpd);
+            }
+            document.getElementById('cockpitSpeedVal').innerText = dispSpd;
             
-            // Stats
+            // 2. Top Status Strip (Clean, without duplicate satellites in status)
             document.getElementById('statSats').innerText = d.sats;
             if (d.fix >= 2 && d.hacc < 500.0 && d.hacc > 0) {
                 document.getElementById('statAcc').innerText = "±" + d.hacc.toFixed(1) + " м";
@@ -1657,28 +1800,85 @@
             }
             
             let fixText = "Поиск GPS";
-            if (d.fix === 3) fixText = "3D Fix (" + d.sats + " спутников)";
+            if (d.fix === 3) fixText = "3D Fix";
             else if (d.fix === 2) fixText = "2D Fix";
             document.getElementById('statFix').innerText = fixText;
 
-            // Battery Status
+            // 3. Detailed GPS / GNSS Tab
+            if (d.gps !== undefined) document.getElementById('gpsCountGps').innerText = d.gps;
+            if (d.glo !== undefined) document.getElementById('gpsCountGlo').innerText = d.glo;
+            if (d.gal !== undefined) document.getElementById('gpsCountGal').innerText = d.gal;
+            if (d.bds !== undefined) document.getElementById('gpsCountBds').innerText = d.bds;
+
+            let heroBadge = document.getElementById('gpsHeroFixBadge');
+            if (heroBadge) {
+                if (d.fix === 3) {
+                    heroBadge.innerText = "🟢 3D FIX (" + d.sats + " СВ)";
+                    heroBadge.style.color = "var(--accent-green)";
+                    heroBadge.style.borderColor = "var(--accent-green)";
+                } else if (d.fix === 2) {
+                    heroBadge.innerText = "🟡 2D FIX";
+                    heroBadge.style.color = "var(--accent-gold)";
+                    heroBadge.style.borderColor = "var(--accent-gold)";
+                } else {
+                    heroBadge.innerText = "🔴 ПОИСК";
+                    heroBadge.style.color = "var(--accent-red)";
+                    heroBadge.style.borderColor = "var(--accent-red)";
+                }
+            }
+
+            if (d.hacc !== undefined && d.hacc > 0 && d.hacc < 200) {
+                document.getElementById('gpsHaccVal').innerText = "±" + d.hacc.toFixed(2) + " м";
+            }
+            if (d.vacc !== undefined && d.vacc > 0 && d.vacc < 200) {
+                document.getElementById('gpsVaccVal').innerText = "±" + d.vacc.toFixed(2) + " м";
+            }
+            if (d.sacc !== undefined && d.sacc >= 0) {
+                document.getElementById('gpsSaccVal').innerText = "±" + d.sacc.toFixed(2) + " км/ч";
+            }
+            if (d.pdop !== undefined && d.pdop > 0) {
+                document.getElementById('gpsPdopVal').innerText = d.pdop.toFixed(2);
+            }
+            if (d.utc) document.getElementById('gpsUtcTimeVal').innerText = d.utc + " UTC";
+            if (d.date) document.getElementById('gpsUtcDateVal').innerText = d.date;
+            if (d.lat !== undefined && d.lat !== 0) document.getElementById('gpsLatVal').innerText = d.lat.toFixed(6) + "°";
+            if (d.lon !== undefined && d.lon !== 0) document.getElementById('gpsLonVal').innerText = d.lon.toFixed(6) + "°";
+            if (d.alt !== undefined) document.getElementById('gpsAltVal').innerText = d.alt.toFixed(1) + " м";
+            if (d.head !== undefined) document.getElementById('gpsHeadVal').innerText = d.head.toFixed(1) + "°";
+
+            // Diagnostics Tab mirror
+            if (d.lat !== undefined && d.lat !== 0) {
+                let coordsEl = document.getElementById('diagCoords');
+                if (coordsEl) coordsEl.innerText = d.lat.toFixed(5) + " / " + d.lon.toFixed(5);
+            }
+            if (d.alt !== undefined) {
+                let altEl = document.getElementById('diagAlt');
+                if (altEl) altEl.innerText = d.alt.toFixed(1) + " м";
+            }
+            if (d.sacc !== undefined) {
+                let saccEl = document.getElementById('diagSpeedAcc');
+                if (saccEl) saccEl.innerText = "±" + d.sacc.toFixed(2) + " км/ч";
+            }
+
+            // 4. Battery Status
             if (d.bat !== undefined) {
                 renderBatteryStatus(d.bat, d.pct);
             }
 
-            // G-Forces
+            // 5. G-Forces & G-Bowl
             document.getElementById('gLongVal').innerText = (d.g >= 0 ? "+" : "") + d.g.toFixed(2);
             document.getElementById('gLatVal').innerText = (d.gy >= 0 ? "+" : "") + d.gy.toFixed(2);
             document.getElementById('gPeakVal').innerText = d.g_peak.toFixed(2);
             document.getElementById('cockpitSlopeVal').innerText = d.slope.toFixed(1) + "%";
 
-            // G-Bowl Dot position (1G = 55px radius)
             let dot = document.getElementById('gDot');
-            let posX = Math.max(-55, Math.min(55, d.gy * 55));
-            let posY = Math.max(-55, Math.min(55, -d.gx * 55));
-            dot.style.transform = `translate(${posX}px, ${posY}px)`;
+            if (dot) {
+                let posX = Math.max(-55, Math.min(55, d.gy * 55));
+                let posY = Math.max(-55, Math.min(55, -d.gx * 55));
+                dot.style.transform = `translate(${posX}px, ${posY}px)`;
+            }
 
-            // Race State Badge
+            // 6. Race State Badge
             let badge = document.getElementById('cockpitStateBadge');
             badge.className = 'state-badge';
             if (d.state === 0) {
@@ -1697,7 +1897,7 @@
             }
             prevState = d.state;
 
-            // Race Tab Live Stopwatch & Distance
+            // 7. Race Tab Live Stopwatch & Distance
             document.getElementById('raceTimerVal').innerText = d.time.toFixed(3);
             document.getElementById('raceDistVal').innerText = "Дистанция: " + d.dist.toFixed(1) + " м | Скорость: " + Math.round(d.spd) + " км/ч";
 
@@ -1722,7 +1922,15 @@
         function handleRunFinished(run) {
             console.log("Run finished:", run);
             lastRunData = run;
-            savedRuns.unshift(run);
+
+            // Deduplicate run in savedRuns
+            let exists = savedRuns.some(r => (r.id === run.id && r.ts === run.ts) || (r.ts === run.ts && Math.abs(r.dur - run.dur) < 0.05));
+            if (!exists) {
+                savedRuns.unshift(run);
+                try {
+                    localStorage.setItem('racemetry_runs', JSON.stringify(savedRuns.slice(0, 50)));
+                } catch(e) {}
+            }
 
             // Populate Dragy Card
             document.getElementById('certDate').innerText = new Date(run.ts * 1000).toLocaleString('ru-RU');
@@ -1737,12 +1945,22 @@
                 speak("Внимание! Уклон превышает норму.");
             }
 
-            if (run.s0_100 > 0) {
+            if (run.s0_60 > 0 && run.disc === 1) {
+                document.getElementById('certDiscipline').innerText = "0 - 60 KM/H";
+                document.getElementById('certHeroLabel').innerText = "0 - 60 КМ/Ч";
+                document.getElementById('certHeroVal').innerText = run.s0_60.toFixed(2) + " s";
+            } else if (run.s0_100 > 0) {
+                document.getElementById('certDiscipline').innerText = "0 - 100 KM/H";
                 document.getElementById('certHeroLabel').innerText = "0 - 100 КМ/Ч";
                 document.getElementById('certHeroVal').innerText = run.s0_100.toFixed(2) + " s";
             } else if (run.s1_4mi > 0) {
+                document.getElementById('certDiscipline').innerText = "1/4 MILE (402M)";
                 document.getElementById('certHeroLabel').innerText = "1/4 МИЛИ (402м)";
                 document.getElementById('certHeroVal').innerText = run.s1_4mi.toFixed(2) + " s";
+            } else if (run.s0_60 > 0) {
+                document.getElementById('certDiscipline').innerText = "0 - 60 KM/H";
+                document.getElementById('certHeroLabel').innerText = "0 - 60 КМ/Ч";
+                document.getElementById('certHeroVal').innerText = run.s0_60.toFixed(2) + " s";
             }
 
             document.getElementById('certRollout').innerText = run.rollout ? "Да (1 фут / 0.30м)" : "Нет (0.0м)";
@@ -1752,7 +1970,7 @@
             document.getElementById('certDist').innerText = run.dist.toFixed(1) + " м";
             document.getElementById('certDur').innerText = run.dur.toFixed(2) + " с";
 
-            // Render Results History
+            // Render Results History & Chart
             renderHistoryList();
             renderChart();
 
@@ -1760,10 +1978,13 @@
         }
 
         function updatePersonalBests(pb) {
+            if (pb.best0_60 !== undefined && pb.best0_60 > 0) {
+                let el = document.getElementById('pb0_60');
+                if (el) el.innerText = pb.best0_60.toFixed(2) + " с";
+            }
             if (pb.best0_100 > 0) document.getElementById('pb0_100').innerText = pb.best0_100.toFixed(2) + " с";
             if (pb.best100_200 > 0) document.getElementById('pb100_200').innerText = pb.best100_200.toFixed(2) + " с";
             if (pb.best1_4mi > 0) document.getElementById('pb1_4mi').innerText = pb.best1_4mi.toFixed(2) + " с";
-            if (pb.best60ft > 0) document.getElementById('pb60ft').innerText = pb.best60ft.toFixed(2) + " с";
         }
 
         function updateDeviceInfo(info) {
@@ -1793,30 +2014,52 @@
             if (confirm("Вы уверены, что хотите удалить все заезды из памяти прибора?")) {
                 sendBleCmd('clear_history');
                 savedRuns = [];
+                try {
+                    localStorage.removeItem('racemetry_runs');
+                } catch(e) {}
                 renderHistoryList();
-                showToast("Память прибора очищена");
+                showToast("Память заездов очищена");
             }
         }
 
         function renderHistoryList() {
             let container = document.getElementById('historyListContainer');
+            if (!container) return;
             if (savedRuns.length === 0) {
                 container.innerHTML = '<div style="text-align: center; color: var(--text-muted); padding: 30px;">История заездов пуста</div>';
                 return;
             }
 
-            container.innerHTML = savedRuns.map((r, idx) => `
-                <div class="history-item" onclick="viewHistoricalRun(${idx})">
-                    <div class="history-main">
-                        <span class="history-disc">${r.s0_100 > 0 ? "0-100 км/ч" : "1/4 мили"}</span>
-                        <span class="history-date">${new Date(r.ts * 1000).toLocaleString('ru-RU')} • ${r.valid ? "🟢 Валиден" : "🔴 Уклон"}</span>
+            container.innerHTML = savedRuns.map((r, idx) => {
+                let discName = "0-100 км/ч";
+                let mainTime = r.s0_100;
+                if (r.disc === 1 || (r.s0_60 > 0 && r.s0_100 === 0)) {
+                    discName = "0-60 км/ч";
+                    mainTime = r.s0_60;
+                } else if (r.s1_4mi > 0 && r.disc === 5) {
+                    discName = "1/4 мили (402м)";
+                    mainTime = r.s1_4mi;
+                } else if (r.s0_100 > 0) {
+                    discName = "0-100 км/ч";
+                    mainTime = r.s0_100;
+                } else if (r.s0_60 > 0) {
+                    discName = "0-60 км/ч";
+                    mainTime = r.s0_60;
+                }
+
+                return `
+                    <div class="history-item" onclick="viewHistoricalRun(${idx})">
+                        <div class="history-main">
+                            <span class="history-disc">${discName}</span>
+                            <span class="history-date">${new Date(r.ts * 1000).toLocaleString('ru-RU')} • ${r.valid ? "🟢 Валиден" : "🔴 Уклон"}</span>
+                        </div>
+                        <div class="history-result">
+                            <div class="history-time">${(mainTime > 0 ? mainTime : r.dur).toFixed(2)} с</div>
+                            <div style="font-size: 11px; color: var(--text-secondary);">${r.max_spd.toFixed(1)} км/ч</div>
+                        </div>
                     </div>
-                    <div class="history-result">
-                        <div class="history-time">${(r.s0_100 > 0 ? r.s0_100 : r.s1_4mi).toFixed(2)} с</div>
-                        <div style="font-size: 11px; color: var(--text-secondary);">${r.max_spd.toFixed(1)} км/ч</div>
-                    </div>
-                </div>
-            `).join('');
+                `;
+            }).join('');
         }
 
         function viewHistoricalRun(idx) {
@@ -1914,7 +2157,7 @@
             let blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
             let link = document.createElement("a");
             link.href = URL.createObjectURL(blob);
-            link.download = `DRAGon_Run_${Date.now()}.csv`;
+            link.download = `RaceMetry_Run_${Date.now()}.csv`;
             link.click();
             showToast("CSV файл сохранен!");
         }
@@ -1924,7 +2167,8 @@
                 showToast("Нет сохраненного заезда!");
                 return;
             }
-            let text = `🏎️ DRAGon Telemetry Run Report\n` +
+            let text = `🏎️ RaceMetry Pro Telemetry Report\n` +
+                       (lastRunData.s0_60 > 0 ? `0-60 km/h: ${lastRunData.s0_60.toFixed(2)}s\n` : ``) +
                        `0-100 km/h: ${lastRunData.s0_100.toFixed(2)}s\n` +
                        `100-200 km/h: ${lastRunData.s100_200.toFixed(2)}s\n` +
                        `1/4 Mile: ${lastRunData.s1_4mi.toFixed(2)}s @ ${lastRunData.trap_spd.toFixed(1)} km/h\n` +
@@ -1936,6 +2180,15 @@
                 showToast("Отчет скопирован в буфер обмена!");
             });
         }
+
+        // Init: Load saved runs from localStorage on startup
+        try {
+            let cached = localStorage.getItem('racemetry_runs');
+            if (cached) {
+                savedRuns = JSON.parse(cached);
+                renderHistoryList();
+            }
+        } catch(e) {}
 
         window.addEventListener('resize', renderChart);
     </script>

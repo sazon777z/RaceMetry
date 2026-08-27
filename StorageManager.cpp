@@ -102,6 +102,13 @@ void StorageManager::clearAllRuns() {
 }
 
 void StorageManager::_updatePersonalBests(const RunRecord& run) {
+    // 0 - 60 км/ч
+    if (run.split0_60.achieved) {
+        float best0_60 = _prefs.getFloat("pb_0_60", 999.0f);
+        if (run.split0_60.timeSec < best0_60) {
+            _prefs.putFloat("pb_0_60", run.split0_60.timeSec);
+        }
+    }
     // 0 - 100 км/ч
     if (run.split0_100.achieved) {
         float best0_100 = _prefs.getFloat("pb_0_100", 999.0f);
@@ -141,6 +148,7 @@ void StorageManager::_updatePersonalBests(const RunRecord& run) {
 }
 
 void StorageManager::getPersonalBests(PersonalBests& pb) {
+    pb.best0_60 = _prefs.getFloat("pb_0_60", 0.0f);
     pb.best0_100 = _prefs.getFloat("pb_0_100", 0.0f);
     pb.best100_200 = _prefs.getFloat("pb_100_200", 0.0f);
     pb.best1_4mi = _prefs.getFloat("pb_1_4mi", 0.0f);

@@ -22,6 +22,7 @@ enum class RaceState : uint8_t {
 // Дисциплина / Режим замера
 enum class RaceDiscipline : uint8_t {
     ALL_IN_ONE_DRAG = 0, // Автоматический замер всех скоростей (0-60, 0-100, 100-200) и дистанций (60ft, 1/8mi, 1/4mi)
+    SPEED_0_60,          // Только 0 - 60 км/ч
     SPEED_0_100,         // Только 0 - 100 км/ч
     SPEED_100_200,       // Только 100 - 200 км/ч
     SPEED_0_200,         // Только 0 - 200 км/ч
@@ -30,7 +31,7 @@ enum class RaceDiscipline : uint8_t {
     BRAKE_100_0          // Торможение 100 - 0 км/ч
 };
 
-// Данные со спутников GNSS (из UBX-NAV-PVT)
+// Данные со спутников GNSS (из UBX-NAV-PVT и UBX-NAV-SAT)
 struct GpsData {
     double lat;             // Широта в градусах
     double lon;             // Долгота в градусах
@@ -41,10 +42,20 @@ struct GpsData {
     float hAccM;            // Оценка горизонтальной точности (м)
     float vAccM;            // Оценка вертикальной точности (м)
     float sAccKmh;          // Оценка точности скорости (км/ч)
-    uint8_t numSats;        // Количество активных спутников
+    uint8_t numSats;        // Общее количество активных спутников в решении
+    uint8_t satsGps;        // Спутники GPS (США)
+    uint8_t satsGlonass;    // Спутники ГЛОНАСС (Россия)
+    uint8_t satsGalileo;    // Спутники Galileo (Европа)
+    uint8_t satsBeidou;     // Спутники BeiDou (Китай)
     uint8_t fixType;        // 0=NoFix, 2=2D, 3=3D, 4=GNSS+dead reckoning
     bool validFix;          // Флаг валидности 3D фикса
     uint32_t towMs;         // GPS Time of Week (мс)
+    uint16_t year;          // Год UTC
+    uint8_t month;          // Месяц UTC (1-12)
+    uint8_t day;            // День UTC (1-31)
+    uint8_t hour;           // Часы UTC (0-23)
+    uint8_t min;            // Минуты UTC (0-59)
+    uint8_t sec;            // Секунды UTC (0-59)
     uint32_t lastUpdateMs;  // Время последнего полученного пакета (millis)
     float pDOP;             // Position Dilution of Precision
 };
@@ -129,6 +140,7 @@ struct RunRecord {
 
 // Личные рекорды (Personal Bests)
 struct PersonalBests {
+    float best0_60;
     float best0_100;
     float best100_200;
     float best1_4mi;
