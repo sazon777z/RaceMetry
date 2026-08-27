@@ -1,4 +1,17 @@
 #include "BleEngine.h"
+#include <esp_gap_ble_api.h>
+
+static int8_t s_latestRssi = -55;
+static esp_bd_addr_t s_peerBda;
+static bool s_hasPeerBda = false;
+
+static void gapEventHandler(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *param) {
+    if (event == ESP_GAP_BLE_READ_RSSI_COMPLETE_EVT) {
+        if (param && param->read_rssi_cmpl.status == ESP_BT_STATUS_SUCCESS) {
+            s_latestRssi = param->read_rssi_cmpl.rssi;
+        }
+    }
+}
 
 BleEngine::BleEngine()
     : _pServer(nullptr),
@@ -19,6 +32,7 @@ bool BleEngine::begin(const char* deviceName) {
 
     // 1. Инициализация стека BLE Device
     BLEDevice::init(deviceName);
+    BLEDevice::setCustomGapHandler(gapEventHandler);
 
     // 2. Создание BLE Сервера
     _pServer = BLEDevice::createServer();
@@ -75,6 +89,24 @@ void BleEngine::update() {
     if (_deviceConnected && !_oldDeviceConnected) {
         _oldDeviceConnected = true;
     }
+
+    // Периодический опрос уровня сигнала RSSI (каждые 1.5 сек)
+    static uint32_t lastRssiCheckMs = 0;
+    if (_deviceConnected && s_hasPeerBda && (millis() - lastRssiCheckMs >= 1500)) {
+        lastRssiCheckMs = millis();
+        esp_ble_gap_read_rssi(s_peerBda);
+    }
+}
+
+void BleEngine::onConnect(BLEServer* pServer, esp_ble_gatts_cb_param_t *param) {
+    _deviceConnected = true;
+    _oldDeviceConnected = true;
+    if (param) {
+        memcpy(s_peerBda, param->connect.remote_bda, 6);
+        s_hasPeerBda = true;
+        esp_ble_gap_read_rssi(s_peerBda);
+    }
+    Serial.println("[BLE] Smartphone connected to GATT Server!");
 }
 
 void BleEngine::onConnect(BLEServer* pServer) {
@@ -83,9 +115,20 @@ void BleEngine::onConnect(BLEServer* pServer) {
     Serial.println("[BLE] Smartphone connected to GATT Server!");
 }
 
+void BleEngine::onDisconnect(BLEServer* pServer, esp_ble_gatts_cb_param_t *param) {
+    _deviceConnected = false;
+    _oldDeviceConnected = false;
+    s_hasPeerBda = false;
+    s_latestRssi = -99;
+    Serial.println("[BLE] Smartphone disconnected. Resuming advertising...");
+    pServer->startAdvertising();
+}
+
 void BleEngine::onDisconnect(BLEServer* pServer) {
     _deviceConnected = false;
     _oldDeviceConnected = false;
+    s_hasPeerBda = false;
+    s_latestRssi = -99;
     Serial.println("[BLE] Smartphone disconnected. Resuming advertising...");
     pServer->startAdvertising();
 }
@@ -202,7 +245,7 @@ void BleEngine::sendLiveTelemetry(
         "{\"t\":\"live\",\"spd\":%.2f,\"dist\":%.1f,\"time\":%.3f,\"g\":%.2f,\"gx\":%.2f,\"gy\":%.2f,\"gz\":%.2f,\"g_peak\":%.2f,"
         "\"sats\":%u,\"gps\":%u,\"glo\":%u,\"gal\":%u,\"bds\":%u,\"fix\":%u,\"hacc\":%.1f,\"vacc\":%.1f,\"sacc\":%.2f,\"pdop\":%.2f,"
         "\"state\":%u,\"disc\":%u,\"slope\":%.2f,\"alt\":%.1f,\"lat\":%.6f,\"lon\":%.6f,\"head\":%.1f,"
-        "\"utc\":\"%02u:%02u:%02u\",\"date\":\"%02u.%02u.%04u\",\"bat\":%.2f,\"pct\":%u}\n",
+        "\"utc\":\"%02u:%02u:%02u\",\"date\":\"%02u.%02u.%04u\",\"bat\":%.2f,\"pct\":%u,\"rssi\":%d}\n",
         liveSpeedKmh,
         liveDistanceM,
         liveTimeSec,
@@ -231,7 +274,8 @@ void BleEngine::sendLiveTelemetry(
         gps.hour, gps.min, gps.sec,
         gps.day, gps.month, gps.year,
         batVolts,
-        batPct
+        batPct,
+        (int)s_latestRssi
     );
 
     sendJson(_txBuffer);

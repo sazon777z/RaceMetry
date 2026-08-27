@@ -150,7 +150,28 @@
             color: var(--text-primary);
         }
 
-        /* Smartphone-style Battery Widget */
+        /* Smartphone-style Signal & Battery Widgets */
+        .signal-widget {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            background: rgba(255, 255, 255, 0.04);
+            padding: 3px 8px;
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--text-secondary);
+            transition: all 0.3s ease;
+        }
+
+        .signal-bars-icon {
+            width: 14px;
+            height: 12px;
+            display: inline-block;
+            vertical-align: middle;
+        }
+
         .bat-widget {
             display: inline-flex;
             align-items: center;
@@ -921,6 +942,15 @@
             <span class="brand-logo">RaceMetry</span>
         </div>
         <div class="header-right">
+            <div class="signal-widget" id="statSignalWidget" title="Уровень сигнала Bluetooth">
+                <svg class="signal-bars-icon" viewBox="0 0 24 24">
+                    <rect x="2" y="16" width="3.5" height="6" rx="1" id="sigBar1" fill="currentColor" opacity="0.2"/>
+                    <rect x="7.5" y="12" width="3.5" height="10" rx="1" id="sigBar2" fill="currentColor" opacity="0.2"/>
+                    <rect x="13" y="7" width="3.5" height="15" rx="1" id="sigBar3" fill="currentColor" opacity="0.2"/>
+                    <rect x="18.5" y="2" width="3.5" height="20" rx="1" id="sigBar4" fill="currentColor" opacity="0.2"/>
+                </svg>
+                <span id="statSignalText">--</span>
+            </div>
             <div class="bat-widget" id="statBatItem" title="Уровень заряда аккумулятора">
                 <div class="bat-icon-pill">
                     <div class="bat-level-fill" id="statBatFill" style="width: 100%;"></div>
@@ -1412,6 +1442,10 @@
                         <span id="diagBat" style="font-weight: 700; color: var(--accent-green);">-- В (--%)</span>
                     </div>
                     <div class="g-metric-row">
+                        <span style="color: var(--text-secondary);">Уровень сигнала Bluetooth:</span>
+                        <span id="diagSignal" style="font-weight: 700; color: var(--accent-cyan);">-- dBm</span>
+                    </div>
+                    <div class="g-metric-row">
                         <span style="color: var(--text-secondary);">Версия прошивки:</span>
                         <span id="diagFwVer" style="font-weight: 700; color: var(--accent-cyan);">RaceMetry v2.0 BLE</span>
                     </div>
@@ -1610,6 +1644,7 @@
             } else {
                 btn.classList.remove('connected');
                 txt.innerText = "Подключить BLE";
+                renderSignalStatus(undefined);
             }
         }
 
@@ -1740,6 +1775,72 @@
             speak("Все системы инициализированы. GPS настроен на двадцать герц. Прибор готов к замерам.");
         }
 
+        function renderSignalStatus(rssi) {
+            let widget = document.getElementById('statSignalWidget');
+            let sigText = document.getElementById('statSignalText');
+            let b1 = document.getElementById('sigBar1');
+            let b2 = document.getElementById('sigBar2');
+            let b3 = document.getElementById('sigBar3');
+            let b4 = document.getElementById('sigBar4');
+
+            if (!widget || !sigText) return;
+
+            if (!isBleConnected || rssi === undefined || rssi < -110 || rssi === 0) {
+                sigText.innerText = "--";
+                sigText.style.color = "var(--text-muted)";
+                if (b1) { b1.style.opacity = "0.2"; b1.style.fill = "currentColor"; }
+                if (b2) { b2.style.opacity = "0.2"; b2.style.fill = "currentColor"; }
+                if (b3) { b3.style.opacity = "0.2"; b3.style.fill = "currentColor"; }
+                if (b4) { b4.style.opacity = "0.2"; b4.style.fill = "currentColor"; }
+                return;
+            }
+
+            sigText.innerText = rssi + " dBm";
+
+            // Signal bar levels
+            if (rssi >= -65) {
+                // 4 bars (Отличный)
+                if (b1) { b1.style.opacity = "1"; b1.style.fill = "var(--accent-green)"; }
+                if (b2) { b2.style.opacity = "1"; b2.style.fill = "var(--accent-green)"; }
+                if (b3) { b3.style.opacity = "1"; b3.style.fill = "var(--accent-green)"; }
+                if (b4) { b4.style.opacity = "1"; b4.style.fill = "var(--accent-green)"; }
+                sigText.style.color = "var(--accent-green)";
+            } else if (rssi >= -78) {
+                // 3 bars (Хороший)
+                if (b1) { b1.style.opacity = "1"; b1.style.fill = "var(--accent-cyan)"; }
+                if (b2) { b2.style.opacity = "1"; b2.style.fill = "var(--accent-cyan)"; }
+                if (b3) { b3.style.opacity = "1"; b3.style.fill = "var(--accent-cyan)"; }
+                if (b4) { b4.style.opacity = "0.2"; b4.style.fill = "currentColor"; }
+                sigText.style.color = "var(--accent-cyan)";
+            } else if (rssi >= -88) {
+                // 2 bars (Средний)
+                if (b1) { b1.style.opacity = "1"; b1.style.fill = "var(--accent-gold)"; }
+                if (b2) { b2.style.opacity = "1"; b2.style.fill = "var(--accent-gold)"; }
+                if (b3) { b3.style.opacity = "0.2"; b3.style.fill = "currentColor"; }
+                if (b4) { b4.style.opacity = "0.2"; b4.style.fill = "currentColor"; }
+                sigText.style.color = "var(--accent-gold)";
+            } else {
+                // 1 bar (Слабый)
+                if (b1) { b1.style.opacity = "1"; b1.style.fill = "var(--accent-red)"; }
+                if (b2) { b2.style.opacity = "0.2"; b2.style.fill = "currentColor"; }
+                if (b3) { b3.style.opacity = "0.2"; b3.style.fill = "currentColor"; }
+                if (b4) { b4.style.opacity = "0.2"; b4.style.fill = "currentColor"; }
+                sigText.style.color = "var(--accent-red)";
+            }
+
+            let diagSig = document.getElementById('diagSignal');
+            if (diagSig) {
+                if (!isBleConnected || rssi === undefined || rssi < -110 || rssi === 0) {
+                    diagSig.innerText = "-- dBm";
+                    diagSig.style.color = "var(--text-muted)";
+                } else {
+                    let qual = rssi >= -65 ? " (Отличный)" : rssi >= -78 ? " (Хороший)" : rssi >= -88 ? " (Средний)" : " (Слабый)";
+                    diagSig.innerText = rssi + " dBm" + qual;
+                    diagSig.style.color = rssi >= -78 ? "var(--accent-green)" : rssi >= -88 ? "var(--accent-gold)" : "var(--accent-red)";
+                }
+            }
+        }
+
         function renderBatteryStatus(vBat, pct) {
             let batPctEl = document.getElementById('statBatPct');
             let batFillEl = document.getElementById('statBatFill');
@@ -1784,6 +1885,9 @@
         }
 
         function updateLiveTelemetry(d) {
+            // 0. BLE Signal Strength
+            renderSignalStatus(d.rssi);
+
             // 1. Digital Speedometer (Snap to 0 if < 0.6 km/h to eliminate Doppler jitter at stop)
             let rawSpd = d.spd;
             let dispSpd = 0;
