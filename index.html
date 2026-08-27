@@ -1840,7 +1840,8 @@
                 bleDevice = await navigator.bluetooth.requestDevice({
                     filters: [
                         { namePrefix: "RaceMetry" },
-                        { namePrefix: "DRAGon" }
+                        { namePrefix: "DRAGon" },
+                        { services: [NUS_SERVICE_UUID] }
                     ],
                     optionalServices: [NUS_SERVICE_UUID]
                 });
@@ -1849,24 +1850,42 @@
 
                 showToast("Подключение к GATT серверу...");
                 
-                // Небольшая задержка 120мс для завершения сканирования перед GATT рукопожатием
-                await new Promise(r => setTimeout(r, 120));
+                // Задержка 150мс для завершения фонового сканирования Android
+                await new Promise(r => setTimeout(r, 150));
 
                 let server = null;
+                let lastError = null;
+
                 for (let attempt = 1; attempt <= 4; attempt++) {
                     try {
+                        if (bleDevice.gatt && bleDevice.gatt.connected) {
+                            try { bleDevice.gatt.disconnect(); } catch(e) {}
+                            await new Promise(r => setTimeout(r, 100));
+                        }
+
                         server = await bleDevice.gatt.connect();
-                        // Пауза 200мс для стабилизации GATT кэша на Android и iOS
-                        await new Promise(r => setTimeout(r, 200));
-                        if (server.connected) break;
+                        // Пауза 250мс для стабилизации дескрипторов на Android/iOS
+                        await new Promise(r => setTimeout(r, 250));
+                        
+                        if (server && server.connected) {
+                            break;
+                        }
                     } catch (err) {
-                        console.warn(`GATT connect attempt ${attempt} failed, retrying...`, err);
-                        await new Promise(r => setTimeout(r, 300));
+                        lastError = err;
+                        console.warn(`GATT connect attempt ${attempt}/4 failed:`, err);
+                        
+                        // КРИТИЧЕСКИ ВАЖНО: сброс зависшего дескриптора в мобильном стеке Bluetooth
+                        if (bleDevice && bleDevice.gatt) {
+                            try { bleDevice.gatt.disconnect(); } catch(e) {}
+                        }
+                        
+                        // Адаптивная пауза перед повторной попыткой подключения
+                        await new Promise(r => setTimeout(r, 200 + attempt * 200));
                     }
                 }
 
                 if (!server || !server.connected) {
-                    throw new Error("Не удалось установить GATT соединение. Попробуйте еще раз.");
+                    throw lastError || new Error("Не удалось установить GATT соединение.");
                 }
                 bleServer = server;
 
@@ -1898,7 +1917,9 @@
 
             } catch (err) {
                 console.error("BLE Error:", err);
-                showToast("Ошибка подключения: " + (err.message || err));
+                if (err.name !== 'NotFoundError') {
+                    showToast("Ошибка подключения: " + (err.message || err));
+                }
                 updateBleUi(false);
             }
         }

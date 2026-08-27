@@ -20,8 +20,11 @@ BleEngine::BleEngine()
 bool BleEngine::begin(const char* deviceName) {
     Serial.printf("[BLE] Initializing BLE Server: %s\n", deviceName);
 
-    // 1. Инициализация стека BLE Device
+    // 1. Инициализация стека BLE Device на максимальной мощности передатчика (+9dBm)
     BLEDevice::init(deviceName);
+    BLEDevice::setPower(ESP_PWR_LVL_P9, ESP_BLE_PWR_TYPE_ADV);
+    BLEDevice::setPower(ESP_PWR_LVL_P9, ESP_BLE_PWR_TYPE_DEFAULT);
+    BLEDevice::setPower(ESP_PWR_LVL_P9, ESP_BLE_PWR_TYPE_CONN_HDL0);
     BLEDevice::setMTU(517);
 
     // 2. Создание BLE Сервера
@@ -56,17 +59,27 @@ bool BleEngine::begin(const char* deviceName) {
     // 6. Запуск сервиса
     _pService->start();
 
-    // 7. Настройка и запуск рекламы (Advertising)
+    // 7. Четкое разделение пакетов рекламы для исключения переполнения 31 байта:
     BLEAdvertising* pAdvertising = BLEDevice::getAdvertising();
-    pAdvertising->addServiceUUID(BLE_NUS_SERVICE_UUID);
-    pAdvertising->setScanResponse(true);
-    pAdvertising->setMinPreferred(0x06); // 7.5ms (совместимость с iOS и Android)
+    
+    // Основной пакет рекламы: флаги + полное имя устройства (гарантированно входит в 31 байт)
+    BLEAdvertisementData advData;
+    advData.setFlags(0x06); // BR_EDR_NOT_SUPP | GENERAL_DISC_MODE
+    advData.setName(deviceName);
+    pAdvertising->setAdvertisementData(advData);
+
+    // Пакет ответа на сканирование (Scan Response): 128-битный UUID сервиса NUS
+    BLEAdvertisementData scanData;
+    scanData.setCompleteServices(BLEUUID(BLE_NUS_SERVICE_UUID));
+    pAdvertising->setScanResponseData(scanData);
+
+    pAdvertising->setMinPreferred(0x06); // 7.5ms
     pAdvertising->setMaxPreferred(0x12); // 22.5ms
-    pAdvertising->setMinInterval(32);    // 20ms интервал рекламы для мгновенного первого подключения
-    pAdvertising->setMaxInterval(64);    // 40ms интервал рекламы
+    pAdvertising->setMinInterval(32);    // 20ms
+    pAdvertising->setMaxInterval(64);    // 40ms
     BLEDevice::startAdvertising();
 
-    Serial.println("[BLE] Advertising started. Waiting for smartphone connection...");
+    Serial.println("[BLE] Advertising started with max TX power. Waiting for smartphone connection...");
     return true;
 }
 
