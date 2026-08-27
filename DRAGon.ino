@@ -595,8 +595,8 @@ uint8_t calculateBatteryPercentage(float v) {
     if (v < 2.5f) return 0; // Питание от USB без батареи
     if (v >= BAT_VOLTAGE_MAX) return 100;
     if (v <= BAT_VOLTAGE_MIN) return 0;
-    // Реалистичная табличная интерполяция разрядной кривой Li-Ion (3.30V - 4.20V):
-    if (v >= 4.05f) return 90 + (uint8_t)((v - 4.05f) / (4.20f - 4.05f) * 10.0f);
+    // Реалистичная табличная интерполяция разрядной кривой Li-Ion (3.30V - 4.18V):
+    if (v >= 4.05f) return 90 + (uint8_t)((v - 4.05f) / (BAT_VOLTAGE_MAX - 4.05f) * 10.0f);
     if (v >= 3.90f) return 70 + (uint8_t)((v - 3.90f) / (4.05f - 3.90f) * 20.0f);
     if (v >= 3.78f) return 45 + (uint8_t)((v - 3.78f) / (3.90f - 3.78f) * 25.0f);
     if (v >= 3.65f) return 20 + (uint8_t)((v - 3.65f) / (3.78f - 3.65f) * 25.0f);
