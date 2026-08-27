@@ -63,6 +63,12 @@ private:
     float _filtAy;
     float _filtAz;
 
+    uint8_t  _sdaPin;
+    uint8_t  _sclPin;
+    uint32_t _freq;
+    uint16_t _errorCount;
+
+    void _recoverI2cBus(uint8_t sda, uint8_t scl);
     bool _writeRegister(uint8_t reg, uint8_t value);
     bool _readRegisters(uint8_t reg, uint8_t* buffer, uint8_t length);
 };

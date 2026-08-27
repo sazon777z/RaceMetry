@@ -8,6 +8,7 @@
 #define MPU_REG_ACCEL_CONFIG2   0x1D
 #define MPU_REG_ACCEL_XOUT_H    0x3B
 #define MPU_REG_PWR_MGMT_1      0x6B
+#define MPU_REG_PWR_MGMT_2      0x6C
 #define MPU_REG_WHO_AM_I        0x75
 
 ImuEngine::ImuEngine()
@@ -18,56 +19,148 @@ ImuEngine::ImuEngine()
       _offsetZ(0.0f),
       _filtAx(0.0f),
       _filtAy(0.0f),
-      _filtAz(0.0f)
+      _filtAz(0.0f),
+      _sdaPin(PIN_I2C_SDA),
+      _sclPin(PIN_I2C_SCL),
+      _freq(I2C_FREQUENCY),
+      _errorCount(0)
 {
     memset(&_data, 0, sizeof(ImuData));
 }
 
+void ImuEngine::_recoverI2cBus(uint8_t sda, uint8_t scl) {
+    pinMode(sda, INPUT_PULLUP);
+    pinMode(scl, OUTPUT);
+    digitalWrite(scl, HIGH);
+    delayMicroseconds(10);
+
+    // Если линия SDA зажата ведомым устройством в LOW — выдаем до 16 тактов SCL
+    for (int i = 0; i < 16; i++) {
+        if (digitalRead(sda) == HIGH) {
+            break;
+        }
+        digitalWrite(scl, LOW);
+        delayMicroseconds(10);
+        digitalWrite(scl, HIGH);
+        delayMicroseconds(10);
+    }
+
+    // Формируем сигнал STOP (SDA переходит из LOW в HIGH при SCL = HIGH)
+    pinMode(sda, OUTPUT);
+    digitalWrite(sda, LOW);
+    delayMicroseconds(10);
+    digitalWrite(scl, HIGH);
+    delayMicroseconds(10);
+    digitalWrite(sda, HIGH);
+    delayMicroseconds(10);
+
+    pinMode(sda, INPUT_PULLUP);
+    pinMode(scl, INPUT_PULLUP);
+}
+
 bool ImuEngine::begin(uint8_t sdaPin, uint8_t sclPin, uint32_t freq) {
     _isInitialized = false;
-    Wire.begin(sdaPin, sclPin, freq);
-    delay(50);
+    _sdaPin = sdaPin;
+    _sclPin = sclPin;
+    _freq = freq;
+    _errorCount = 0;
 
-    // Проверяем WhoAmI (для MPU-9250 = 0x71, 0x73, MPU-6500 = 0x70, MPU-9255 = 0x73)
-    uint8_t whoAmI = 0;
-    if (!_readRegisters(MPU_REG_WHO_AM_I, &whoAmI, 1)) {
-        // Попробуем альтернативный адрес 0x69
-        _i2cAddr = 0x69;
-        if (!_readRegisters(MPU_REG_WHO_AM_I, &whoAmI, 1)) {
-            _i2cAddr = IMU_I2C_ADDR; // Возвращаем по умолчанию
-            return false;
+    Serial.printf("[IMU] Initializing MPU-9250/6500 on SDA: %u, SCL: %u (%u Hz)...\n", sdaPin, sclPin, freq);
+
+    // 1. Аппаратный сброс зависшей шины I2C
+    _recoverI2cBus(sdaPin, sclPin);
+
+    // 2. Инициализация Wire
+    Wire.end();
+    delay(20);
+    Wire.begin(sdaPin, sclPin, freq);
+    Wire.setTimeOut(50); // 50ms I2C timeout to prevent bus locks
+    delay(40);
+
+    // 3. Авто-сканирование адреса (0x68 или 0x69)
+    uint8_t testAddrs[] = { 0x68, 0x69 };
+    bool foundAddr = false;
+
+    for (uint8_t addr : testAddrs) {
+        _i2cAddr = addr;
+        uint8_t whoAmI = 0;
+        if (_readRegisters(MPU_REG_WHO_AM_I, &whoAmI, 1)) {
+            Serial.printf("[IMU] SUCCESS: Detected IMU at address 0x%02X! WHO_AM_I = 0x%02X\n", addr, whoAmI);
+            foundAddr = true;
+            break;
         }
     }
 
-    // 1. Сброс и пробуждение (Power Management: тактирование от гироскопа)
-    _writeRegister(MPU_REG_PWR_MGMT_1, 0x80); // Reset
+    if (!foundAddr) {
+        Serial.println("[IMU] WARNING: No response at 400kHz. Retrying at standard 100kHz...");
+        Wire.setClock(100000);
+        for (uint8_t addr : testAddrs) {
+            _i2cAddr = addr;
+            uint8_t whoAmI = 0;
+            if (_readRegisters(MPU_REG_WHO_AM_I, &whoAmI, 1)) {
+                Serial.printf("[IMU] SUCCESS: Detected IMU at address 0x%02X (100kHz)! WHO_AM_I = 0x%02X\n", addr, whoAmI);
+                foundAddr = true;
+                break;
+            }
+        }
+    }
+
+    if (!foundAddr) {
+        Serial.println("[IMU] CRITICAL: MPU-9250/6500 hardware not found. Check SDA/SCL wiring & 3.3V power!");
+        return false;
+    }
+
+    // 4. Сброс и пробуждение
+    _writeRegister(MPU_REG_PWR_MGMT_1, 0x80); // Reset all registers
     delay(100);
-    _writeRegister(MPU_REG_PWR_MGMT_1, 0x01); // Auto select clock source PLL
+    _writeRegister(MPU_REG_PWR_MGMT_1, 0x00); // Wake up from sleep
+    delay(30);
+    _writeRegister(MPU_REG_PWR_MGMT_1, 0x01); // Auto select PLL clock (gyro X reference)
     delay(20);
 
-    // 2. Настройка цифрового фильтра низкой частоты (DLPF 41 Гц) для фильтрации вибраций ДВС
+    // 5. Включение всех 6 осей акселерометра и гироскопа (PWR_MGMT_2 = 0x00)
+    _writeRegister(MPU_REG_PWR_MGMT_2, 0x00);
+    delay(10);
+
+    // 6. Настройка цифрового фильтра низкой частоты (DLPF 41 Гц)
     _writeRegister(MPU_REG_CONFIG, 0x03);
 
-    // 3. Диапазон акселерометра ±4G (8192 LSB/g) — оптимально для авто
+    // 7. Диапазон акселерометра ±4G (8192 LSB/g)
     _writeRegister(MPU_REG_ACCEL_CONFIG, 0x08);
     _writeRegister(MPU_REG_ACCEL_CONFIG2, 0x03); // Accel DLPF 41 Hz
 
-    // 4. Диапазон гироскопа ±500 град/с
+    // 8. Диапазон гироскопа ±500 град/с
     _writeRegister(MPU_REG_GYRO_CONFIG, 0x08);
 
-    // 5. Частота выборки (Sample Rate Divider = 4 при 1 кГц базовой -> 200 Гц)
+    // 9. Частота выборки (Sample Rate Divider = 4 при 1 кГц базовой -> 200 Гц)
     _writeRegister(MPU_REG_SMPLRT_DIV, 0x04);
 
     _data.isCalibrated = false;
     _isInitialized = true;
+    Serial.println("[IMU] MPU-9250 configured successfully at 200 Hz");
     return true;
 }
 
 bool ImuEngine::update() {
-    uint8_t rawBuf[14];
-    if (!_readRegisters(MPU_REG_ACCEL_XOUT_H, rawBuf, 14)) {
+    if (!_isInitialized) {
+        // Попытка авто-восстановления каждые 2 секунды
+        static uint32_t lastRetryMs = 0;
+        if (millis() - lastRetryMs > 2000) {
+            lastRetryMs = millis();
+            begin(_sdaPin, _sclPin, _freq);
+        }
         return false;
     }
+
+    uint8_t rawBuf[14];
+    if (!_readRegisters(MPU_REG_ACCEL_XOUT_H, rawBuf, 14)) {
+        _errorCount++;
+        if (_errorCount > 30) {
+            _isInitialized = false;
+        }
+        return false;
+    }
+    _errorCount = 0;
 
     // Разбор сырых значений акселерометра
     int16_t rawAx = (int16_t)((rawBuf[0] << 8) | rawBuf[1]);
@@ -173,10 +266,14 @@ bool ImuEngine::_readRegisters(uint8_t reg, uint8_t* buffer, uint8_t length) {
     Wire.beginTransmission(_i2cAddr);
     Wire.write(reg);
     if (Wire.endTransmission(false) != 0) {
-        return false;
+        Wire.beginTransmission(_i2cAddr);
+        Wire.write(reg);
+        if (Wire.endTransmission(true) != 0) {
+            return false;
+        }
     }
 
-    uint8_t bytesRead = Wire.requestFrom(_i2cAddr, length);
+    uint8_t bytesRead = Wire.requestFrom((uint16_t)_i2cAddr, (uint8_t)length, (bool)true);
     if (bytesRead != length) {
         return false;
     }
