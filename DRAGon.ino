@@ -552,10 +552,10 @@ void enterPowerOffDeepSleep() {
  */
 void runSystemDiagnostics() {
     bool imuOk = imuEngine.isReady();
-    const char* imuMsg = imuOk ? "MPU-9250 (200 Hz): OK" : "MPU-9250: Ошибка I2C";
+    const char* imuMsg = imuOk ? "Акселерометр / IMU (200 Hz): OK" : "Акселерометр: Ошибка I2C";
 
     bool gpsOk = (safeGpsData.numSats > 0 || gpsEngine.isReceivingBytes());
-    const char* gpsMsg = "u-blox M10Q (20 Hz UBX, 460800 baud): OK";
+    const char* gpsMsg = "GNSS (20 Hz, 460800 baud): OK";
 
     bool storageOk = true;
     bool batOk = (currentBatVoltage > 2.0f);
@@ -579,13 +579,31 @@ void runSystemDiagnostics() {
  */
 float readRawBatteryVoltage() {
 #if ENABLE_BATTERY_MONITOR
+    uint32_t minMv = 0xFFFFFFFF;
+    uint32_t maxMv = 0;
     uint32_t sumMv = 0;
-    for (int i = 0; i < 16; i++) {
-        sumMv += analogReadMilliVolts(PIN_BAT_ADC);
-        delayMicroseconds(150);
+
+    // 32 отсчета с отсечением крайних шумов
+    for (int i = 0; i < 32; i++) {
+        uint32_t sample = analogReadMilliVolts(PIN_BAT_ADC);
+        if (sample < minMv) minMv = sample;
+        if (sample > maxMv) maxMv = sample;
+        sumMv += sample;
+        delayMicroseconds(100);
     }
-    float avgMv = (float)sumMv / 16.0f;
-    return (avgMv / 1000.0f) * BAT_DIVIDER_RATIO;
+    // Вычитаем 2 крайних выброса
+    sumMv -= (minMv + maxMv);
+    float avgMv = (float)sumMv / 30.0f;
+    float instantV = (avgMv / 1000.0f) * BAT_DIVIDER_RATIO;
+
+    // Экспоненциальный фильтр (EMA) для устранения просадок при работе BLE/LED
+    static float s_filteredV = 0.0f;
+    if (s_filteredV < 1.0f) {
+        s_filteredV = instantV;
+    } else {
+        s_filteredV = s_filteredV * 0.88f + instantV * 0.12f;
+    }
+    return s_filteredV;
 #else
     return 0.0f;
 #endif

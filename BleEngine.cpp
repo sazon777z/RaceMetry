@@ -1,6 +1,15 @@
 #include "BleEngine.h"
+#include <esp_gap_ble_api.h>
 
 static int8_t s_latestRssi = -55;
+
+static void customGapCallback(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *param) {
+    if (event == ESP_GAP_BLE_READ_RSSI_COMPLETE_EVT) {
+        if (param && param->read_rssi_cmpl.status == ESP_BT_STATUS_SUCCESS) {
+            s_latestRssi = param->read_rssi_cmpl.rssi;
+        }
+    }
+}
 
 BleEngine::BleEngine()
     : _pServer(nullptr),
@@ -9,10 +18,12 @@ BleEngine::BleEngine()
       _pRxCharacteristic(nullptr),
       _deviceConnected(false),
       _oldDeviceConnected(false),
+      _hasClientBda(false),
       _lastTxTimeMs(0),
       _cmdHandler(nullptr),
       _rxAccumulatorLen(0)
 {
+    memset(_remoteBda, 0, sizeof(_remoteBda));
     memset(_txBuffer, 0, sizeof(_txBuffer));
     memset(_rxAccumulator, 0, sizeof(_rxAccumulator));
 }
@@ -22,6 +33,7 @@ bool BleEngine::begin(const char* deviceName) {
 
     // 1. Инициализация стека BLE Device на максимальной мощности передатчика (+9dBm)
     BLEDevice::init(deviceName);
+    BLEDevice::setCustomGapHandler(customGapCallback);
     BLEDevice::setPower(ESP_PWR_LVL_P9, ESP_BLE_PWR_TYPE_ADV);
     BLEDevice::setPower(ESP_PWR_LVL_P9, ESP_BLE_PWR_TYPE_DEFAULT);
     BLEDevice::setPower(ESP_PWR_LVL_P9, ESP_BLE_PWR_TYPE_CONN_HDL0);
@@ -87,12 +99,22 @@ void BleEngine::update() {
     // Контроль статуса подключения
     if (!_deviceConnected && _oldDeviceConnected) {
         _oldDeviceConnected = false;
+        _hasClientBda = false;
         if (_pServer) {
             _pServer->startAdvertising();
         }
     }
     if (_deviceConnected && !_oldDeviceConnected) {
         _oldDeviceConnected = true;
+    }
+
+    // Замер реального уровня сигнала RSSI каждые 1.5 секунды
+    if (_deviceConnected && _hasClientBda) {
+        static uint32_t lastRssiQuery = 0;
+        if (millis() - lastRssiQuery > 1500) {
+            lastRssiQuery = millis();
+            esp_ble_gap_read_rssi(_remoteBda);
+        }
     }
 }
 
@@ -103,9 +125,21 @@ void BleEngine::onConnect(BLEServer* pServer) {
     Serial.println("[BLE] Smartphone connected to GATT Server!");
 }
 
+void BleEngine::onConnect(BLEServer* pServer, esp_ble_gatts_cb_param_t *param) {
+    _deviceConnected = true;
+    _oldDeviceConnected = true;
+    if (param) {
+        memcpy(_remoteBda, param->connect.remote_bda, sizeof(esp_bd_addr_t));
+        _hasClientBda = true;
+        esp_ble_gap_read_rssi(_remoteBda);
+    }
+    Serial.println("[BLE] Smartphone connected to GATT Server (with BDA)!");
+}
+
 void BleEngine::onDisconnect(BLEServer* pServer) {
     _deviceConnected = false;
     _oldDeviceConnected = false;
+    _hasClientBda = false;
     s_latestRssi = -99;
     Serial.println("[BLE] Smartphone disconnected. Resuming advertising...");
     delay(20);

@@ -147,26 +147,114 @@
             100% { transform: scale(0.95); opacity: 0.8; }
         }
 
-        /* Status Bar (GPS / Satellites / State) */
+        /* Status Bar (Fixed Rigid 3-Column Grid with Tabular Nums) */
         .status-strip {
-            display: flex;
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
             align-items: center;
-            justify-content: space-around;
-            padding: 8px 14px;
-            background: rgba(14, 17, 24, 0.6);
+            padding: 8px 12px;
+            background: rgba(14, 17, 24, 0.7);
             border-bottom: 1px solid var(--border-color);
             font-size: 12px;
             color: var(--text-secondary);
+            font-variant-numeric: tabular-nums;
         }
 
         .status-item {
             display: flex;
             align-items: center;
-            gap: 6px;
+            justify-content: center;
+            gap: 5px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
         .status-item strong {
             color: var(--text-primary);
+            font-variant-numeric: tabular-nums;
+            min-width: 22px;
+            text-align: left;
+        }
+
+        /* Garage & Car Badges */
+        .car-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(0, 255, 204, 0.08);
+            border: 1px solid rgba(0, 255, 204, 0.3);
+            border-radius: 20px;
+            padding: 4px 11px;
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--accent-cyan);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            max-width: 150px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .car-pill:hover {
+            background: rgba(0, 255, 204, 0.18);
+            border-color: var(--accent-cyan);
+        }
+
+        .car-filter-bar {
+            display: flex;
+            gap: 8px;
+            overflow-x: auto;
+            padding-bottom: 6px;
+            margin-bottom: 14px;
+            scrollbar-width: none;
+        }
+        .car-filter-bar::-webkit-scrollbar { display: none; }
+
+        .featured-run-card {
+            background: linear-gradient(135deg, rgba(20, 28, 42, 0.95) 0%, rgba(12, 17, 26, 0.98) 100%);
+            border: 1px solid rgba(0, 255, 204, 0.4);
+            border-radius: 16px;
+            padding: 16px;
+            margin-bottom: 16px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6), 0 0 20px rgba(0, 255, 204, 0.12);
+        }
+
+        /* Modal backdrop & window */
+        .app-modal-backdrop {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0, 0, 0, 0.75);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            z-index: 10000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.25s ease;
+        }
+        .app-modal-backdrop.open {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        .app-modal-window {
+            background: #141c28;
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            width: 100%;
+            max-width: 480px;
+            max-height: 90vh;
+            overflow-y: auto;
+            padding: 20px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8), 0 0 30px rgba(0, 255, 204, 0.15);
+            transform: scale(0.95);
+            transition: transform 0.25s ease;
+        }
+        .app-modal-backdrop.open .app-modal-window {
+            transform: scale(1);
         }
 
         .signal-widget {
@@ -1100,7 +1188,7 @@
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
                     <div>
                         <div style="font-size: 11px; font-weight: 700; color: var(--text-muted); letter-spacing: 1px;">СПУТНИКОВАЯ СИСТЕМА</div>
-                        <div style="font-size: 20px; font-weight: 900; color: var(--accent-cyan);">u-blox M10Q 20Hz</div>
+                        <div style="font-size: 20px; font-weight: 900; color: var(--accent-cyan);">GNSS 20Hz (20 Гц)</div>
                     </div>
                     <div id="gpsHeroFixBadge" class="state-badge" style="background: rgba(255, 23, 68, 0.15); color: var(--accent-red); border: 1px solid var(--accent-red);">
                         🔴 ПОИСК GPS
@@ -1211,70 +1299,88 @@
 
         <!-- 3. TAB: HISTORY & RUN ANALYSIS -->
         <div id="tabHistory" class="tab-content">
-            <!-- Selected Run Certificate & Analysis Card -->
-            <div class="dragy-card" id="dragyCertCard" style="display: none; margin-bottom: 16px;">
-                <div class="dragy-header">
-                    <div>
-                        <div class="dragy-title" id="certDiscipline">0 - 100 KM/H</div>
-                        <div style="font-size: 11px; color: var(--text-muted);" id="certDate">Заезд не выбран</div>
-                    </div>
-                    <div style="display: flex; align-items: center; gap: 8px;">
-                        <div id="certSlopeBadge" class="slope-badge valid">VALID -0.4%</div>
-                        <button class="chip" style="padding: 2px 8px; font-size: 12px;" onclick="closeRunDetail()">✕</button>
-                    </div>
-                </div>
 
-                <div class="dragy-hero-metric">
-                    <div class="dragy-hero-label" id="certHeroLabel">0 - 100 KM/H</div>
-                    <div class="dragy-hero-val" id="certHeroVal">0.00 s</div>
-                </div>
+            <!-- Car Filter Bar -->
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <span style="font-size: 11px; font-weight: 700; color: var(--text-muted); letter-spacing: 1px;">ФИЛЬТР ПО АВТОМОБИЛЯМ:</span>
+                <button class="chip" style="padding: 2px 10px; font-size: 11px;" onclick="openGarageModal()">🚗 Гараж</button>
+            </div>
+            <div class="car-filter-bar" id="historyCarFilterBar">
+                <!-- Dynamically populated by renderCarFilters() -->
+            </div>
 
-                <div class="dragy-stats-grid">
-                    <div class="dragy-stat-row">
-                        <span>1-Foot Rollout:</span>
-                        <strong id="certRollout">Да (0.30м)</strong>
-                    </div>
-                    <div class="dragy-stat-row">
-                        <span>Пиковое G:</span>
-                        <strong id="certMaxG">0.00 G</strong>
-                    </div>
-                    <div class="dragy-stat-row">
-                        <span>Макс. скорость:</span>
-                        <strong id="certMaxSpd">0.0 км/ч</strong>
-                    </div>
-                    <div class="dragy-stat-row">
-                        <span>Уклон трассы:</span>
-                        <strong id="certSlopeVal">-0.0%</strong>
-                    </div>
-                    <div class="dragy-stat-row">
-                        <span>Дистанция:</span>
-                        <strong id="certDist">0.0 м</strong>
-                    </div>
-                    <div class="dragy-stat-row">
-                        <span>Время заезда:</span>
-                        <strong id="certDur">0.00 с</strong>
-                    </div>
+            <!-- 1. FEATURED / PINNED LATEST RUN CARD (ALWAYS AT TOP) -->
+            <div id="latestRunFeaturedSection" style="margin-bottom: 18px;">
+                <div class="card-title" style="color: var(--accent-cyan); display: flex; align-items: center; gap: 6px; margin-bottom: 8px;">
+                    <span>🔥</span> ПОСЛЕДНИЙ ЗАЕЗД (ГЛАВНЫЙ)
                 </div>
+                <div class="dragy-card" id="latestRunCard">
+                    <div class="dragy-header">
+                        <div>
+                            <div class="dragy-title" id="featuredDiscipline">0 - 100 КМ/Ч</div>
+                            <div style="font-size: 11px; color: var(--text-muted); display: flex; align-items: center; gap: 8px; margin-top: 2px;">
+                                <span id="featuredDate">--:--:--</span>
+                                <span id="featuredCarBadge" class="car-pill" style="font-size: 10px; padding: 2px 8px;">🚗 Авто</span>
+                            </div>
+                        </div>
+                        <div id="featuredSlopeBadge" class="slope-badge valid">VALID -0.0%</div>
+                    </div>
 
-                <!-- Interactive Speed & G Chart -->
-                <div class="chart-container" style="margin-top: 14px;">
-                    <div class="card-title" style="margin-bottom: 4px;">ГРАФИК СКОРОСТИ И УСКОРЕНИЯ</div>
-                    <canvas id="runChartCanvas" style="width: 100%; height: 180px;"></canvas>
-                </div>
+                    <div class="dragy-hero-metric">
+                        <div class="dragy-hero-label" id="featuredHeroLabel">0 - 100 КМ/Ч</div>
+                        <div class="dragy-hero-val" id="featuredHeroVal">-- s</div>
+                    </div>
 
-                <div style="display: flex; gap: 10px; margin-top: 10px;">
-                    <button class="action-btn" style="flex: 1; padding: 8px 12px; font-size: 12px;" onclick="exportCurrentRunCsv()">
-                        📥 Экспорт в CSV
-                    </button>
-                    <button class="action-btn" style="flex: 1; padding: 8px 12px; font-size: 12px;" onclick="copyRunSummary()">
-                        📋 Скопировать отчет
-                    </button>
+                    <div class="dragy-stats-grid">
+                        <div class="dragy-stat-row">
+                            <span>1-Foot Rollout:</span>
+                            <strong id="featuredRollout">Да (0.30м)</strong>
+                        </div>
+                        <div class="dragy-stat-row">
+                            <span>Пиковое G:</span>
+                            <strong id="featuredMaxG">0.00 G</strong>
+                        </div>
+                        <div class="dragy-stat-row">
+                            <span>Макс. скорость:</span>
+                            <strong id="featuredMaxSpd">0.0 км/ч</strong>
+                        </div>
+                        <div class="dragy-stat-row">
+                            <span>Уклон трассы:</span>
+                            <strong id="featuredSlopeVal">0.0%</strong>
+                        </div>
+                        <div class="dragy-stat-row">
+                            <span>Дистанция:</span>
+                            <strong id="featuredDist">0.0 м</strong>
+                        </div>
+                        <div class="dragy-stat-row">
+                            <span>Время заезда:</span>
+                            <strong id="featuredDur">0.00 с</strong>
+                        </div>
+                    </div>
+
+                    <!-- Interactive Speed & G Chart -->
+                    <div class="chart-container" style="margin-top: 14px;">
+                        <div class="card-title" style="margin-bottom: 4px;">ГРАФИК СКОРОСТИ И ПЕРЕГРУЗКИ</div>
+                        <canvas id="runChartCanvas" style="width: 100%; height: 180px;"></canvas>
+                    </div>
+
+                    <div style="display: flex; gap: 10px; margin-top: 10px;">
+                        <button class="action-btn" style="flex: 1; padding: 8px 12px; font-size: 12px;" onclick="exportCurrentRunCsv()">
+                            📥 Экспорт в CSV
+                        </button>
+                        <button class="action-btn" style="flex: 1; padding: 8px 12px; font-size: 12px;" onclick="copyRunSummary()">
+                            📋 Скопировать отчет
+                        </button>
+                    </div>
                 </div>
             </div>
 
-            <!-- Personal Bests Podium -->
+            <!-- Personal Bests Podium (Filtered by active car) -->
             <div class="card" style="margin-bottom: 16px;">
-                <div class="card-title">🏆 ЛИЧНЫЕ РЕКОРДЫ (PERSONAL BESTS)</div>
+                <div class="card-title" style="display: flex; justify-content: space-between; align-items: center;">
+                    <span>🏆 РЕКОРДЫ АВТОМОБИЛЯ</span>
+                    <span id="pbCarNameLabel" style="font-size: 11px; color: var(--accent-cyan); font-weight: normal;">(Все авто)</span>
+                </div>
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
                     <div class="history-item" style="margin: 0;">
                         <div class="history-main">
@@ -1303,11 +1409,11 @@
                 </div>
             </div>
 
-            <!-- Saved Runs List -->
+            <!-- Saved Runs List (Previous Runs) -->
             <div class="card-title" style="display: flex; justify-content: space-between; align-items: center;">
-                <span>ИСТОРИЯ ЗАЕЗДОВ</span>
+                <span>📋 ПРЕДЫДУЩИЕ ЗАЕЗДЫ</span>
                 <div style="display: flex; gap: 6px;">
-                    <button class="chip" onclick="sendBleCmd('get_history')">🔄 Синхронизировать</button>
+                    <button class="chip" onclick="sendBleCmd('get_history')">🔄 Синхр.</button>
                     <button class="chip" style="color: var(--accent-red);" onclick="clearHistory()">🗑️ Очистить</button>
                 </div>
             </div>
@@ -1321,8 +1427,43 @@
 
         <!-- 5. TAB: SETTINGS & GPS DIAGNOSTICS -->
         <div id="tabSettings" class="tab-content">
+
+            <!-- Garage / Car Profile Card -->
+            <div class="card" style="margin-bottom: 16px; background: linear-gradient(135deg, rgba(0, 255, 204, 0.08) 0%, rgba(20, 26, 38, 0.95) 100%);">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <div class="card-title" style="margin-bottom: 2px;">ГАРАЖ АВТОМОБИЛЕЙ</div>
+                        <div id="settingsActiveCarDisplay" style="font-size: 15px; font-weight: 800; color: #fff;">Мой Автомобиль</div>
+                    </div>
+                    <button class="action-btn" style="padding: 6px 14px; font-size: 12px;" onclick="openGarageModal()">
+                        🚗 Управление
+                    </button>
+                </div>
+            </div>
+
             <div class="card" style="margin-bottom: 16px;">
                 <div class="card-title">ГОНОЧНЫЕ НАСТРОЙКИ</div>
+                
+                <div class="setting-row">
+                    <div class="setting-label">
+                        <span class="setting-name">Часовой пояс</span>
+                        <span class="setting-desc">Форматирование даты и времени заездов</span>
+                    </div>
+                    <select id="setTimezone" class="chip" style="background: #182030; color: var(--text-primary); border: 1px solid var(--border-color); padding: 5px 8px; font-weight: 600; cursor: pointer;" onchange="setTimezoneSetting(this.value)">
+                        <option value="auto">🌐 Авто (по устройству)</option>
+                        <option value="0">UTC+0 (Гринвич)</option>
+                        <option value="2">UTC+2 (Калининград)</option>
+                        <option value="3">UTC+3 (Москва, СПб, Минск)</option>
+                        <option value="4">UTC+4 (Самара, Баку, Тбилиси)</option>
+                        <option value="5">UTC+5 (Екатеринбург, Ташкент, Астана)</option>
+                        <option value="6">UTC+6 (Омск, Алматы)</option>
+                        <option value="7">UTC+7 (Новосибирск, Красноярск)</option>
+                        <option value="8">UTC+8 (Иркутск)</option>
+                        <option value="9">UTC+9 (Якутск)</option>
+                        <option value="10">UTC+10 (Владивосток)</option>
+                        <option value="12">UTC+12 (Камчатка)</option>
+                    </select>
+                </div>
                 
                 <div class="setting-row">
                     <div class="setting-label">
@@ -1433,7 +1574,7 @@
                 <div class="g-metrics-list">
                     <div class="g-metric-row">
                         <span style="color: var(--text-secondary);">Акселерометр IMU:</span>
-                        <span id="diagImuStatus" style="font-weight: 700; color: var(--accent-green);">🟢 MPU-9250 (200 Гц): OK</span>
+                        <span id="diagImuStatus" style="font-weight: 700; color: var(--accent-green);">🟢 Акселерометр / IMU (200 Гц): OK</span>
                     </div>
                     <div class="g-metric-row">
                         <span style="color: var(--text-secondary);">Живые перегрузки (X / Y / Z):</span>
@@ -1441,7 +1582,7 @@
                     </div>
                     <div class="g-metric-row">
                         <span style="color: var(--text-secondary);">GPS Приемник:</span>
-                        <span id="diagGpsStatus" style="font-weight: 700; color: var(--accent-green);">🟢 u-blox M10Q (20 Гц UBX, 460800 бод): OK</span>
+                        <span id="diagGpsStatus" style="font-weight: 700; color: var(--accent-green);">🟢 GNSS 20 Гц (460800 бод): OK</span>
                     </div>
                     <div class="g-metric-row">
                         <span style="color: var(--text-secondary);">Энергонезависимая память:</span>
@@ -1460,7 +1601,7 @@
 
             <!-- GPS Diagnostics -->
             <div class="card">
-                <div class="card-title">ДИАГНОСТИКА U-BLOX GNSS M10Q</div>
+                <div class="card-title">ДИАГНОСТИКА СПУТНИКОВОГО МОДУЛЯ GNSS</div>
                 <div class="g-metrics-list">
                     <div class="g-metric-row">
                         <span style="color: var(--text-secondary);">Координаты (Широта / Долгота):</span>
@@ -1499,8 +1640,8 @@
             <button class="diag-toast-close" onclick="closeDiagToast()">✕</button>
         </div>
         <div class="diag-toast-body" id="diagToastBody">
-            <div class="diag-step-item"><span>Акселерометр MPU-9250 (200 Гц):</span> <strong id="toastImu" style="color: var(--accent-green);">OK</strong></div>
-            <div class="diag-step-item"><span>GPS u-blox M10Q (20 Гц UBX):</span> <strong id="toastGps" style="color: var(--accent-green);">OK</strong></div>
+            <div class="diag-step-item"><span>Акселерометр Акселерометр / IMU (200 Гц):</span> <strong id="toastImu" style="color: var(--accent-green);">OK</strong></div>
+            <div class="diag-step-item"><span>Спутниковый модуль GNSS (20 Гц):</span> <strong id="toastGps" style="color: var(--accent-green);">OK</strong></div>
             <div class="diag-step-item"><span>Память рекордов NVS:</span> <strong id="toastStorage" style="color: var(--accent-green);">OK</strong></div>
             <div class="diag-step-item"><span>Питание и аккумулятор:</span> <strong id="toastBat" style="color: var(--accent-green);">OK</strong></div>
         </div>
@@ -2017,7 +2158,7 @@
             let storEl = document.getElementById('diagStorageStatus');
 
             if (imuEl) {
-                imuEl.innerText = d.imu_ok ? "🟢 " + (d.imu_msg || "MPU-9250 (200 Гц): OK") : "🔴 " + (d.imu_msg || "Ошибка I2C");
+                imuEl.innerText = d.imu_ok ? "🟢 " + (d.imu_msg || "Акселерометр / IMU (200 Гц): OK") : "🔴 " + (d.imu_msg || "Ошибка I2C");
                 imuEl.style.color = d.imu_ok ? "var(--accent-green)" : "var(--accent-red)";
             }
 
@@ -2556,12 +2697,22 @@
         function renderHistoryList() {
             let container = document.getElementById('historyListContainer');
             if (!container) return;
-            if (savedRuns.length === 0) {
-                container.innerHTML = '<div style="text-align: center; color: var(--text-muted); padding: 30px;">История заездов пуста</div>';
+
+            let filtered = (activeCarFilterId === 'all') 
+                ? savedRuns 
+                : savedRuns.filter(r => r.carId === activeCarFilterId || (!r.carId && activeCarFilterId === 'car_default'));
+
+            if (filtered.length === 0) {
+                container.innerHTML = '<div style="text-align: center; color: var(--text-muted); padding: 30px;">Нет сохраненных заездов для выбранного авто</div>';
                 return;
             }
 
-            container.innerHTML = savedRuns.map((r, idx) => {
+            // Also make sure latest featured run is displayed
+            if (savedRuns.length > 0 && !lastRunData) {
+                displayRunDetail(savedRuns[0]);
+            }
+
+            container.innerHTML = filtered.map((r, idx) => {
                 let discName = "0-100 км/ч";
                 let mainTime = r.s0_100;
                 if (r.disc === 1 || (r.s0_60 > 0 && r.s0_100 === 0)) {
@@ -2578,12 +2729,16 @@
                     mainTime = r.s0_60;
                 }
 
-                let dateStr = (r.ts > 1700000000) ? new Date(r.ts * 1000).toLocaleString('ru-RU') : new Date().toLocaleString('ru-RU');
+                let dateStr = formatRaceTimestamp(r.ts);
+                let carTag = r.carName || "Мой Автомобиль";
 
                 return `
                     <div class="history-item" onclick="viewHistoricalRun(${idx})">
                         <div class="history-main">
-                            <span class="history-disc">${discName}</span>
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <span class="history-disc">${discName}</span>
+                                <span class="car-pill" style="font-size: 9px; padding: 1px 6px;">🚗 ${carTag}</span>
+                            </div>
                             <span class="history-date">${dateStr} • ${r.valid ? "🟢 Валиден" : "🔴 Уклон"}</span>
                         </div>
                         <div class="history-result">
@@ -2756,6 +2911,20 @@
                 let batSel = document.getElementById('setBatIndMode');
                 if (batSel) batSel.value = batModeSaved;
             }
+
+            let tzSaved = localStorage.getItem('racemetry_tz') || 'auto';
+            let tzSel = document.getElementById('setTimezone');
+            if (tzSel) tzSel.value = tzSaved;
+
+            let activeCar = getActiveCar();
+            let headerCar = document.getElementById('headerCarName');
+            if (headerCar) headerCar.innerText = activeCar.name;
+            let settingsCar = document.getElementById('settingsActiveCarDisplay');
+            if (settingsCar) settingsCar.innerText = activeCar.name + (activeCar.engine ? ` (${activeCar.engine})` : '');
+
+            renderCarFilters();
+            renderHistoryList();
+            recalculatePersonalBestsForFilter();
         } catch(e) {}
 
         // Progressive Web App (PWA) & Service Worker

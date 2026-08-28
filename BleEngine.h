@@ -85,11 +85,12 @@ public:
     void sendJson(const char* jsonStr);
     void sendJson(const String& jsonStr);
 
-    // Callbacks BLEServerCallbacks
+    // Обратные вызовы BLE сервера (подключение/отключение)
     void onConnect(BLEServer* pServer) override;
+    void onConnect(BLEServer* pServer, esp_ble_gatts_cb_param_t *param) override;
     void onDisconnect(BLEServer* pServer) override;
 
-    // Callbacks BLECharacteristicCallbacks
+    // Обратный вызов на запись в RX характеристику
     void onWrite(BLECharacteristic* pCharacteristic) override;
 
 private:
@@ -98,14 +99,17 @@ private:
     BLECharacteristic*  _pTxCharacteristic;
     BLECharacteristic*  _pRxCharacteristic;
 
-    bool                _deviceConnected;
+    volatile bool       _deviceConnected;
     bool                _oldDeviceConnected;
+    bool                _hasClientBda;
+    esp_bd_addr_t       _remoteBda;
+
     uint32_t            _lastTxTimeMs;
     BleCommandHandler   _cmdHandler;
 
     char                _txBuffer[512];
     char                _rxAccumulator[256];
-    uint16_t            _rxAccumulatorLen;
+    size_t              _rxAccumulatorLen;
 
     void _parseIncomingLine(const char* line);
 };
