@@ -87,7 +87,6 @@ public:
 
     // Обратные вызовы BLE сервера (подключение/отключение)
     void onConnect(BLEServer* pServer) override;
-    void onConnect(BLEServer* pServer, esp_ble_gatts_cb_param_t *param) override;
     void onDisconnect(BLEServer* pServer) override;
 
     // Обратный вызов на запись в RX характеристику
@@ -101,8 +100,6 @@ private:
 
     volatile bool       _deviceConnected;
     bool                _oldDeviceConnected;
-    bool                _hasClientBda;
-    esp_bd_addr_t       _remoteBda;
 
     uint32_t            _lastTxTimeMs;
     BleCommandHandler   _cmdHandler;
