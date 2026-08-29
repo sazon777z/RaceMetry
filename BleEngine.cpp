@@ -54,7 +54,6 @@ bool BleEngine::begin(const char* deviceName) {
         BLE_NUS_TX_CHAR_UUID,
         BLECharacteristic::PROPERTY_NOTIFY | BLECharacteristic::PROPERTY_READ
     );
-    _pTxCharacteristic->addDescriptor(new BLE2902());
 
     // 5. Создание RX Характеристики (Phone -> ESP32: Write / Write Without Response)
     _pRxCharacteristic = _pService->createCharacteristic(
@@ -461,4 +460,3 @@ void BleEngine::sendDiagnostics(
         xSemaphoreGive(_txMutex);
     }
 }
-

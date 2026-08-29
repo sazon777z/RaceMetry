@@ -3,7 +3,7 @@
  * Provides 100% offline capability and instant background auto-updates
  */
 
-const CACHE_NAME = 'racemetry-v4.2';
+const CACHE_NAME = 'racemetry-v4.4';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
@@ -23,14 +23,27 @@ self.addEventListener('install', (event) => {
   );
 });
 
-// Activate: Clean up old cache versions and claim clients instantly
+// Activate: clean old versions, claim clients and reload an already open PWA
+// once so it cannot keep running stale inline JavaScript until a manual swipe.
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then((keys) => {
-      return Promise.all(
-        keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))
+    caches.keys().then(async (keys) => {
+      const oldRaceMetryCaches = keys.filter(
+        (key) => key.startsWith('racemetry-') && key !== CACHE_NAME
       );
-    }).then(() => self.clients.claim())
+      await Promise.all(oldRaceMetryCaches.map((key) => caches.delete(key)));
+      await self.clients.claim();
+
+      if (oldRaceMetryCaches.length > 0) {
+        const windows = await self.clients.matchAll({
+          type: 'window',
+          includeUncontrolled: true
+        });
+        await Promise.all(windows.map((client) => (
+          typeof client.navigate === 'function' ? client.navigate(client.url) : Promise.resolve()
+        )));
+      }
+    })
   );
 });
 
@@ -41,7 +54,7 @@ self.addEventListener('fetch', (event) => {
   // 1. Для HTML-документов: Всегда сначала загружаем свежую версию из сети
   if (event.request.mode === 'navigate' || event.request.destination === 'document') {
     event.respondWith(
-      fetch(event.request)
+      fetch(event.request, { cache: 'no-store' })
         .then((networkResponse) => {
           if (networkResponse && networkResponse.status === 200) {
             const responseToCache = networkResponse.clone();

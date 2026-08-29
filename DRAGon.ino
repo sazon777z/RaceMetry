@@ -386,7 +386,6 @@ void CommTask(void* parameter) {
     const TickType_t xFrequency = pdMS_TO_TICKS(1000 / BLE_TELEMETRY_RATE_HZ); // 15 Гц
     TickType_t xLastWakeTime = xTaskGetTickCount();
 
-    bool wasConnected = false;
     uint32_t lastBatSampleMs = 0;
 
     for (;;) {
@@ -470,26 +469,10 @@ void CommTask(void* parameter) {
             }
         }
 
-        // 4. Если только что подключились — отправка системной информации
-        if (isConnected && !wasConnected) {
-            runSystemDiagnostics();
-            vTaskDelay(pdMS_TO_TICKS(20));
-            bleEngine.sendDeviceInfo(deviceSettings, storageManager.getSavedRunsCount(), safeGpsReady, safeGpsData.numSats, currentBatVoltage, currentBatPercent);
-            vTaskDelay(pdMS_TO_TICKS(20));
-            PersonalBests pb;
-            storageManager.getPersonalBests(pb);
-            bleEngine.sendPersonalBests(pb);
-            vTaskDelay(pdMS_TO_TICKS(20));
-            uint8_t count = storageManager.getSavedRunsCount();
-            for (uint8_t i = 0; i < count; i++) {
-                RunRecord r;
-                if (storageManager.getRunRecord(i, r)) {
-                    bleEngine.sendRunRecord(r);
-                    vTaskDelay(pdMS_TO_TICKS(15));
-                }
-            }
-        }
-        wasConnected = isConnected;
+        // После физического подключения ничего не отправляем до подписки
+        // клиента на TX notifications. Web-клиент после завершения полного
+        // GATT handshake сам запрашивает get_info/get_history. Это исключает
+        // конкуренцию service discovery с ранними notify на холодном старте.
 
         // 5. Обработка завершенных заездов из очереди
         RunRecord r;

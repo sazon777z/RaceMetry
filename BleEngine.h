@@ -3,7 +3,6 @@
 #include <BLEDevice.h>
 #include <BLEServer.h>
 #include <BLEUtils.h>
-#include <BLE2902.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/queue.h>
 #include <freertos/semphr.h>
@@ -113,4 +112,3 @@ private:
 
     void _parseIncomingLine(const char* line);
 };
-

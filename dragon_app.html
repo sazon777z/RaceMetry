@@ -1686,6 +1686,13 @@
         let rxCharacteristic = null;
         let txCharacteristic = null;
         let isBleConnected = false;
+        let bleConnectInProgress = false;
+        let knownBleDevices = [];
+        let bleSessionId = 0;
+
+        const BLE_CONNECT_ATTEMPTS = 4;
+        const BLE_GATT_TIMEOUT_MS = 12000;
+        const BLE_RETRY_SETTLE_MS = 1200;
 
         let rxBuffer = "";
         let savedRuns = [];
@@ -1955,104 +1962,278 @@
             setTimeout(() => toast.classList.remove('show'), 2500);
         }
 
-        // Корректное закрытие старой BLE-сессии при обновлении страницы или закрытии вкладки
-        window.addEventListener('pagehide', () => {
-            if (bleDevice && bleDevice.gatt && bleDevice.gatt.connected) {
-                try { bleDevice.gatt.disconnect(); } catch(e) {}
-            }
-        });
-        window.addEventListener('beforeunload', () => {
-            if (bleDevice && bleDevice.gatt && bleDevice.gatt.connected) {
-                try { bleDevice.gatt.disconnect(); } catch(e) {}
-            }
-        });
+        function waitMs(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
 
-        // Web Bluetooth Connect / Disconnect
-        async function toggleBleConnection() {
-            if (isBleConnected) {
-                if (bleDevice && bleDevice.gatt && bleDevice.gatt.connected) {
-                    try { bleDevice.gatt.disconnect(); } catch(e) {}
-                }
+        function withBleTimeout(promise, timeoutMs, operationName) {
+            let timeoutId;
+            const timeout = new Promise((_, reject) => {
+                timeoutId = setTimeout(() => {
+                    reject(new Error(`${operationName}: превышен таймаут ${timeoutMs} мс`));
+                }, timeoutMs);
+            });
+            return Promise.race([promise, timeout]).finally(() => clearTimeout(timeoutId));
+        }
+
+        function clearBleHandles() {
+            if (txCharacteristic) {
+                try {
+                    txCharacteristic.removeEventListener('characteristicvaluechanged', handleIncomingBleData);
+                } catch(e) {}
+            }
+            bleServer = null;
+            rxCharacteristic = null;
+            txCharacteristic = null;
+            rxBuffer = "";
+            isBleConnected = false;
+        }
+
+        function disconnectCurrentGatt() {
+            bleSessionId++;
+            clearBleHandles();
+            if (bleDevice) {
+                try { bleDevice.removeEventListener('gattserverdisconnected', onDisconnected); } catch(e) {}
+            }
+            if (bleDevice && bleDevice.gatt && bleDevice.gatt.connected) {
+                try { bleDevice.gatt.disconnect(); } catch(e) {}
+            }
+        }
+
+        function isRaceMetryDevice(device) {
+            const name = (device && device.name) || "";
+            return name.startsWith("RaceMetry") || name.startsWith("DRAGon");
+        }
+
+        async function refreshKnownBleDevices() {
+            if (!navigator.bluetooth || typeof navigator.bluetooth.getDevices !== 'function') {
+                knownBleDevices = [];
                 return;
             }
 
             try {
-                showToast("Поиск устройства RaceMetry...");
-                bleDevice = await navigator.bluetooth.requestDevice({
-                    filters: [
-                        { namePrefix: "RaceMetry" },
-                        { namePrefix: "DRAGon" }
-                    ],
-                    optionalServices: [NUS_SERVICE_UUID]
-                });
+                const devices = await navigator.bluetooth.getDevices();
+                knownBleDevices = devices.filter(isRaceMetryDevice);
+            } catch (err) {
+                console.warn("BLE: не удалось получить ранее разрешённые устройства", err);
+                knownBleDevices = [];
+            }
+        }
+
+        function getKnownBleDevice() {
+            const savedId = localStorage.getItem('racemetry_ble_device_id');
+            return knownBleDevices.find(device => device.id === savedId)
+                || knownBleDevices[0]
+                || null;
+        }
+
+        async function requestBleDevice() {
+            // Ранее разрешённое устройство подключаем напрямую. Это обходит
+            // повторный холодный scan Android, из-за которого первый GATT
+            // handshake после запуска установленного PWA часто зависает.
+            const knownDevice = getKnownBleDevice();
+            if (knownDevice) {
+                return knownDevice;
+            }
+
+            return navigator.bluetooth.requestDevice({
+                filters: [
+                    { namePrefix: "RaceMetry" },
+                    { namePrefix: "DRAGon" }
+                ],
+                optionalServices: [NUS_SERVICE_UUID]
+            });
+        }
+
+        // Прогреваем Web Bluetooth при загрузке/возврате PWA из фона, не
+        // запрашивая разрешение и не открывая системный диалог.
+        async function prepareBluetoothAdapter() {
+            if (!navigator.bluetooth) return;
+            try {
+                if (typeof navigator.bluetooth.getAvailability === 'function') {
+                    await navigator.bluetooth.getAvailability();
+                }
+                await refreshKnownBleDevices();
+            } catch (err) {
+                console.warn("BLE adapter warm-up failed", err);
+            }
+        }
+
+        // Корректное закрытие старой BLE-сессии при обновлении страницы или закрытии вкладки
+        window.addEventListener('pagehide', () => {
+            disconnectCurrentGatt();
+        });
+        window.addEventListener('beforeunload', () => {
+            disconnectCurrentGatt();
+        });
+
+        window.addEventListener('pageshow', () => {
+            if (!bleConnectInProgress && (!bleDevice || !bleDevice.gatt || !bleDevice.gatt.connected)) {
+                clearBleHandles();
+                updateBleUi(false);
+            }
+            prepareBluetoothAdapter();
+        });
+
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible') {
+                prepareBluetoothAdapter();
+                if (!bleConnectInProgress && bleDevice && bleDevice.gatt && !bleDevice.gatt.connected) {
+                    clearBleHandles();
+                    updateBleUi(false);
+                }
+            }
+        });
+
+        prepareBluetoothAdapter();
+
+        // Web Bluetooth Connect / Disconnect
+        async function toggleBleConnection() {
+            if (bleConnectInProgress) {
+                showToast("Подключение уже выполняется...");
+                return;
+            }
+
+            if (isBleConnected) {
+                disconnectCurrentGatt();
+                updateBleUi(false);
+                return;
+            }
+
+            const connectButton = document.getElementById('bleConnectBtn');
+            bleConnectInProgress = true;
+            if (connectButton) connectButton.disabled = true;
+
+            try {
+                if (!navigator.bluetooth) {
+                    throw new Error("Web Bluetooth недоступен в этом браузере");
+                }
+
+                // Удаляем listener и закрываем возможную локальную сессию,
+                // оставшуюся после восстановления PWA из background/BFCache.
+                if (bleDevice) {
+                    try { bleDevice.removeEventListener('gattserverdisconnected', onDisconnected); } catch(e) {}
+                }
+                disconnectCurrentGatt();
+                bleDevice = null;
+
+                showToast(knownBleDevices.length
+                    ? "Подготовка ранее выбранного RaceMetry..."
+                    : "Поиск устройства RaceMetry...");
+                bleDevice = await requestBleDevice();
+                localStorage.setItem('racemetry_ble_device_id', bleDevice.id);
+                if (!knownBleDevices.some(device => device.id === bleDevice.id)) {
+                    knownBleDevices.push(bleDevice);
+                }
 
                 bleDevice.addEventListener('gattserverdisconnected', onDisconnected);
 
-                showToast("Подключение к GATT серверу...");
-                
-                // Задержка 150мс для завершения фонового сканирования Android
-                await new Promise(r => setTimeout(r, 150));
+                // Даём Android завершить системный scan dialog до GATT-команд.
+                await waitMs(250);
 
-                let server = null;
+                let sessionReady = false;
                 let lastError = null;
 
-                for (let attempt = 1; attempt <= 4; attempt++) {
+                // Повторяем весь handshake, а не только физический connect.
+                // На холодном старте чаще всего падает discovery/CCCD subscription,
+                // когда Android ещё формирует GATT cache.
+                for (let attempt = 1; attempt <= BLE_CONNECT_ATTEMPTS; attempt++) {
+                    let attemptTxCharacteristic = null;
                     try {
+                        showToast(`Подключение BLE: попытка ${attempt}/${BLE_CONNECT_ATTEMPTS}...`);
+
                         if (bleDevice.gatt && bleDevice.gatt.connected) {
                             try { bleDevice.gatt.disconnect(); } catch(e) {}
-                            await new Promise(r => setTimeout(r, 100));
+                            await waitMs(300);
                         }
 
-                        server = await bleDevice.gatt.connect();
-                        // Пауза 250мс для стабилизации дескрипторов на Android/iOS
-                        await new Promise(r => setTimeout(r, 250));
-                        
-                        if (server && server.connected) {
-                            break;
+                        const server = await withBleTimeout(
+                            bleDevice.gatt.connect(),
+                            BLE_GATT_TIMEOUT_MS,
+                            "GATT connect"
+                        );
+                        await waitMs(attempt === 1 ? 450 : 650);
+
+                        if (!server || !server.connected) {
+                            throw new Error("GATT соединение не перешло в connected");
                         }
+
+                        const service = await withBleTimeout(
+                            server.getPrimaryService(NUS_SERVICE_UUID),
+                            BLE_GATT_TIMEOUT_MS,
+                            "Поиск NUS сервиса"
+                        );
+                        const attemptRxCharacteristic = await withBleTimeout(
+                            service.getCharacteristic(NUS_RX_CHAR_UUID),
+                            BLE_GATT_TIMEOUT_MS,
+                            "Поиск RX характеристики"
+                        );
+                        attemptTxCharacteristic = await withBleTimeout(
+                            service.getCharacteristic(NUS_TX_CHAR_UUID),
+                            BLE_GATT_TIMEOUT_MS,
+                            "Поиск TX характеристики"
+                        );
+
+                        attemptTxCharacteristic.addEventListener(
+                            'characteristicvaluechanged',
+                            handleIncomingBleData
+                        );
+                        await withBleTimeout(
+                            attemptTxCharacteristic.startNotifications(),
+                            BLE_GATT_TIMEOUT_MS,
+                            "Подписка на notifications"
+                        );
+
+                        // Публикуем handles только после завершения всего handshake.
+                        bleServer = server;
+                        rxCharacteristic = attemptRxCharacteristic;
+                        txCharacteristic = attemptTxCharacteristic;
+                        sessionReady = true;
+                        break;
                     } catch (err) {
                         lastError = err;
-                        console.warn(`GATT connect attempt ${attempt}/4 failed:`, err);
-                        
-                        // КРИТИЧЕСКИ ВАЖНО: сброс зависшего дескриптора в мобильном стеке Bluetooth
+                        console.warn(`BLE handshake attempt ${attempt}/${BLE_CONNECT_ATTEMPTS} failed:`, err);
+
+                        if (attemptTxCharacteristic) {
+                            try {
+                                attemptTxCharacteristic.removeEventListener(
+                                    'characteristicvaluechanged',
+                                    handleIncomingBleData
+                                );
+                            } catch(e) {}
+                        }
                         if (bleDevice && bleDevice.gatt) {
                             try { bleDevice.gatt.disconnect(); } catch(e) {}
                         }
-                        
-                        // Адаптивная пауза перед повторной попыткой подключения
-                        await new Promise(r => setTimeout(r, 200 + attempt * 200));
+
+                        if (attempt < BLE_CONNECT_ATTEMPTS) {
+                            // Android освобождает старый GATT client асинхронно.
+                            // Новая попытка раньше этого момента наследует его
+                            // зависшее состояние и почти гарантированно падает.
+                            await waitMs(BLE_RETRY_SETTLE_MS + attempt * 300);
+                        }
                     }
                 }
 
-                if (!server || !server.connected) {
-                    throw lastError || new Error("Не удалось установить GATT соединение.");
+                if (!sessionReady) {
+                    throw lastError || new Error("Не удалось завершить BLE handshake");
                 }
-                bleServer = server;
-
-                showToast("Инициализация сервиса телеметрии...");
-                await new Promise(r => setTimeout(r, 150));
-
-                const service = await bleServer.getPrimaryService(NUS_SERVICE_UUID);
-                rxCharacteristic = await service.getCharacteristic(NUS_RX_CHAR_UUID);
-                txCharacteristic = await service.getCharacteristic(NUS_TX_CHAR_UUID);
-
-                await txCharacteristic.startNotifications();
-                txCharacteristic.addEventListener('characteristicvaluechanged', handleIncomingBleData);
 
                 isBleConnected = true;
+                const connectedSessionId = ++bleSessionId;
                 updateBleUi(true);
                 showToast("RaceMetry подключен успешно!");
 
                 // Запрашиваем информацию, рекорды и сохраненную историю
                 setTimeout(() => {
-                    sendBleCmd('get_info');
+                    if (connectedSessionId === bleSessionId && isBleConnected) sendBleCmd('get_info');
                 }, 300);
                 setTimeout(() => {
                     let batMode = localStorage.getItem('racemetry_bat_mode') || '0';
-                    sendBleCmd('set_bat_mode', batMode);
+                    if (connectedSessionId === bleSessionId && isBleConnected) sendBleCmd('set_bat_mode', batMode);
                 }, 500);
                 setTimeout(() => {
-                    sendBleCmd('get_history');
+                    if (connectedSessionId === bleSessionId && isBleConnected) sendBleCmd('get_history');
                 }, 800);
 
             } catch (err) {
@@ -2060,12 +2241,23 @@
                 if (err.name !== 'NotFoundError') {
                     showToast("Ошибка подключения: " + (err.message || err));
                 }
+                disconnectCurrentGatt();
                 updateBleUi(false);
+            } finally {
+                bleConnectInProgress = false;
+                if (connectButton) connectButton.disabled = false;
             }
         }
 
-        function onDisconnected() {
-            isBleConnected = false;
+        function onDisconnected(event) {
+            // Событие от принудительного disconnect предыдущей попытки может
+            // прийти уже после успешного reconnect того же BluetoothDevice.
+            if (event && event.target !== bleDevice) return;
+            if (bleDevice && bleDevice.gatt && bleDevice.gatt.connected) return;
+            if (bleConnectInProgress) return;
+
+            bleSessionId++;
+            clearBleHandles();
             updateBleUi(false);
             showToast("Связь с RaceMetry потеряна");
         }
@@ -3024,9 +3216,10 @@
 
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js')
+                navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' })
                     .then(reg => {
                         console.log('[PWA] Service Worker active, scope:', reg.scope);
+                        reg.update().catch(err => console.warn('[PWA] Update check failed:', err));
                         reg.onupdatefound = () => {
                             const installingWorker = reg.installing;
                             installingWorker.onstatechange = () => {
@@ -3037,6 +3230,13 @@
                         };
                     })
                     .catch(err => console.warn('[PWA] Service Worker registration failed:', err));
+            });
+
+            let swReloadStarted = false;
+            navigator.serviceWorker.addEventListener('controllerchange', () => {
+                if (swReloadStarted) return;
+                swReloadStarted = true;
+                window.location.reload();
             });
         }
 
