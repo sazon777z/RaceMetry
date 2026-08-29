@@ -36,6 +36,10 @@ public:
     // Проверка статуса подключения смартфона
     bool isConnected() const { return _deviceConnected; }
 
+    // Двусторонний канал подтверждён командой ping после подписки клиента
+    bool isClientReady() const { return _clientReady; }
+    void setClientReady(bool ready) { _clientReady = ready; }
+
     // Периодическое обновление (обслуживание рекламы при дисконнекте)
     void update();
 
@@ -102,6 +106,7 @@ private:
 
     volatile bool       _deviceConnected;
     bool                _oldDeviceConnected;
+    volatile bool       _clientReady;
 
     QueueHandle_t       _cmdQueue;
     SemaphoreHandle_t   _txMutex;

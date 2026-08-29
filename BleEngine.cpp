@@ -9,6 +9,7 @@ BleEngine::BleEngine()
       _pRxCharacteristic(nullptr),
       _deviceConnected(false),
       _oldDeviceConnected(false),
+      _clientReady(false),
       _cmdQueue(nullptr),
       _txMutex(nullptr),
       _rxAccumulatorLen(0)
@@ -110,6 +111,7 @@ bool BleEngine::popCommand(BleCommand& cmd) {
 void BleEngine::onConnect(BLEServer* pServer) {
     _deviceConnected = true;
     _oldDeviceConnected = true;
+    _clientReady = false;
     s_latestRssi = -55;
     Serial.println("[BLE] Smartphone connected to GATT Server!");
 }
@@ -117,6 +119,7 @@ void BleEngine::onConnect(BLEServer* pServer) {
 void BleEngine::onDisconnect(BLEServer* pServer) {
     _deviceConnected = false;
     _oldDeviceConnected = false;
+    _clientReady = false;
     s_latestRssi = -99;
     Serial.println("[BLE] Smartphone disconnected. Resuming advertising...");
     delay(20);
@@ -216,21 +219,29 @@ void BleEngine::_parseIncomingLine(const char* line) {
 }
 
 void BleEngine::sendJson(const char* jsonStr) {
-    if (!_deviceConnected || !_pTxCharacteristic || !jsonStr) return;
+    if (!_deviceConnected || !_clientReady || !_pTxCharacteristic || !jsonStr) return;
 
     size_t len = strlen(jsonStr);
     if (len == 0) return;
 
-    // Чанкирование по 100 байт
-    const size_t CHUNK_SIZE = 100;
-    if (len <= CHUNK_SIZE) {
+    // На холодном Android-подключении peer MTU сначала может быть равен 23.
+    // Фиксированные 100-байтовые notifications в этот момент обрезаются до
+    // 20 байт и разрушают JSON-поток, поэтому учитываем согласованный MTU.
+    size_t chunkSize = 20;
+    if (_pServer && _pServer->getConnectedCount() > 0) {
+        const uint16_t peerMtu = _pServer->getPeerMTU(_pServer->getConnId());
+        if (peerMtu > 3) chunkSize = peerMtu - 3;
+    }
+    if (chunkSize > 180) chunkSize = 180;
+
+    if (len <= chunkSize) {
         _pTxCharacteristic->setValue((uint8_t*)jsonStr, len);
         _pTxCharacteristic->notify();
     } else {
         size_t sent = 0;
         while (sent < len) {
             size_t toSend = len - sent;
-            if (toSend > CHUNK_SIZE) toSend = CHUNK_SIZE;
+            if (toSend > chunkSize) toSend = chunkSize;
             _pTxCharacteristic->setValue((uint8_t*)(jsonStr + sent), toSend);
             _pTxCharacteristic->notify();
             sent += toSend;

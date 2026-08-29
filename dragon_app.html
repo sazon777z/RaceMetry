@@ -1689,6 +1689,7 @@
         let bleConnectInProgress = false;
         let knownBleDevices = [];
         let bleSessionId = 0;
+        let blePongWaiter = null;
 
         const BLE_CONNECT_ATTEMPTS = 4;
         const BLE_GATT_TIMEOUT_MS = 12000;
@@ -1976,6 +1977,32 @@
             return Promise.race([promise, timeout]).finally(() => clearTimeout(timeoutId));
         }
 
+        function waitForBlePong(timeoutMs = 5000) {
+            return new Promise((resolve, reject) => {
+                const waiter = { resolve, reject, timeoutId: null };
+                waiter.timeoutId = setTimeout(() => {
+                    if (blePongWaiter === waiter) blePongWaiter = null;
+                    reject(new Error(`Нет ответа pong за ${timeoutMs} мс`));
+                }, timeoutMs);
+                blePongWaiter = waiter;
+            });
+        }
+
+        function resolveBlePong() {
+            const waiter = blePongWaiter;
+            if (!waiter) return;
+            blePongWaiter = null;
+            clearTimeout(waiter.timeoutId);
+            waiter.resolve();
+        }
+
+        function cancelBlePongWaiter() {
+            const waiter = blePongWaiter;
+            if (!waiter) return;
+            blePongWaiter = null;
+            clearTimeout(waiter.timeoutId);
+        }
+
         function clearBleHandles() {
             if (txCharacteristic) {
                 try {
@@ -1987,6 +2014,7 @@
             txCharacteristic = null;
             rxBuffer = "";
             isBleConnected = false;
+            cancelBlePongWaiter();
         }
 
         function disconnectCurrentGatt() {
@@ -2184,6 +2212,17 @@
                             "Подписка на notifications"
                         );
 
+                        // Подтверждаем реальную доставку ESP32 -> PWA. Одного
+                        // успешного startNotifications() на Android недостаточно.
+                        await waitMs(200);
+                        const pongPromise = waitForBlePong(5000);
+                        const pingData = new TextEncoder().encode('{"cmd":"ping","val":null}\n');
+                        const pingWrite = typeof attemptRxCharacteristic.writeValueWithResponse === 'function'
+                            ? attemptRxCharacteristic.writeValueWithResponse(pingData)
+                            : attemptRxCharacteristic.writeValue(pingData);
+                        await withBleTimeout(pingWrite, BLE_GATT_TIMEOUT_MS, "Отправка BLE ping");
+                        await pongPromise;
+
                         // Публикуем handles только после завершения всего handshake.
                         bleServer = server;
                         rxCharacteristic = attemptRxCharacteristic;
@@ -2192,6 +2231,7 @@
                         break;
                     } catch (err) {
                         lastError = err;
+                        cancelBlePongWaiter();
                         console.warn(`BLE handshake attempt ${attempt}/${BLE_CONNECT_ATTEMPTS} failed:`, err);
 
                         if (attemptTxCharacteristic) {
@@ -2316,7 +2356,9 @@
         // Process incoming telemetry packets
         let prevState = 0;
         function processPacket(pkt) {
-            if (pkt.t === 'live') {
+            if (pkt.t === 'pong') {
+                resolveBlePong();
+            } else if (pkt.t === 'live') {
                 updateLiveTelemetry(pkt);
             } else if (pkt.t === 'split') {
                 handleSplitAchieved(pkt);

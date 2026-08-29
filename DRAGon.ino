@@ -465,6 +465,9 @@ void CommTask(void* parameter) {
                 storageManager.getPersonalBests(pb);
                 bleEngine.sendPersonalBests(pb);
             } else if (cmd == "ping") {
+                // ping приходит только после startNotifications(): разрешаем
+                // TX-трафик и подтверждаем фактический обратный канал.
+                bleEngine.setClientReady(true);
                 bleEngine.sendJson("{\"t\":\"pong\"}\n");
             }
         }
@@ -478,7 +481,7 @@ void CommTask(void* parameter) {
         RunRecord r;
         while (completedRunQueue && xQueueReceive(completedRunQueue, &r, 0) == pdTRUE) {
             storageManager.saveRunRecord(r);
-            if (isConnected) {
+            if (isConnected && bleEngine.isClientReady()) {
                 bleEngine.sendRunRecord(r);
                 PersonalBests pb;
                 storageManager.getPersonalBests(pb);
@@ -489,7 +492,7 @@ void CommTask(void* parameter) {
         // 6. Обработка отсечек из очереди
         SplitEvent s;
         while (splitQueue && xQueueReceive(splitQueue, &s, 0) == pdTRUE) {
-            if (isConnected) {
+            if (isConnected && bleEngine.isClientReady()) {
                 bleEngine.sendSplitEvent(s);
             }
         }
@@ -516,7 +519,7 @@ void CommTask(void* parameter) {
         portEXIT_CRITICAL(&stateMutex);
 
         // 8. Трансляция телеметрии по BLE (15 Гц)
-        if (isConnected) {
+        if (isConnected && bleEngine.isClientReady()) {
             bleEngine.sendLiveTelemetry(
                 localGps,
                 localImu,
