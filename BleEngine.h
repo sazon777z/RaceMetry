@@ -4,7 +4,9 @@
 #include <BLEServer.h>
 #include <BLEUtils.h>
 #include <BLE2902.h>
-#include <functional>
+#include <freertos/FreeRTOS.h>
+#include <freertos/queue.h>
+#include <freertos/semphr.h>
 #include "Config.h"
 #include "Types.h"
 
@@ -14,32 +16,32 @@
  *                 BLE ENGINE (NORDIC UART SERVICE - NUS)
  * ============================================================================
  * Высокоскоростной BLE GATT сервер для связи со смартфоном:
- * - Сервис Nordic UART (NUS) для совместимости с Web Bluetooth (Chrome/Edge/iOS)
- * - Потоковая передача телеметрии 15 Гц (скорость, $G_x/G_y/G_z$, спутники, статус)
- * - Мгновенные уведомления о взятии отсечек (0-100, 100-200, 402м)
- * - Передача полных протоколов заездов (RunRecord) с расчетом уклона
- * - Прием команд управления (взведение, сброс, смена дисциплин, калибровка IMU)
- * ============================================================================
+ * - Сервис Nordic UART (NUS) для совместимости с Web Bluetooth
+ * - Потоковая передача телеметрии 15 Гц
+ * - Неблокирующая очередь входящих команд (изоляция контекста BLE стека)
+ * - Потокобезопасная отправка с защитой буфера передачи (TX Mutex)
  */
 
-// Тип функции обратного вызова для обработки команд со смартфона
-typedef std::function<void(const String& cmd, const String& val)> BleCommandHandler;
+struct BleCommand {
+    char cmd[24];
+    char val[32];
+};
 
 class BleEngine : public BLEServerCallbacks, public BLECharacteristicCallbacks {
 public:
     BleEngine();
 
-    // Инициализация BLE стека и запуск рекламы (Advertising)
+    // Инициализация BLE стека и запуск рекламы
     bool begin(const char* deviceName = BLE_DEVICE_NAME);
 
     // Проверка статуса подключения смартфона
     bool isConnected() const { return _deviceConnected; }
 
-    // Периодическое обновление (проверка повторного запуска рекламы при дисконнекте)
+    // Периодическое обновление (обслуживание рекламы при дисконнекте)
     void update();
 
-    // Установка обработчика входящих команд
-    void setCommandHandler(BleCommandHandler handler) { _cmdHandler = handler; }
+    // Неблокирующая выборка поступившей команды
+    bool popCommand(BleCommand& cmd);
 
     // Отправка живой телеметрии на смартфон
     void sendLiveTelemetry(
@@ -55,8 +57,9 @@ public:
         uint8_t batPct = 0
     );
 
-    // Отправка события моментального взятия отсечки
+    // Отправка события отсечки
     void sendSplitEvent(const char* splitName, float timeSec, float trapSpeedKmh);
+    void sendSplitEvent(const SplitEvent& evt);
 
     // Отправка полного протокола завершенного заезда
     void sendRunRecord(const RunRecord& run);
@@ -67,7 +70,7 @@ public:
     // Отправка системной информации и настроек прибора
     void sendDeviceInfo(const DeviceSettings& settings, uint8_t runsCount, bool gpsReady, uint8_t sats, float batVolts = 0.0f, uint8_t batPct = 0);
 
-    // Отправка отчета самодиагностики при подключении смартфона
+    // Отправка отчета самодиагностики
     void sendDiagnostics(
         bool imuOk,
         const char* imuMsg,
@@ -101,8 +104,8 @@ private:
     volatile bool       _deviceConnected;
     bool                _oldDeviceConnected;
 
-    uint32_t            _lastTxTimeMs;
-    BleCommandHandler   _cmdHandler;
+    QueueHandle_t       _cmdQueue;
+    SemaphoreHandle_t   _txMutex;
 
     char                _txBuffer[512];
     char                _rxAccumulator[256];
@@ -110,3 +113,4 @@ private:
 
     void _parseIncomingLine(const char* line);
 };
+

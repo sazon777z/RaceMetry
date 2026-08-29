@@ -11,7 +11,7 @@
  * Универсальный высокопроизводительный драйвер для u-blox M10Q / M9N / M8N:
  * - Автоматический поиск скорости порта (38400, 115200, 9600, 460800)
  * - Поддержка конфигурации u-blox Gen 10 (UBX-CFG-VALSET) и Gen 8/9 (UBX-CFG)
- * - Парсинг бинарного протокола UBX-NAV-PVT (10-18 Гц, Doppler 3D)
+ * - Парсинг бинарного протокола UBX-NAV-PVT (20 Гц, Doppler 3D)
  * - Резервный встроенный парсер NMEA ($GNRMC, $GNGGA, $GNGSA)
  * - Диагностика связи и подсчет принятых байт в реальном времени
  */
@@ -21,13 +21,15 @@ public:
     GpsEngine();
     
     // Инициализация, автоопределение скорости и отправка конфигурации
-    bool begin(HardwareSerial& serialPort, uint32_t targetBaud = 115200);
+    bool begin(HardwareSerial& serialPort, uint32_t targetBaud = GPS_BAUDRATE_TARGET);
     
-    // Потоковый разбор входящих байт (UBX + NMEA)
+    // Потоковый разбор входящих байт (UBX + NMEA). Возвращает true только при получении нового PVT
     bool update();
     
     // Получить последние разобранные данные
     const GpsData& getData() const { return _data; }
+    GpsEpoch getLatestEpoch() const;
+    uint32_t getEpochSequence() const { return _epochSequence; }
     
     // Проверить качество связи (готовность к замерам)
     bool isReadyForRace() const;
@@ -51,7 +53,9 @@ private:
     uint32_t _detectedBaud;
     uint32_t _rxByteCount;
     uint32_t _packetCount;
+    uint32_t _epochSequence;
     uint32_t _lastByteTimeMs;
+    uint64_t _lastPvtArrivalUs;
 
     // Состояния парсера UBX
     enum UbxParserState {
@@ -86,3 +90,4 @@ private:
     void _sendUbxCommand(uint8_t cls, uint8_t id, const uint8_t* payload, uint16_t len);
     void _calculateChecksum(uint8_t byte, uint8_t& cka, uint8_t& ckb);
 };
+

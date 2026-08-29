@@ -20,14 +20,14 @@ class ImuEngine {
 public:
     ImuEngine();
 
-    // Инициализация I2C шины и регистров MPU-9250
+    // Инициализация I2C шины и регистров MPU-9250 / MPU-6500 / MPU-6050
     bool begin(uint8_t sdaPin = PIN_I2C_SDA, uint8_t sclPin = PIN_I2C_SCL, uint32_t freq = I2C_FREQUENCY);
 
-    // Опрос датчика (вызывать в скоростном цикле)
+    // Опрос датчика (вызывать в скоростном цикле 200 Гц)
     bool update();
 
-    // Калибровка нуля (автомобиль должен стоять на ровной поверхности)
-    void calibrateZero(uint16_t sampleCount = 500);
+    // Калибровка нуля (возвращает true при успешном сборе достаточного числа выборок)
+    bool calibrateZero(uint16_t sampleCount = 500);
 
     // Установка калибровочных оффсетов из NVS
     void setOffsets(float axOffset, float ayOffset, float azOffset);
@@ -36,8 +36,9 @@ public:
     // Сброс пиковых значений G
     void resetPeaks();
 
-    // Получить текущие данные
+    // Получить текущие данные и сэмпл
     const ImuData& getData() const { return _data; }
+    ImuSample getLatestSample() const;
 
     // Проверка готовности датчика
     bool isReady() const { return _isInitialized; }
@@ -72,3 +73,4 @@ private:
     bool _writeRegister(uint8_t reg, uint8_t value);
     bool _readRegisters(uint8_t reg, uint8_t* buffer, uint8_t length);
 };
+

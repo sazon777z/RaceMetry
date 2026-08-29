@@ -87,7 +87,14 @@
 // Хранилище энергонезависимой памяти (Preferences)
 #define NVS_NAMESPACE           "racemetry_cfg"
 #define MAX_SAVED_RUNS          20      // Количество сохраняемых заездов в истории
+#define NVS_STORAGE_MAGIC       0x524DU // "RM" (RaceMetry)
+#define NVS_SCHEMA_VERSION      1U      // Версия схемы хранения
+
+// Контроль качества и свежести данных GNSS
+#define GPS_STALE_TIMEOUT_MS    350     // Максимально допустимый интервал между пакетами GNSS при заезде (мс)
+#define GPS_MIN_RACE_SATS       6       // Минимальное количество спутников для заезда
+#define GPS_MAX_SACC_KMH        4.0f    // Максимально допустимая погрешность скорости sAcc (км/ч)
 
 // Версия прошивки
-#define RACEMETRY_FW_VERSION    "v2.0.0 BLE"
+#define RACEMETRY_FW_VERSION    "v2.1.0 BLE"
 #define DRAGON_FW_VERSION       RACEMETRY_FW_VERSION

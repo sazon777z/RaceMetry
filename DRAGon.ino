@@ -16,6 +16,8 @@
 #include <Arduino.h>
 #include "driver/rtc_io.h"
 #include "driver/gpio.h"
+#include <freertos/FreeRTOS.h>
+#include <freertos/queue.h>
 #include "Config.h"
 #include "Types.h"
 #include "GpsEngine.h"
@@ -38,27 +40,47 @@ StorageManager  storageManager;
 // Глобальные настройки устройства
 DeviceSettings  deviceSettings;
 
-// Потокобезопасная синхронизация между ядрами (FreeRTOS Mutex)
-portMUX_TYPE stateMutex = portMUX_INITIALIZER_UNLOCKED;
+// Команды от Core 1 (CommTask) к Core 0 (TelemetryTask)
+enum class Core0CmdType : uint8_t {
+    ARM,
+    RESET,
+    SET_DISCIPLINE,
+    UPDATE_SETTINGS,
+    CALIBRATE_IMU,
+    POWER_OFF
+};
 
-// Локальные копии данных для безопасной передачи между ядрами
+struct Core0Command {
+    Core0CmdType type;
+    union {
+        RaceDiscipline discipline;
+        DeviceSettings settings;
+    } payload;
+};
+
+// Очереди межъядерного взаимодействия FreeRTOS
+static QueueHandle_t telemetryCmdQueue = nullptr;
+static QueueHandle_t splitQueue = nullptr;
+static QueueHandle_t completedRunQueue = nullptr;
+
+// Потокобезопасная синхронизация моментальных снимков (TelemetryTask -> CommTask)
+static portMUX_TYPE stateMutex = portMUX_INITIALIZER_UNLOCKED;
+
 GpsData         safeGpsData;
 ImuData         safeImuData;
-RaceState       safeRaceState;
-RaceDiscipline  safeDiscipline;
-RunRecord       safeCurrentRun;
-RunRecord       safeLastRun;
+RaceState       safeRaceState = RaceState::IDLE_WAIT_STOP;
+RaceDiscipline  safeDiscipline = RaceDiscipline::SPEED_0_100;
 float           safeLiveTimeSec = 0.0f;
 float           safeLiveDistanceM = 0.0f;
 float           safeLiveSpeedKmh = 0.0f;
 float           safeLiveSlopePct = 0.0f;
-bool            newRunSaved = false;
+bool            safeGpsReady = false;
 
 // Переменные состояния аккумулятора
 static float    currentBatVoltage = 0.0f;
 static uint8_t  currentBatPercent = 0;
 
-// Прототипы функций питания, замера батареи и самодиагностики
+// Прототипы функций
 float readRawBatteryVoltage();
 uint8_t calculateBatteryPercentage(float v);
 void runSystemDiagnostics();
@@ -92,7 +114,7 @@ void setup() {
         }
 
         if (!validPress) {
-            // Кнопка не удерживалась (дребезг отпускания) -> немедленно возвращаемся в глубокий сон
+            // Кнопка не удерживалась -> немедленно возвращаемся в глубокий сон
             enterPowerOffDeepSleep();
             return;
         }
@@ -107,7 +129,7 @@ void setup() {
     delay(100);
     Serial.println("\n[RaceMetry] Initializing Pro 20Hz BLE Telemetry System...");
 
-    // Полное отключение всех встроенных светодиодов на плате (GPIO 48 / GPIO 8)
+    // Отключение встроенных светодиодов на плате (GPIO 48 / GPIO 8)
     neopixelWrite(48, 0, 0, 0);
 #ifdef RGB_BUILTIN
     neopixelWrite(RGB_BUILTIN, 0, 0, 0);
@@ -116,6 +138,11 @@ void setup() {
 #ifdef LED_BUILTIN
     pinMode(LED_BUILTIN, INPUT);
 #endif
+
+    // Инициализация очередей FreeRTOS
+    telemetryCmdQueue = xQueueCreate(16, sizeof(Core0Command));
+    splitQueue = xQueueCreate(16, sizeof(SplitEvent));
+    completedRunQueue = xQueueCreate(8, sizeof(RunRecord));
 
     // 1. Инициализация хранилища NVS (настройки и рекорды)
     storageManager.begin();
@@ -150,7 +177,6 @@ void setup() {
     }
 
     // 6. Пробуждение и инициализация GPS u-blox M10Q (Hardware UART1, 20 Hz)
-    gpsEngine.wakeUp();
     gpsEngine.begin(Serial1, GPS_BAUDRATE_TARGET);
     Serial.printf("[RaceMetry] GPS M10Q configured with UBX %d Hz\n", GPS_UPDATE_RATE_HZ);
 
@@ -159,92 +185,27 @@ void setup() {
 
     // 8. Инициализация BLE Сервера (Nordic UART Service)
     bleEngine.begin(BLE_DEVICE_NAME);
-    bleEngine.setCommandHandler([](const String& cmd, const String& val) {
-        Serial.printf("[RaceMetry CMD] cmd: %s, val: %s\n", cmd.c_str(), val.c_str());
 
-        if (cmd == "arm") {
-            const GpsData& gps = gpsEngine.getData();
-            if (gpsEngine.isReadyForRace() && gps.speedKmh <= 1.5f) {
-                telemetryEngine.arm();
-                Serial.println("[RaceMetry] ARMED: Race ready for launch!");
-            } else {
-                Serial.printf("[RaceMetry] Arm rejected: Fix=%d, Sats=%d, Spd=%.1f km/h, Acc=%.1fm\n",
-                    gps.fixType, gps.numSats, gps.speedKmh, gps.hAccM);
-            }
-        } else if (cmd == "reset") {
-            telemetryEngine.reset();
-        } else if (cmd == "set_disc") {
-            int disc = val.toInt();
-            if (disc >= 0 && disc <= 7) {
-                telemetryEngine.setDiscipline((RaceDiscipline)disc);
-            }
-        } else if (cmd == "set_rollout") {
-            deviceSettings.use1FootRollout = (val == "true" || val == "1");
-            telemetryEngine.updateSettings(deviceSettings);
-            storageManager.saveSettings(deviceSettings);
-        } else if (cmd == "set_units") {
-            deviceSettings.metricUnits = (val == "true" || val == "1" || val == "metric");
-            storageManager.saveSettings(deviceSettings);
-        } else if (cmd == "set_bat_mode") {
-            deviceSettings.batteryIndicationMode = (uint8_t)val.toInt();
-            storageManager.saveSettings(deviceSettings);
-            Serial.printf("[RaceMetry] Battery Indication Mode set to: %d\n", deviceSettings.batteryIndicationMode);
-            // Мгновенная демонстрация выбранного режима на светодиоде
-            ledController.showBatteryStatus(currentBatPercent, deviceSettings.batteryIndicationMode);
-        } else if (cmd == "calibrate_imu") {
-            ledController.setMode(LedMode::CALIBRATING);
-            imuEngine.calibrateZero(600);
-            imuEngine.getOffsets(deviceSettings.imuOffsetGx, deviceSettings.imuOffsetGy, deviceSettings.imuOffsetGz);
-            storageManager.saveSettings(deviceSettings);
-            runSystemDiagnostics();
-            bleEngine.sendDeviceInfo(deviceSettings, storageManager.getSavedRunsCount(), gpsEngine.isReadyForRace(), safeGpsData.numSats, currentBatVoltage, currentBatPercent);
-        } else if (cmd == "run_diag") {
-            runSystemDiagnostics();
-        } else if (cmd == "power_off") {
-            enterPowerOffDeepSleep();
-        } else if (cmd == "get_history") {
-            uint8_t count = storageManager.getSavedRunsCount();
-            for (uint8_t i = 0; i < count; i++) {
-                RunRecord r;
-                if (storageManager.getRunRecord(i, r)) {
-                    bleEngine.sendRunRecord(r);
-                    vTaskDelay(pdMS_TO_TICKS(20));
-                }
-            }
-        } else if (cmd == "clear_history") {
-            storageManager.clearAllRuns();
-            bleEngine.sendDeviceInfo(deviceSettings, 0, gpsEngine.isReadyForRace(), safeGpsData.numSats, currentBatVoltage, currentBatPercent);
-        } else if (cmd == "get_info") {
-            runSystemDiagnostics();
-            bleEngine.sendDeviceInfo(deviceSettings, storageManager.getSavedRunsCount(), gpsEngine.isReadyForRace(), safeGpsData.numSats, currentBatVoltage, currentBatPercent);
-            PersonalBests pb;
-            storageManager.getPersonalBests(pb);
-            bleEngine.sendPersonalBests(pb);
-        } else if (cmd == "ping") {
-            bleEngine.sendJson("{\"t\":\"pong\"}\n");
-        }
-    });
-
-    // 9. Запуск высокоприоритетной задачи телеметрии на ЯДРЕ 0
+    // 9. Запуск высокоприоритетной задачи телеметрии на ЯДРЕ 0 (200 Гц)
     xTaskCreatePinnedToCore(
-        TelemetryTask,        // Функция задачи
-        "TelemetryTask",      // Имя
-        4096,                 // Оптимизированный стек (4КБ)
-        NULL,                 // Параметры
-        2,                    // Приоритет (высокий)
-        NULL,                 // Дескриптор
-        0                     // Ядро 0
+        TelemetryTask,
+        "TelemetryTask",
+        4096,
+        NULL,
+        2,
+        NULL,
+        0
     );
 
-    // 10. Запуск коммуникационной задачи BLE на ЯДРЕ 1
+    // 10. Запуск коммуникационной задачи BLE на ЯДРЕ 1 (15 Гц)
     xTaskCreatePinnedToCore(
-        CommTask,             // Функция задачи
-        "CommTask",           // Имя
-        8192,                 // Стек (байт)
-        NULL,                 // Параметры
-        1,                    // Приоритет
-        NULL,                 // Дескриптор
-        1                     // Ядро 1
+        CommTask,
+        "CommTask",
+        8192,
+        NULL,
+        1,
+        NULL,
+        1
     );
 
     Serial.println("[RaceMetry] BLE System started successfully!");
@@ -252,7 +213,7 @@ void setup() {
 
 /**
  * ============================================================================
- * ЯДРО 0: ВЫСОКОСКОРОСТНАЯ ОБРАБОТКА ДАТЧИКОВ И ТЕЛЕМЕТРИИ
+ * ЯДРО 0: ВЫСОКОСКОРОСТНАЯ ОБРАБОТКА ДАТЧИКОВ И ТЕЛЕМЕТРИИ (200 Гц)
  * ============================================================================
  */
 void TelemetryTask(void* parameter) {
@@ -262,24 +223,10 @@ void TelemetryTask(void* parameter) {
     RaceState prevRaceState = RaceState::IDLE_WAIT_STOP;
 
     for (;;) {
-        // Проверка режима моста U-Center
-        if (GPS_BRIDGE_MODE) {
-            while (Serial.available() > 0) {
-                Serial1.write(Serial.read());
-            }
-            while (Serial1.available() > 0) {
-                Serial.write(Serial1.read());
-            }
-            ledController.setMode(LedMode::RUNNING);
-            ledController.update();
-            vTaskDelayUntil(&xLastWakeTime, pdMS_TO_TICKS(2));
-            continue;
-        }
-
-        // 0. Высокоскоростной опрос аппаратной кнопки на корпусе (500 Гц)
+        // 0. Высокоскоростной опрос аппаратной кнопки на корпусе
         buttonManager.update();
 
-        // Визуализация прогресса удержания для выключения питания (желтый -> красный)
+        // Визуализация прогресса удержания для выключения питания
         if (buttonManager.isPressed()) {
             uint32_t pressDur = buttonManager.getPressDurationMs();
             if (pressDur >= 350) {
@@ -287,7 +234,7 @@ void TelemetryTask(void* parameter) {
             }
         }
 
-        // Диспетчер событий кнопки (только двойной клик для батареи и удержание для выключения)
+        // Диспетчер событий кнопки
         ButtonEvent btnEvt = buttonManager.popEvent();
         if (btnEvt == ButtonEvent::DOUBLE_CLICK) {
             Serial.printf("[RaceMetry BTN] Double Click -> Battery Status (%d%%, Mode %d)\n",
@@ -298,34 +245,88 @@ void TelemetryTask(void* parameter) {
             enterPowerOffDeepSleep();
         }
 
-        // 1. Потоковый разбор бинарных пакетов UBX GPS (20 Гц)
-        gpsEngine.update();
+        // 1. Обработка команд управления от Ядра 1 (CommTask)
+        Core0Command cmd;
+        while (telemetryCmdQueue && xQueueReceive(telemetryCmdQueue, &cmd, 0) == pdTRUE) {
+            switch (cmd.type) {
+                case Core0CmdType::ARM:
+                    if (gpsEngine.isReadyForRace() && gpsEngine.getData().speedKmh <= 1.5f) {
+                        telemetryEngine.arm();
+                        Serial.println("[RaceMetry] ARMED: Ready for launch!");
+                    } else {
+                        Serial.printf("[RaceMetry] Arm rejected: Fix=%d, Sats=%d, Spd=%.1f km/h\n",
+                            gpsEngine.getData().fixType, gpsEngine.getData().numSats, gpsEngine.getData().speedKmh);
+                    }
+                    break;
+                case Core0CmdType::RESET:
+                    telemetryEngine.reset();
+                    break;
+                case Core0CmdType::SET_DISCIPLINE:
+                    telemetryEngine.setDiscipline(cmd.payload.discipline);
+                    break;
+                case Core0CmdType::UPDATE_SETTINGS:
+                    telemetryEngine.updateSettings(cmd.payload.settings);
+                    break;
+                case Core0CmdType::CALIBRATE_IMU:
+                    ledController.setMode(LedMode::CALIBRATING);
+                    if (imuEngine.calibrateZero(600)) {
+                        float offGx, offGy, offGz;
+                        imuEngine.getOffsets(offGx, offGy, offGz);
+                        deviceSettings.imuOffsetGx = offGx;
+                        deviceSettings.imuOffsetGy = offGy;
+                        deviceSettings.imuOffsetGz = offGz;
+                        storageManager.saveSettings(deviceSettings);
+                    }
+                    break;
+                case Core0CmdType::POWER_OFF:
+                    enterPowerOffDeepSleep();
+                    break;
+            }
+        }
 
         // 2. Скоростной опрос акселерометра MPU-9250 (200 Гц)
-        imuEngine.update();
+        if (imuEngine.update()) {
+            telemetryEngine.processImuSample(imuEngine.getLatestSample());
+        }
 
-        // 3. Обработка математики заезда
-        telemetryEngine.process(gpsEngine.getData(), imuEngine.getData());
+        // 3. Потоковый разбор бинарных пакетов UBX GPS (20 Гц)
+        if (gpsEngine.update()) {
+            telemetryEngine.processGpsEpoch(gpsEngine.getLatestEpoch());
+        }
+
+        // 4. Проверка таймаута GPS (детектор зависания / потери потока)
+        telemetryEngine.checkStaleTimeout(micros());
+
         RaceState curState = telemetryEngine.getState();
 
-        // 4. Управление светодиодной индикацией (если кнопка не удерживается для выключения)
+        // 5. Обработка моментальных отсечек (Split Events) -> светодиод и очередь BLE
+        SplitEvent splitEvt;
+        while (telemetryEngine.popSplitEvent(splitEvt)) {
+            ledController.triggerSplitFlash();
+            if (splitQueue) {
+                xQueueSend(splitQueue, &splitEvt, 0);
+            }
+        }
+
+        // 6. Обработка завершенных заездов -> очередь на Ядро 1 для записи в NVS и BLE
+        RunRecord completedRun;
+        if (telemetryEngine.popCompletedRun(completedRun)) {
+            if (completedRunQueue) {
+                xQueueSend(completedRunQueue, &completedRun, 0);
+            }
+        }
+
+        // 7. Управление светодиодной индикацией
         if (!buttonManager.isPressed() || buttonManager.getPressDurationMs() < 350) {
             static bool wasGpsReady = false;
             bool isGpsReady = gpsEngine.isReadyForRace();
 
-            // Проверка события первого захвата 3D-фикса (двойная зеленая вспышка)
             if (isGpsReady && !wasGpsReady) {
                 ledController.notifyFixAcquired();
             }
             wasGpsReady = isGpsReady;
 
-            // Моментальная яркая вспышка при старте заезда (Launch)
             if (curState == RaceState::LAUNCH_DETECTED && prevRaceState == RaceState::ARMED) {
-                ledController.triggerSplitFlash();
-            }
-
-            // Моментальная яркая вспышка при взятии любой отсечки (60, 100, 200, 402м)
-            if (telemetryEngine.checkAndClearSplitTrigger()) {
                 ledController.triggerSplitFlash();
             }
 
@@ -357,14 +358,9 @@ void TelemetryTask(void* parameter) {
             ledController.update();
         }
 
-        // 5. Автосохранение завершенного заезда в энергонезависимую память NVS
-        if (curState == RaceState::FINISHED && prevRaceState != RaceState::FINISHED) {
-            storageManager.saveRunRecord(telemetryEngine.getLastRun());
-            newRunSaved = true;
-        }
         prevRaceState = curState;
 
-        // 6. Синхронизация данных со снимком для Ядра 1 (BLE)
+        // 8. Синхронизация данных снимка для Ядра 1 (CommTask)
         portENTER_CRITICAL(&stateMutex);
         safeGpsData = gpsEngine.getData();
         safeImuData = imuEngine.getData();
@@ -374,9 +370,7 @@ void TelemetryTask(void* parameter) {
         safeLiveDistanceM = telemetryEngine.getCurrentDistanceM();
         safeLiveSpeedKmh = telemetryEngine.getCurrentSpeedKmh();
         safeLiveSlopePct = telemetryEngine.getCurrentSlopePct();
-        if (newRunSaved) {
-            safeLastRun = telemetryEngine.getLastRun();
-        }
+        safeGpsReady = gpsEngine.isReadyForRace();
         portEXIT_CRITICAL(&stateMutex);
 
         vTaskDelayUntil(&xLastWakeTime, xFrequency);
@@ -385,7 +379,7 @@ void TelemetryTask(void* parameter) {
 
 /**
  * ============================================================================
- * ЯДРО 1: BLUETOOTH LOW ENERGY, ЗАМЕР БАТАРЕИ И ОБРАБОТКА ДАННЫХ
+ * ЯДРО 1: BLUETOOTH LOW ENERGY, ЗАМЕР БАТАРЕИ И ХРАНИЛИЩЕ NVS (15 Гц)
  * ============================================================================
  */
 void CommTask(void* parameter) {
@@ -403,70 +397,143 @@ void CommTask(void* parameter) {
             if (currentBatVoltage < 0.1f) {
                 currentBatVoltage = rawV;
             } else {
-                // Экспоненциальное сглаживание шумов АЦП
                 currentBatVoltage = 0.85f * currentBatVoltage + 0.15f * rawV;
             }
             currentBatPercent = calculateBatteryPercentage(currentBatVoltage);
         }
 
-        // 3. Обновление состояния BLE
+        // 2. Обновление состояния BLE
         bleEngine.update();
         bool isConnected = bleEngine.isConnected();
 
-        // Если только что подключились — запускаем полную инициализацию и отчет
+        // 3. Обработка входящих команд BLE
+        BleCommand bCmd;
+        while (bleEngine.popCommand(bCmd)) {
+            String cmd = bCmd.cmd;
+            String val = bCmd.val;
+            Serial.printf("[BLE CMD DISPATCH] cmd: %s, val: %s\n", cmd.c_str(), val.c_str());
+
+            if (cmd == "arm") {
+                Core0Command c; c.type = Core0CmdType::ARM;
+                if (telemetryCmdQueue) xQueueSend(telemetryCmdQueue, &c, 0);
+            } else if (cmd == "reset") {
+                Core0Command c; c.type = Core0CmdType::RESET;
+                if (telemetryCmdQueue) xQueueSend(telemetryCmdQueue, &c, 0);
+            } else if (cmd == "set_disc") {
+                int disc = val.toInt();
+                if (disc >= 0 && disc <= 7) {
+                    Core0Command c; c.type = Core0CmdType::SET_DISCIPLINE;
+                    c.payload.discipline = (RaceDiscipline)disc;
+                    if (telemetryCmdQueue) xQueueSend(telemetryCmdQueue, &c, 0);
+                }
+            } else if (cmd == "set_rollout") {
+                deviceSettings.use1FootRollout = (val == "true" || val == "1");
+                storageManager.saveSettings(deviceSettings);
+                Core0Command c; c.type = Core0CmdType::UPDATE_SETTINGS;
+                c.payload.settings = deviceSettings;
+                if (telemetryCmdQueue) xQueueSend(telemetryCmdQueue, &c, 0);
+            } else if (cmd == "set_units") {
+                deviceSettings.metricUnits = (val == "true" || val == "1" || val == "metric");
+                storageManager.saveSettings(deviceSettings);
+            } else if (cmd == "set_bat_mode") {
+                deviceSettings.batteryIndicationMode = (uint8_t)val.toInt();
+                storageManager.saveSettings(deviceSettings);
+                ledController.showBatteryStatus(currentBatPercent, deviceSettings.batteryIndicationMode);
+            } else if (cmd == "calibrate_imu") {
+                Core0Command c; c.type = Core0CmdType::CALIBRATE_IMU;
+                if (telemetryCmdQueue) xQueueSend(telemetryCmdQueue, &c, 0);
+            } else if (cmd == "run_diag") {
+                runSystemDiagnostics();
+            } else if (cmd == "power_off") {
+                Core0Command c; c.type = Core0CmdType::POWER_OFF;
+                if (telemetryCmdQueue) xQueueSend(telemetryCmdQueue, &c, 0);
+            } else if (cmd == "get_history") {
+                uint8_t count = storageManager.getSavedRunsCount();
+                for (uint8_t i = 0; i < count; i++) {
+                    RunRecord r;
+                    if (storageManager.getRunRecord(i, r)) {
+                        bleEngine.sendRunRecord(r);
+                        vTaskDelay(pdMS_TO_TICKS(15));
+                    }
+                }
+            } else if (cmd == "clear_history") {
+                storageManager.clearAllRuns(true);
+                bleEngine.sendDeviceInfo(deviceSettings, 0, safeGpsReady, safeGpsData.numSats, currentBatVoltage, currentBatPercent);
+            } else if (cmd == "get_info") {
+                runSystemDiagnostics();
+                bleEngine.sendDeviceInfo(deviceSettings, storageManager.getSavedRunsCount(), safeGpsReady, safeGpsData.numSats, currentBatVoltage, currentBatPercent);
+                PersonalBests pb;
+                storageManager.getPersonalBests(pb);
+                bleEngine.sendPersonalBests(pb);
+            } else if (cmd == "ping") {
+                bleEngine.sendJson("{\"t\":\"pong\"}\n");
+            }
+        }
+
+        // 4. Если только что подключились — отправка системной информации
         if (isConnected && !wasConnected) {
             runSystemDiagnostics();
-            vTaskDelay(pdMS_TO_TICKS(30));
-            bleEngine.sendDeviceInfo(deviceSettings, storageManager.getSavedRunsCount(), gpsEngine.isReadyForRace(), safeGpsData.numSats, currentBatVoltage, currentBatPercent);
-            vTaskDelay(pdMS_TO_TICKS(30));
+            vTaskDelay(pdMS_TO_TICKS(20));
+            bleEngine.sendDeviceInfo(deviceSettings, storageManager.getSavedRunsCount(), safeGpsReady, safeGpsData.numSats, currentBatVoltage, currentBatPercent);
+            vTaskDelay(pdMS_TO_TICKS(20));
             PersonalBests pb;
             storageManager.getPersonalBests(pb);
             bleEngine.sendPersonalBests(pb);
-            vTaskDelay(pdMS_TO_TICKS(30));
+            vTaskDelay(pdMS_TO_TICKS(20));
             uint8_t count = storageManager.getSavedRunsCount();
             for (uint8_t i = 0; i < count; i++) {
                 RunRecord r;
                 if (storageManager.getRunRecord(i, r)) {
                     bleEngine.sendRunRecord(r);
-                    vTaskDelay(pdMS_TO_TICKS(20));
+                    vTaskDelay(pdMS_TO_TICKS(15));
                 }
             }
         }
         wasConnected = isConnected;
 
-        // 4. Получение безопасной копии данных
+        // 5. Обработка завершенных заездов из очереди
+        RunRecord r;
+        while (completedRunQueue && xQueueReceive(completedRunQueue, &r, 0) == pdTRUE) {
+            storageManager.saveRunRecord(r);
+            if (isConnected) {
+                bleEngine.sendRunRecord(r);
+                PersonalBests pb;
+                storageManager.getPersonalBests(pb);
+                bleEngine.sendPersonalBests(pb);
+            }
+        }
+
+        // 6. Обработка отсечек из очереди
+        SplitEvent s;
+        while (splitQueue && xQueueReceive(splitQueue, &s, 0) == pdTRUE) {
+            if (isConnected) {
+                bleEngine.sendSplitEvent(s);
+            }
+        }
+
+        // 7. Получение безопасного снимка телеметрии
         GpsData localGps;
         ImuData localImu;
         RaceState localState;
         RaceDiscipline localDisc;
-        RunRecord localCurr;
-        RunRecord localLast;
         float localLiveTime;
         float localDistanceM;
         float localSpeedKmh;
         float localSlopePct;
-        bool localNewRunSaved = false;
 
         portENTER_CRITICAL(&stateMutex);
         localGps = safeGpsData;
         localImu = safeImuData;
         localState = safeRaceState;
         localDisc = safeDiscipline;
-        localCurr = safeCurrentRun;
-        localLast = safeLastRun;
         localLiveTime = safeLiveTimeSec;
         localDistanceM = safeLiveDistanceM;
         localSpeedKmh = safeLiveSpeedKmh;
         localSlopePct = safeLiveSlopePct;
-        if (newRunSaved) {
-            localNewRunSaved = true;
-            newRunSaved = false;
-        }
         portEXIT_CRITICAL(&stateMutex);
 
-        // 5. Трансляция телеметрии по BLE
+        // 8. Трансляция телеметрии по BLE (15 Гц)
         if (isConnected) {
-            // Живая телеметрия с процентом батареи
             bleEngine.sendLiveTelemetry(
                 localGps,
                 localImu,
@@ -479,14 +546,6 @@ void CommTask(void* parameter) {
                 currentBatVoltage,
                 currentBatPercent
             );
-
-            // Если только что завершился заезд — отправляем полный отчет и обновленные рекорды
-            if (localNewRunSaved) {
-                bleEngine.sendRunRecord(localLast);
-                PersonalBests pb;
-                storageManager.getPersonalBests(pb);
-                bleEngine.sendPersonalBests(pb);
-            }
         }
 
         vTaskDelayUntil(&xLastWakeTime, xFrequency);
@@ -552,12 +611,12 @@ void enterPowerOffDeepSleep() {
  */
 void runSystemDiagnostics() {
     bool imuOk = imuEngine.isReady();
-    const char* imuMsg = imuOk ? "Акселерометр / IMU (200 Hz): OK" : "Акселерометр: Ошибка I2C";
+    const char* imuMsg = imuOk ? "IMU MPU-9250 (200 Hz): OK" : "IMU MPU-9250: Ошибка I2C / Не найден";
 
-    bool gpsOk = (safeGpsData.numSats > 0 || gpsEngine.isReceivingBytes());
-    const char* gpsMsg = "GNSS (20 Hz, 460800 baud): OK";
+    bool gpsOk = gpsEngine.isReceivingBytes();
+    const char* gpsMsg = gpsOk ? "GNSS u-blox M10Q (20 Hz, 460800 baud): OK" : "GNSS: Нет входящих данных UART";
 
-    bool storageOk = true;
+    bool storageOk = storageManager.isOk();
     bool batOk = (currentBatVoltage > 2.0f);
 
     bleEngine.sendDiagnostics(
@@ -571,6 +630,7 @@ void runSystemDiagnostics() {
         currentBatPercent
     );
 }
+
 
 /**
  * ============================================================================

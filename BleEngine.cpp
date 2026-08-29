@@ -9,8 +9,8 @@ BleEngine::BleEngine()
       _pRxCharacteristic(nullptr),
       _deviceConnected(false),
       _oldDeviceConnected(false),
-      _lastTxTimeMs(0),
-      _cmdHandler(nullptr),
+      _cmdQueue(nullptr),
+      _txMutex(nullptr),
       _rxAccumulatorLen(0)
 {
     memset(_txBuffer, 0, sizeof(_txBuffer));
@@ -19,6 +19,13 @@ BleEngine::BleEngine()
 
 bool BleEngine::begin(const char* deviceName) {
     Serial.printf("[BLE] Initializing BLE Server: %s\n", deviceName);
+
+    if (!_cmdQueue) {
+        _cmdQueue = xQueueCreate(16, sizeof(BleCommand));
+    }
+    if (!_txMutex) {
+        _txMutex = xSemaphoreCreateMutex();
+    }
 
     // 1. Инициализация стека BLE Device на максимальной мощности передатчика (+9dBm)
     BLEDevice::init(deviceName);
@@ -96,6 +103,11 @@ void BleEngine::update() {
     }
 }
 
+bool BleEngine::popCommand(BleCommand& cmd) {
+    if (!_cmdQueue) return false;
+    return (xQueueReceive(_cmdQueue, &cmd, 0) == pdTRUE);
+}
+
 void BleEngine::onConnect(BLEServer* pServer) {
     _deviceConnected = true;
     _oldDeviceConnected = true;
@@ -140,18 +152,16 @@ void BleEngine::onWrite(BLECharacteristic* pCharacteristic) {
 }
 
 void BleEngine::_parseIncomingLine(const char* line) {
-    if (!line || line[0] == '\0') return;
+    if (!line || line[0] == '\0' || !_cmdQueue) return;
 
     String trimmed = line;
     trimmed.trim();
     if (trimmed.length() == 0) return;
 
-    Serial.printf("[BLE RX] %s\n", trimmed.c_str());
-
     String cmd = "";
     String val = "";
 
-    // 1. Простой парсер JSON {"cmd":"...", "val":...}
+    // 1. Парсер JSON {"cmd":"...", "val":...}
     int cmdIdx = trimmed.indexOf("\"cmd\"");
     if (cmdIdx >= 0) {
         int colonIdx = trimmed.indexOf(':', cmdIdx);
@@ -175,14 +185,14 @@ void BleEngine::_parseIncomingLine(const char* line) {
             if (endIdx >= 0) {
                 val = trimmed.substring(colonIdx + 1, endIdx);
                 val.trim();
-                if (val.startsWith("\"") && val.endsWith("\"")) {
+                if (val.startsWith("\"") && val.endsWith("\"") && val.length() >= 2) {
                     val = val.substring(1, val.length() - 1);
                 }
             }
         }
     }
 
-    // 2. Резервный текстовый парсер (если отправлена обычная строка "ARM", "RESET" и т.д.)
+    // 2. Резервный текстовый парсер (если отправлена строка "ARM", "RESET" и т.д.)
     if (cmd.length() == 0) {
         int spaceIdx = trimmed.indexOf(' ');
         if (spaceIdx >= 0) {
@@ -194,8 +204,15 @@ void BleEngine::_parseIncomingLine(const char* line) {
         cmd.toLowerCase();
     }
 
-    if (_cmdHandler && cmd.length() > 0) {
-        _cmdHandler(cmd, val);
+    if (cmd.length() > 0) {
+        BleCommand bleCmd;
+        strncpy(bleCmd.cmd, cmd.c_str(), sizeof(bleCmd.cmd) - 1);
+        bleCmd.cmd[sizeof(bleCmd.cmd) - 1] = '\0';
+        strncpy(bleCmd.val, val.c_str(), sizeof(bleCmd.val) - 1);
+        bleCmd.val[sizeof(bleCmd.val) - 1] = '\0';
+        
+        // Помещаем команду в очередь без блокировки
+        xQueueSend(_cmdQueue, &bleCmd, 0);
     }
 }
 
@@ -205,7 +222,7 @@ void BleEngine::sendJson(const char* jsonStr) {
     size_t len = strlen(jsonStr);
     if (len == 0) return;
 
-    // Чанкирование по 100 байт: гарантирует передачу полных строк с \n при любом MTU
+    // Чанкирование по 100 байт
     const size_t CHUNK_SIZE = 100;
     if (len <= CHUNK_SIZE) {
         _pTxCharacteristic->setValue((uint8_t*)jsonStr, len);
@@ -219,7 +236,7 @@ void BleEngine::sendJson(const char* jsonStr) {
             _pTxCharacteristic->notify();
             sent += toSend;
             if (sent < len) {
-                delay(3); // Небольшая пауза между фрагментами для буфера стека
+                delay(3);
             }
         }
     }
@@ -228,6 +245,7 @@ void BleEngine::sendJson(const char* jsonStr) {
 void BleEngine::sendJson(const String& jsonStr) {
     sendJson(jsonStr.c_str());
 }
+
 
 void BleEngine::sendLiveTelemetry(
     const GpsData& gps,
@@ -253,137 +271,157 @@ void BleEngine::sendLiveTelemetry(
     float distVal = (!isnan(liveDistanceM) && !isinf(liveDistanceM)) ? liveDistanceM : 0.0f;
     float timeVal = (!isnan(liveTimeSec) && !isinf(liveTimeSec)) ? liveTimeSec : 0.0f;
 
-    snprintf(
-        _txBuffer, sizeof(_txBuffer),
-        "{\"t\":\"live\",\"spd\":%.2f,\"dist\":%.1f,\"time\":%.3f,\"g\":%.2f,\"gx\":%.2f,\"gy\":%.2f,\"gz\":%.2f,\"g_peak\":%.2f,"
-        "\"sats\":%u,\"gps\":%u,\"glo\":%u,\"gal\":%u,\"bds\":%u,\"fix\":%u,\"hacc\":%.1f,\"vacc\":%.1f,\"sacc\":%.2f,\"pdop\":%.2f,"
-        "\"state\":%u,\"disc\":%u,\"slope\":%.2f,\"alt\":%.1f,\"lat\":%.6f,\"lon\":%.6f,\"head\":%.1f,"
-        "\"utc\":\"%02u:%02u:%02u\",\"date\":\"%02u.%02u.%04u\",\"bat\":%.2f,\"pct\":%u,\"rssi\":%d}\n",
-        spdVal,
-        distVal,
-        timeVal,
-        gVal,
-        gxVal,
-        gyVal,
-        gzVal,
-        gPeakVal,
-        gps.numSats,
-        gps.satsGps,
-        gps.satsGlonass,
-        gps.satsGalileo,
-        gps.satsBeidou,
-        gps.fixType,
-        gps.hAccM,
-        gps.vAccM,
-        gps.sAccKmh,
-        gps.pDOP,
-        (uint8_t)state,
-        (uint8_t)disc,
-        slopeVal,
-        gps.altMSL,
-        gps.lat,
-        gps.lon,
-        gps.headingDeg,
-        gps.hour, gps.min, gps.sec,
-        gps.day, gps.month, gps.year,
-        batVolts,
-        batPct,
-        (int)s_latestRssi
-    );
+    if (_txMutex && xSemaphoreTake(_txMutex, pdMS_TO_TICKS(50)) == pdTRUE) {
+        snprintf(
+            _txBuffer, sizeof(_txBuffer),
+            "{\"t\":\"live\",\"spd\":%.2f,\"dist\":%.1f,\"time\":%.3f,\"g\":%.2f,\"gx\":%.2f,\"gy\":%.2f,\"gz\":%.2f,\"g_peak\":%.2f,"
+            "\"sats\":%u,\"gps\":%u,\"glo\":%u,\"gal\":%u,\"bds\":%u,\"fix\":%u,\"hacc\":%.1f,\"vacc\":%.1f,\"sacc\":%.2f,\"pdop\":%.2f,"
+            "\"state\":%u,\"disc\":%u,\"slope\":%.2f,\"alt\":%.1f,\"lat\":%.6f,\"lon\":%.6f,\"head\":%.1f,"
+            "\"utc\":\"%02u:%02u:%02u\",\"date\":\"%02u.%02u.%04u\",\"bat\":%.2f,\"pct\":%u,\"rssi\":%d}\n",
+            spdVal,
+            distVal,
+            timeVal,
+            gVal,
+            gxVal,
+            gyVal,
+            gzVal,
+            gPeakVal,
+            gps.numSats,
+            gps.satsGps,
+            gps.satsGlonass,
+            gps.satsGalileo,
+            gps.satsBeidou,
+            gps.fixType,
+            gps.hAccM,
+            gps.vAccM,
+            gps.sAccKmh,
+            gps.pDOP,
+            (uint8_t)state,
+            (uint8_t)disc,
+            slopeVal,
+            gps.altMSL,
+            gps.lat,
+            gps.lon,
+            gps.headingDeg,
+            gps.hour, gps.min, gps.sec,
+            gps.day, gps.month, gps.year,
+            batVolts,
+            batPct,
+            (int)s_latestRssi
+        );
 
-    sendJson(_txBuffer);
+        sendJson(_txBuffer);
+        xSemaphoreGive(_txMutex);
+    }
 }
 
 void BleEngine::sendSplitEvent(const char* splitName, float timeSec, float trapSpeedKmh) {
     if (!_deviceConnected) return;
 
-    snprintf(
-        _txBuffer, sizeof(_txBuffer),
-        "{\"t\":\"split\",\"name\":\"%s\",\"time\":%.3f,\"spd\":%.2f}\n",
-        splitName,
-        timeSec,
-        trapSpeedKmh
-    );
+    if (_txMutex && xSemaphoreTake(_txMutex, pdMS_TO_TICKS(50)) == pdTRUE) {
+        snprintf(
+            _txBuffer, sizeof(_txBuffer),
+            "{\"t\":\"split\",\"name\":\"%s\",\"time\":%.3f,\"spd\":%.2f}\n",
+            splitName,
+            timeSec,
+            trapSpeedKmh
+        );
 
-    sendJson(_txBuffer);
+        sendJson(_txBuffer);
+        xSemaphoreGive(_txMutex);
+    }
+}
+
+void BleEngine::sendSplitEvent(const SplitEvent& evt) {
+    sendSplitEvent(evt.name, evt.timeSec, evt.trapSpeedKmh);
 }
 
 void BleEngine::sendRunRecord(const RunRecord& run) {
     if (!_deviceConnected) return;
 
-    snprintf(
-        _txBuffer, sizeof(_txBuffer),
-        "{\"t\":\"run\",\"id\":%u,\"ts\":%u,\"disc\":%u,\"valid\":%s,\"slope\":%.2f,\"rollout\":%s,"
-        "\"s0_60\":%.3f,\"s0_100\":%.3f,\"s100_150\":%.3f,\"s100_200\":%.3f,\"s0_200\":%.3f,\"s200_300\":%.3f,"
-        "\"s60ft\":%.3f,\"s330ft\":%.3f,\"s1_8mi\":%.3f,\"s1000ft\":%.3f,\"s1_4mi\":%.3f,\"trap_spd\":%.2f,"
-        "\"max_spd\":%.2f,\"max_g\":%.2f,\"dist\":%.1f,\"dur\":%.3f,\"b100_0_t\":%.3f,\"b100_0_d\":%.2f}\n",
-        (unsigned int)run.id,
-        (unsigned int)run.timestampUtc,
-        (uint8_t)run.discipline,
-        run.isValidSlope ? "true" : "false",
-        run.slopePct,
-        run.rolloutUsed ? "true" : "false",
-        run.split0_60.achieved ? run.split0_60.timeSec : 0.0f,
-        run.split0_100.achieved ? run.split0_100.timeSec : 0.0f,
-        run.split100_150.achieved ? run.split100_150.timeSec : 0.0f,
-        run.split100_200.achieved ? run.split100_200.timeSec : 0.0f,
-        run.split0_200.achieved ? run.split0_200.timeSec : 0.0f,
-        run.split200_300.achieved ? run.split200_300.timeSec : 0.0f,
-        run.split60ft.achieved ? run.split60ft.timeSec : 0.0f,
-        run.split330ft.achieved ? run.split330ft.timeSec : 0.0f,
-        run.split1_8mi.achieved ? run.split1_8mi.timeSec : 0.0f,
-        run.split1000ft.achieved ? run.split1000ft.timeSec : 0.0f,
-        run.split1_4mi.achieved ? run.split1_4mi.timeSec : 0.0f,
-        run.split1_4mi.achieved ? run.split1_4mi.trapSpeedKmh : run.maxSpeedKmh,
-        run.maxSpeedKmh,
-        run.maxAccelG,
-        run.totalDistanceM,
-        run.totalDurationSec,
-        run.split100_0.achieved ? run.split100_0.timeSec : 0.0f,
-        run.brakeDist100_0M
-    );
+    if (_txMutex && xSemaphoreTake(_txMutex, pdMS_TO_TICKS(100)) == pdTRUE) {
+        snprintf(
+            _txBuffer, sizeof(_txBuffer),
+            "{\"t\":\"run\",\"id\":%u,\"ts\":%u,\"disc\":%u,\"valid\":%s,\"slope\":%.2f,\"rollout\":%s,"
+            "\"s0_60\":%.3f,\"s0_100\":%.3f,\"s100_150\":%.3f,\"s100_200\":%.3f,\"s0_200\":%.3f,\"s200_300\":%.3f,"
+            "\"s60ft\":%.3f,\"s330ft\":%.3f,\"s1_8mi\":%.3f,\"s1000ft\":%.3f,\"s1_4mi\":%.3f,\"trap_spd\":%.2f,"
+            "\"max_spd\":%.2f,\"max_g\":%.2f,\"dist\":%.1f,\"dur\":%.3f,\"b100_0_t\":%.3f,\"b100_0_d\":%.2f,\"abort\":%u}\n",
+            (unsigned int)run.id,
+            (unsigned int)run.timestampUtc,
+            (uint8_t)run.discipline,
+            run.isValidSlope ? "true" : "false",
+            run.slopePct,
+            run.rolloutUsed ? "true" : "false",
+            run.split0_60.achieved ? run.split0_60.timeSec : 0.0f,
+            run.split0_100.achieved ? run.split0_100.timeSec : 0.0f,
+            run.split100_150.achieved ? run.split100_150.timeSec : 0.0f,
+            run.split100_200.achieved ? run.split100_200.timeSec : 0.0f,
+            run.split0_200.achieved ? run.split0_200.timeSec : 0.0f,
+            run.split200_300.achieved ? run.split200_300.timeSec : 0.0f,
+            run.split60ft.achieved ? run.split60ft.timeSec : 0.0f,
+            run.split330ft.achieved ? run.split330ft.timeSec : 0.0f,
+            run.split1_8mi.achieved ? run.split1_8mi.timeSec : 0.0f,
+            run.split1000ft.achieved ? run.split1000ft.timeSec : 0.0f,
+            run.split1_4mi.achieved ? run.split1_4mi.timeSec : 0.0f,
+            run.split1_4mi.achieved ? run.split1_4mi.trapSpeedKmh : run.maxSpeedKmh,
+            run.maxSpeedKmh,
+            run.maxAccelG,
+            run.totalDistanceM,
+            run.totalDurationSec,
+            run.split100_0.achieved ? run.split100_0.timeSec : 0.0f,
+            run.brakeDist100_0M,
+            (uint8_t)run.abortReason
+        );
 
-    sendJson(_txBuffer);
+        sendJson(_txBuffer);
+        xSemaphoreGive(_txMutex);
+    }
 }
 
 void BleEngine::sendPersonalBests(const PersonalBests& pb) {
     if (!_deviceConnected) return;
 
-    snprintf(
-        _txBuffer, sizeof(_txBuffer),
-        "{\"t\":\"pb\",\"best0_60\":%.3f,\"best0_100\":%.3f,\"best100_200\":%.3f,\"best1_4mi\":%.3f,\"best1_4mi_spd\":%.2f,\"best60ft\":%.3f,\"best100_0_d\":%.2f}\n",
-        pb.best0_60,
-        pb.best0_100,
-        pb.best100_200,
-        pb.best1_4mi,
-        pb.best1_4miSpeed,
-        pb.best60ft,
-        pb.best100_0Dist
-    );
+    if (_txMutex && xSemaphoreTake(_txMutex, pdMS_TO_TICKS(50)) == pdTRUE) {
+        snprintf(
+            _txBuffer, sizeof(_txBuffer),
+            "{\"t\":\"pb\",\"best0_60\":%.3f,\"best0_100\":%.3f,\"best100_200\":%.3f,\"best1_4mi\":%.3f,\"best1_4mi_spd\":%.2f,\"best60ft\":%.3f,\"best100_0_d\":%.2f}\n",
+            pb.best0_60,
+            pb.best0_100,
+            pb.best100_200,
+            pb.best1_4mi,
+            pb.best1_4miSpeed,
+            pb.best60ft,
+            pb.best100_0Dist
+        );
 
-    sendJson(_txBuffer);
+        sendJson(_txBuffer);
+        xSemaphoreGive(_txMutex);
+    }
 }
 
 void BleEngine::sendDeviceInfo(const DeviceSettings& settings, uint8_t runsCount, bool gpsReady, uint8_t sats, float batVolts, uint8_t batPct) {
     if (!_deviceConnected) return;
 
-    snprintf(
-        _txBuffer, sizeof(_txBuffer),
-        "{\"t\":\"info\",\"fw\":\"%s\",\"name\":\"%s\",\"rollout\":%s,\"metric\":%s,\"slope_tol\":%.2f,\"runs_cnt\":%u,\"calibrated\":true,\"gps_ready\":%s,\"sats\":%u,\"bat\":%.2f,\"pct\":%u,\"bat_mode\":%u}\n",
-        DRAGON_FW_VERSION,
-        BLE_DEVICE_NAME,
-        settings.use1FootRollout ? "true" : "false",
-        settings.metricUnits ? "true" : "false",
-        settings.slopeTolerancePct,
-        runsCount,
-        gpsReady ? "true" : "false",
-        sats,
-        batVolts,
-        batPct,
-        settings.batteryIndicationMode
-    );
+    if (_txMutex && xSemaphoreTake(_txMutex, pdMS_TO_TICKS(50)) == pdTRUE) {
+        snprintf(
+            _txBuffer, sizeof(_txBuffer),
+            "{\"t\":\"info\",\"fw\":\"%s\",\"name\":\"%s\",\"rollout\":%s,\"metric\":%s,\"slope_tol\":%.2f,\"runs_cnt\":%u,\"calibrated\":true,\"gps_ready\":%s,\"sats\":%u,\"bat\":%.2f,\"pct\":%u,\"bat_mode\":%u}\n",
+            DRAGON_FW_VERSION,
+            BLE_DEVICE_NAME,
+            settings.use1FootRollout ? "true" : "false",
+            settings.metricUnits ? "true" : "false",
+            settings.slopeTolerancePct,
+            runsCount,
+            gpsReady ? "true" : "false",
+            sats,
+            batVolts,
+            batPct,
+            settings.batteryIndicationMode
+        );
 
-    sendJson(_txBuffer);
+        sendJson(_txBuffer);
+        xSemaphoreGive(_txMutex);
+    }
 }
 
 void BleEngine::sendDiagnostics(
@@ -400,23 +438,27 @@ void BleEngine::sendDiagnostics(
 ) {
     if (!_deviceConnected) return;
 
-    snprintf(
-        _txBuffer, sizeof(_txBuffer),
-        "{\"t\":\"diag\",\"imu_ok\":%s,\"imu_msg\":\"%s\",\"gps_ok\":%s,\"gps_msg\":\"%s\",\"gps_rate\":%u,\"gps_baud\":%u,\"storage_ok\":%s,\"bat_ok\":%s,\"bat_v\":%.2f,\"bat_pct\":%u,\"heap\":%u,\"min_heap\":%u,\"fw\":\"%s\"}\n",
-        imuOk ? "true" : "false",
-        imuMsg ? imuMsg : "OK",
-        gpsOk ? "true" : "false",
-        gpsMsg ? gpsMsg : "OK",
-        gpsRateHz,
-        (unsigned int)gpsBaud,
-        storageOk ? "true" : "false",
-        batOk ? "true" : "false",
-        batVolts,
-        batPct,
-        (unsigned int)esp_get_free_heap_size(),
-        (unsigned int)esp_get_minimum_free_heap_size(),
-        DRAGON_FW_VERSION
-    );
+    if (_txMutex && xSemaphoreTake(_txMutex, pdMS_TO_TICKS(50)) == pdTRUE) {
+        snprintf(
+            _txBuffer, sizeof(_txBuffer),
+            "{\"t\":\"diag\",\"imu_ok\":%s,\"imu_msg\":\"%s\",\"gps_ok\":%s,\"gps_msg\":\"%s\",\"gps_rate\":%u,\"gps_baud\":%u,\"storage_ok\":%s,\"bat_ok\":%s,\"bat_v\":%.2f,\"bat_pct\":%u,\"heap\":%u,\"min_heap\":%u,\"fw\":\"%s\"}\n",
+            imuOk ? "true" : "false",
+            imuMsg ? imuMsg : "OK",
+            gpsOk ? "true" : "false",
+            gpsMsg ? gpsMsg : "OK",
+            gpsRateHz,
+            (unsigned int)gpsBaud,
+            storageOk ? "true" : "false",
+            batOk ? "true" : "false",
+            batVolts,
+            batPct,
+            (unsigned int)esp_get_free_heap_size(),
+            (unsigned int)esp_get_minimum_free_heap_size(),
+            DRAGON_FW_VERSION
+        );
 
-    sendJson(_txBuffer);
+        sendJson(_txBuffer);
+        xSemaphoreGive(_txMutex);
+    }
 }
+

@@ -3,7 +3,7 @@
  * Provides 100% offline capability and instant background auto-updates
  */
 
-const CACHE_NAME = 'racemetry-v4.1';
+const CACHE_NAME = 'racemetry-v4.2';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
@@ -50,12 +50,15 @@ self.addEventListener('fetch', (event) => {
           return networkResponse;
         })
         .catch(() => {
-          // Если нет интернета - мгновенный fallback на кэш
-          return caches.match(event.request) || caches.match('./index.html');
+          // Если нет интернета - корректный промис-fallback на кэш
+          return caches.match(event.request).then((cached) => {
+            return cached || caches.match('./index.html');
+          });
         })
     );
     return;
   }
+
 
   // 2. Для статических файлов (иконки, манифест): Stale-While-Revalidate
   event.respondWith(

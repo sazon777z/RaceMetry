@@ -5,7 +5,9 @@ GpsEngine::GpsEngine()
       _detectedBaud(0),
       _rxByteCount(0),
       _packetCount(0),
+      _epochSequence(0),
       _lastByteTimeMs(0),
+      _lastPvtArrivalUs(0),
       _ubxState(WAIT_SYNC1),
       _msgClass(0),
       _msgId(0),
@@ -22,7 +24,14 @@ GpsEngine::GpsEngine()
 
 bool GpsEngine::begin(HardwareSerial& serialPort, uint32_t targetBaud) {
     _serial = &serialPort;
-    Serial.println("\n[GPS] Starting Auto-Baud Detection for u-blox M10Q...");
+    Serial.println("\n[GPS] Initializing u-blox M10Q GNSS Engine...");
+
+    // 1. Аппаратное пробуждение GPS модуля перед автоопределением скорости
+    _serial->begin(38400, SERIAL_8N1, PIN_GPS_RX, PIN_GPS_TX);
+    wakeUp();
+    delay(50);
+
+    Serial.println("[GPS] Starting Auto-Baud Detection for u-blox M10Q...");
 
     // Список распространенных заводских скоростей u-blox модулей
     // (u-blox M10 по умолчанию обычно 38400 или 115200)
@@ -53,6 +62,7 @@ bool GpsEngine::begin(HardwareSerial& serialPort, uint32_t targetBaud) {
             break;
         }
     }
+
 
     if (foundBaud && _detectedBaud != targetBaud) {
         Serial.printf("[GPS] Upgrading u-blox UART baudrate from %u to %u for 18Hz UBX stream...\n", _detectedBaud, targetBaud);
@@ -410,6 +420,17 @@ void GpsEngine::_processUbxPayload() {
 
     _data.validFix = gnssFixOk && (_data.fixType == 3 || _data.fixType == 4);
     _data.lastUpdateMs = millis();
+    _lastPvtArrivalUs = (uint64_t)micros();
+    _epochSequence++;
+}
+
+GpsEpoch GpsEngine::getLatestEpoch() const {
+    GpsEpoch epoch;
+    epoch.data = _data;
+    epoch.towMs = _data.towMs;
+    epoch.arrivalUs = _lastPvtArrivalUs;
+    epoch.sequence = _epochSequence;
+    return epoch;
 }
 
 void GpsEngine::_processUbxSatPayload() {
@@ -536,19 +557,28 @@ void GpsEngine::_processNmeaSentence(const char* sentence) {
         int field = 0;
         while (token != NULL) {
             field++;
-            if (field == 7) _data.fixType = atoi(token);
+            if (field == 7) {
+                int ggaFix = atoi(token);
+                _data.fixType = (ggaFix >= 1) ? 3 : 0;
+            }
             else if (field == 8) _data.numSats = atoi(token);
             else if (field == 9) _data.hAccM = atof(token);
             else if (field == 10) _data.altMSL = atof(token);
             token = strtok(NULL, ",");
         }
-        if (_data.fixType >= 1) _data.validFix = true;
+        if (_data.fixType >= 3) _data.validFix = true;
         _data.lastUpdateMs = millis();
+        _lastPvtArrivalUs = (uint64_t)micros();
+        _epochSequence++;
     }
 }
 
 bool GpsEngine::isReadyForRace() const {
-    return _data.validFix && (_data.numSats >= 6) && ((millis() - _data.lastUpdateMs) < 500);
+    return _data.validFix && 
+           (_data.fixType >= 3) && 
+           (_data.numSats >= GPS_MIN_RACE_SATS) && 
+           (_data.sAccKmh <= GPS_MAX_SACC_KMH) && 
+           ((millis() - _data.lastUpdateMs) < 400);
 }
 
 void GpsEngine::powerOff() {

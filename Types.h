@@ -19,6 +19,17 @@ enum class RaceState : uint8_t {
     ABORTED             // Заезд прерван (остановка до финиша или сбой)
 };
 
+// Причина отмены/прерывания заезда
+enum class RaceAbortReason : uint8_t {
+    NONE = 0,
+    GPS_STALE,          // Превышен таймаут поступления пакетов GPS
+    GPS_FIX_LOST,       // Потерян 3D Fix во время заезда
+    GPS_ACCURACY_BAD,   // Погрешность скорости sAcc выше допустимой
+    IMU_FAILURE,        // Сбой I2C датчика ускорения
+    USER_RESET,         // Сброс пользователем или смена дисциплины
+    CAR_STOPPED         // Остановка автомобиля до достижения финишной отсечки
+};
+
 // Дисциплина / Режим замера
 enum class RaceDiscipline : uint8_t {
     ALL_IN_ONE_DRAG = 0, // Автоматический замер всех скоростей (0-60, 0-100, 100-200) и дистанций (60ft, 1/8mi, 1/4mi)
@@ -61,6 +72,14 @@ struct GpsData {
     float pDOP;             // Position Dilution of Precision
 };
 
+// Неизменяемая эпоха GNSS с временной меткой прихода
+struct GpsEpoch {
+    GpsData data;
+    uint32_t towMs;
+    uint64_t arrivalUs;
+    uint32_t sequence;
+};
+
 // Данные с инерциального датчика IMU (MPU-9250)
 struct ImuData {
     float accelX;           // Ускорение X в G
@@ -82,6 +101,12 @@ struct ImuData {
     }
 };
 
+// Выборка IMU с временной меткой
+struct ImuSample {
+    ImuData data;
+    uint64_t sampleUs;
+};
+
 // Точка трека телеметрии во время заезда
 struct TelemetrySample {
     float timeSec;          // Время от старта (с)
@@ -89,6 +114,35 @@ struct TelemetrySample {
     float distanceM;        // Пройденная дистанция (м)
     float altitudeM;        // Высота (м)
     float gLong;            // Продольная перегрузка (G)
+};
+
+// Типы событий отсечек
+enum class SplitType : uint8_t {
+    SPLIT_0_60 = 0,
+    SPLIT_0_100,
+    SPLIT_100_150,
+    SPLIT_100_200,
+    SPLIT_0_200,
+    SPLIT_200_300,
+    SPLIT_60_120,
+    SPLIT_80_120,
+    SPLIT_60FT,
+    SPLIT_330FT,
+    SPLIT_1_8MI,
+    SPLIT_1000FT,
+    SPLIT_1_4MI,
+    SPLIT_1_2MI,
+    SPLIT_1MI,
+    SPLIT_BRAKE_100_0
+};
+
+// Событие достижения отсечки
+struct SplitEvent {
+    SplitType type;
+    char name[16];
+    float timeSec;
+    float trapSpeedKmh;
+    uint32_t runId;
 };
 
 // Промежуточные отсечки заезда (Splits)
@@ -100,9 +154,10 @@ struct SplitTime {
 
 // Полный отчет о заезде (Run Record)
 struct RunRecord {
-    uint32_t id;            // Порядковый номер заезда
+    uint32_t id;            // Порядковый номер заезда (монотонный ID)
     uint32_t timestampUtc;  // Время заезда (Unix timestamp)
     RaceDiscipline discipline;
+    RaceAbortReason abortReason; // Причина отмены заезда (если ABORTED)
 
     // Скоростные отсечки (время в секундах)
     SplitTime split0_60;    // 0 - 60 км/ч
@@ -138,6 +193,7 @@ struct RunRecord {
     bool isValidSlope;      // Валиден ли заезд по уклону (уклон >= MAX_VALID_SLOPE_PCT)
     bool rolloutUsed;       // Был ли применен 1-Foot Rollout
 };
+
 
 // Личные рекорды (Personal Bests)
 struct PersonalBests {

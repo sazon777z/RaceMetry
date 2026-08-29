@@ -80,60 +80,42 @@ bool ImuEngine::begin(uint8_t sdaPin, uint8_t sclPin, uint32_t freq) {
         for (uint8_t a : addrs) {
             Wire.beginTransmission(a);
             if (Wire.endTransmission() == 0) {
-                _i2cAddr = a;
-                activeSda = curSda;
-                activeScl = curScl;
-                found = true;
-                Serial.printf("[IMU] SUCCESS: Found I2C device at 0x%02X on SDA: %u, SCL: %u!\n", a, curSda, curScl);
-                break;
-            }
-        }
-        if (found) break;
+                // Проверяем регистр WHO_AM_I (0x75)
+                uint8_t whoAmI = 0;
+                Wire.beginTransmission(a);
+                Wire.write(MPU_REG_WHO_AM_I);
+                if (Wire.endTransmission(false) == 0 && Wire.requestFrom(a, (uint8_t)1) == 1) {
+                    whoAmI = Wire.read();
+                }
 
-        // Попробуем на пониженной частоте 100 кГц
-        Wire.setClock(100000);
-        for (uint8_t a : addrs) {
-            Wire.beginTransmission(a);
-            if (Wire.endTransmission() == 0) {
-                _i2cAddr = a;
-                activeSda = curSda;
-                activeScl = curScl;
-                found = true;
-                Serial.printf("[IMU] SUCCESS: Found I2C device at 0x%02X on SDA: %u, SCL: %u (100kHz)!\n", a, curSda, curScl);
-                break;
+                // Допустимые ID для MPU-6050 (0x68), MPU-6500 (0x70), MPU-9250 (0x71), MPU-9255 (0x73), ICM-20689 (0x98)
+                if (whoAmI == 0x68 || whoAmI == 0x70 || whoAmI == 0x71 || whoAmI == 0x73 || whoAmI == 0x74 || whoAmI == 0x98) {
+                    _i2cAddr = a;
+                    activeSda = curSda;
+                    activeScl = curScl;
+                    found = true;
+                    Serial.printf("[IMU] SUCCESS: Found verified MPU (WHO_AM_I: 0x%02X) at 0x%02X on SDA: %u, SCL: %u!\n", whoAmI, a, curSda, curScl);
+                    break;
+                } else {
+                    Serial.printf("[IMU] WARNING: Device at 0x%02X returned unexpected WHO_AM_I: 0x%02X (ignored)\n", a, whoAmI);
+                }
             }
         }
         if (found) break;
     }
 
-    // Если не найден на 0x68/0x69, сканируем всю шину I2C (1..127)
     if (!found) {
-        Serial.println("[IMU] Full I2C bus scan (addresses 1..127):");
-        Wire.end();
-        Wire.begin(sdaPin, sclPin, 100000);
-        int devCount = 0;
-        for (uint8_t a = 1; a < 128; a++) {
-            Wire.beginTransmission(a);
-            if (Wire.endTransmission() == 0) {
-                Serial.printf("[IMU] -> Detected unknown I2C device at address 0x%02X\n", a);
-                _i2cAddr = a;
-                found = true;
-                devCount++;
-            }
-        }
-        if (devCount == 0) {
-            Serial.println("[IMU] CRITICAL: No I2C devices found on bus! Check SDA/SCL wiring and 3.3V power.");
-            _i2cAddr = 0x68;
-        }
+        Serial.println("[IMU] ERROR: MPU accelerometer not detected on I2C bus!");
+        return false;
     }
 
     _sdaPin = activeSda;
     _sclPin = activeScl;
 
     // 3. Сброс и пробуждение
-    _writeRegister(MPU_REG_PWR_MGMT_1, 0x80); // Reset
+    if (!_writeRegister(MPU_REG_PWR_MGMT_1, 0x80)) return false;
     delay(50);
-    _writeRegister(MPU_REG_PWR_MGMT_1, 0x00); // Wake up (Clear Sleep bit)
+    if (!_writeRegister(MPU_REG_PWR_MGMT_1, 0x00)) return false;
     delay(20);
     _writeRegister(MPU_REG_PWR_MGMT_1, 0x01); // Clock Source PLL
     delay(10);
@@ -147,21 +129,22 @@ bool ImuEngine::begin(uint8_t sdaPin, uint8_t sclPin, uint32_t freq) {
     _writeRegister(MPU_REG_GYRO_CONFIG, 0x08);     // ±500 deg/s
     _writeRegister(MPU_REG_SMPLRT_DIV, 0x04);      // 200 Hz
 
-    _isInitialized = true;
-
     // 5. Тестовое считывание для валидации данных
     uint8_t testBuf[6] = {0};
-    if (_readRegisters(MPU_REG_ACCEL_XOUT_H, testBuf, 6)) {
-        int16_t ax = (int16_t)((testBuf[0] << 8) | testBuf[1]);
-        int16_t ay = (int16_t)((testBuf[2] << 8) | testBuf[3]);
-        int16_t az = (int16_t)((testBuf[4] << 8) | testBuf[5]);
-        Serial.printf("[IMU LIVE TEST] Accelerometer OK: Ax=%d, Ay=%d, Az=%d (~%.2f G)\n", ax, ay, az, (float)az / ACCEL_SCALE);
-    } else {
-        Serial.println("[IMU LIVE TEST] Warning: Direct register read failed.");
+    if (!_readRegisters(MPU_REG_ACCEL_XOUT_H, testBuf, 6)) {
+        Serial.println("[IMU] ERROR: Direct register read failed.");
+        return false;
     }
+
+    _isInitialized = true;
+    int16_t ax = (int16_t)((testBuf[0] << 8) | testBuf[1]);
+    int16_t ay = (int16_t)((testBuf[2] << 8) | testBuf[3]);
+    int16_t az = (int16_t)((testBuf[4] << 8) | testBuf[5]);
+    Serial.printf("[IMU LIVE TEST] Accelerometer OK: Ax=%d, Ay=%d, Az=%d (~%.2f G)\n", ax, ay, az, (float)az / ACCEL_SCALE);
 
     return true;
 }
+
 
 bool ImuEngine::update() {
     uint8_t rawBuf[14];
@@ -230,8 +213,10 @@ bool ImuEngine::update() {
     return true;
 }
 
-void ImuEngine::calibrateZero(uint16_t sampleCount) {
+bool ImuEngine::calibrateZero(uint16_t sampleCount) {
+    if (!_isInitialized) return false;
     float sumX = 0, sumY = 0, sumZ = 0;
+    uint16_t validCount = 0;
     
     for (uint16_t i = 0; i < sampleCount; i++) {
         uint8_t rawBuf[6];
@@ -243,16 +228,32 @@ void ImuEngine::calibrateZero(uint16_t sampleCount) {
             sumX += (float)rawAx / ACCEL_SCALE;
             sumY += (float)rawAy / ACCEL_SCALE;
             sumZ += (float)rawAz / ACCEL_SCALE;
+            validCount++;
         }
         delay(2);
     }
 
-    _offsetX = sumX / (float)sampleCount;
-    _offsetY = sumY / (float)sampleCount;
-    _offsetZ = (sumZ / (float)sampleCount) - 1.0f;
+    if (validCount < (sampleCount * 7 / 10) || validCount == 0) {
+        Serial.printf("[IMU] Calibration failed: insufficient valid samples (%u/%u)\n", validCount, sampleCount);
+        _data.isCalibrated = false;
+        return false;
+    }
 
+    _offsetX = sumX / (float)validCount;
+    _offsetY = sumY / (float)validCount;
+    _offsetZ = (sumZ / (float)validCount) - 1.0f;
     _data.isCalibrated = true;
+    Serial.printf("[IMU] Calibration success: OffX=%.3f, OffY=%.3f, OffZ=%.3f (%u samples)\n", _offsetX, _offsetY, _offsetZ, validCount);
+    return true;
 }
+
+ImuSample ImuEngine::getLatestSample() const {
+    ImuSample sample;
+    sample.data = _data;
+    sample.sampleUs = _data.lastSampleUs;
+    return sample;
+}
+
 
 void ImuEngine::setOffsets(float axOffset, float ayOffset, float azOffset) {
     if (isnan(axOffset) || isinf(axOffset) || fabsf(axOffset) > 8.0f) axOffset = 0.0f;

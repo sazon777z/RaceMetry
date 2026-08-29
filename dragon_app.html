@@ -2474,6 +2474,11 @@
             }
             prevState = d.state;
 
+            // If armed, reset buffer for new run
+            if (d.state === 1 && prevState !== 1) {
+                currentRunSamples = [];
+            }
+
             // If measuring, buffer points for live graph
             if (d.state === 2 || d.state === 3) {
                 currentRunSamples.push({ time: d.time || 0, speed: d.spd || 0, g: d.g || 0 });
@@ -2528,6 +2533,7 @@
             }
 
             // Все условия выполнены: отправляем команду arm на прибор
+            currentRunSamples = [];
             sendBleCmd('arm');
         }
 
@@ -2550,10 +2556,12 @@
             console.log("Run finished:", run);
             lastRunData = run;
 
-            // Associate telemetry points with this run
+            // Associate telemetry points with this run and reset buffer
             if (currentRunSamples.length > 0) {
                 run.samples = currentRunSamples.slice();
+                currentRunSamples = [];
             }
+
 
             // Deduplicate run in savedRuns
             let exists = savedRuns.some(r => (r.id === run.id && r.ts === run.ts) || (r.ts === run.ts && Math.abs(r.dur - run.dur) < 0.05));
@@ -2694,9 +2702,70 @@
             }
         }
 
+        function formatRaceTimestamp(ts) {
+            if (!ts || ts === 0) return "Заезд без метки времени";
+            try {
+                let d = new Date(ts * 1000);
+                let tz = localStorage.getItem('racemetry_tz') || 'auto';
+                if (tz === 'auto') {
+                    return d.toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                } else {
+                    let offsetHours = parseInt(tz, 10);
+                    let utc = d.getTime() + (d.getTimezoneOffset() * 60000);
+                    let nd = new Date(utc + (3600000 * offsetHours));
+                    let day = String(nd.getDate()).padStart(2, '0');
+                    let month = String(nd.getMonth() + 1).padStart(2, '0');
+                    let year = nd.getFullYear();
+                    let hours = String(nd.getHours()).padStart(2, '0');
+                    let minutes = String(nd.getMinutes()).padStart(2, '0');
+                    let seconds = String(nd.getSeconds()).padStart(2, '0');
+                    return `${day}.${month}.${year} ${hours}:${minutes}:${seconds}`;
+                }
+            } catch (e) {
+                return new Date(ts * 1000).toLocaleString();
+            }
+        }
+
+        function setTimezoneSetting(val) {
+            localStorage.setItem('racemetry_tz', val);
+            renderHistoryList();
+            showToast("Часовой пояс обновлен");
+        }
+
+        function getActiveCar() {
+            try {
+                let cars = JSON.parse(localStorage.getItem('racemetry_cars') || '[]');
+                let activeId = localStorage.getItem('racemetry_active_car');
+                let car = cars.find(c => c.id === activeId);
+                if (car) return car;
+            } catch(e) {}
+            return { id: 'car_default', name: 'Мой Автомобиль', engine: '' };
+        }
+
+        function openGarageModal() {
+            showToast("🚗 Активный автомобиль: " + getActiveCar().name);
+        }
+
+        function renderCarFilters() {
+            let container = document.getElementById('carFilterContainer');
+            if (container) {
+                container.innerHTML = `<button class="chip active" onclick="setCarFilter('all')">Все авто</button>`;
+            }
+        }
+
+        function setCarFilter(id) {
+            activeCarFilterId = id;
+            renderHistoryList();
+        }
+
+        function recalculatePersonalBestsForFilter() {
+            // Личные рекорды обновляются с устройства
+        }
+
         function renderHistoryList() {
             let container = document.getElementById('historyListContainer');
             if (!container) return;
+
 
             let filtered = (activeCarFilterId === 'all') 
                 ? savedRuns 
