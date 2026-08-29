@@ -88,13 +88,13 @@ bool ImuEngine::begin(uint8_t sdaPin, uint8_t sclPin, uint32_t freq) {
                     whoAmI = Wire.read();
                 }
 
-                // Допустимые ID для MPU-6050 (0x68), MPU-6500 (0x70), MPU-9250 (0x71), MPU-9255 (0x73), ICM-20689 (0x98)
-                if (whoAmI == 0x68 || whoAmI == 0x70 || whoAmI == 0x71 || whoAmI == 0x73 || whoAmI == 0x74 || whoAmI == 0x98) {
+                // Допустимый ответ датчика (MPU-6050=0x68, MPU-6500=0x70, MPU-9250=0x71, MPU-9255=0x73, MPU-6886/ICM=0x75/0x74/0x98 и др.)
+                if (whoAmI != 0x00 && whoAmI != 0xFF) {
                     _i2cAddr = a;
                     activeSda = curSda;
                     activeScl = curScl;
                     found = true;
-                    Serial.printf("[IMU] SUCCESS: Found verified MPU (WHO_AM_I: 0x%02X) at 0x%02X on SDA: %u, SCL: %u!\n", whoAmI, a, curSda, curScl);
+                    Serial.printf("[IMU] SUCCESS: Found verified MPU/ICM (WHO_AM_I: 0x%02X) at 0x%02X on SDA: %u, SCL: %u!\n", whoAmI, a, curSda, curScl);
                     break;
                 } else {
                     Serial.printf("[IMU] WARNING: Device at 0x%02X returned unexpected WHO_AM_I: 0x%02X (ignored)\n", a, whoAmI);
@@ -147,18 +147,18 @@ bool ImuEngine::begin(uint8_t sdaPin, uint8_t sclPin, uint32_t freq) {
 
 
 bool ImuEngine::update() {
+    if (!_isInitialized) return false;
+
     uint8_t rawBuf[14];
     if (!_readRegisters(MPU_REG_ACCEL_XOUT_H, rawBuf, 14)) {
         _errorCount++;
-        if (_errorCount > 40) {
+        if (_errorCount > 100) {
             _isInitialized = false;
-            // Пробуем мягкую переинициализацию
-            begin(_sdaPin, _sclPin, _freq);
         }
         return false;
     }
     _errorCount = 0;
-    _isInitialized = true;
+
 
     // Разбор сырых значений акселерометра
     int16_t rawAx = (int16_t)((rawBuf[0] << 8) | rawBuf[1]);
