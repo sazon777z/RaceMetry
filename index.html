@@ -1901,6 +1901,16 @@
                         📲 Установить
                     </button>
                 </div>
+
+                <div class="setting-row">
+                    <div class="setting-label">
+                        <span class="setting-name">Принудительное обновление</span>
+                        <span class="setting-desc">Сбросить кэш браузера/PWA и загрузить свежую версию</span>
+                    </div>
+                    <button class="chip" style="background: rgba(0, 255, 204, 0.15); color: var(--accent-cyan); border: 1px solid var(--accent-cyan); font-weight: 700;" onclick="forceAppReload()">
+                        🔄 Сброс кэша
+                    </button>
+                </div>
             </div>
 
             <!-- Hardware Self-Test / Diagnostics -->
@@ -4074,9 +4084,26 @@
             });
         }
 
+        function forceAppReload() {
+            showToast("Сброс кэша и перезагрузка...");
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.getRegistrations().then(regs => {
+                    for (let reg of regs) reg.unregister();
+                });
+            }
+            if ('caches' in window) {
+                caches.keys().then(keys => {
+                    for (let k of keys) caches.delete(k);
+                });
+            }
+            setTimeout(() => {
+                window.location.reload(true);
+            }, 600);
+        }
+
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' })
+                navigator.serviceWorker.register('./sw.js?v=5.0', { updateViaCache: 'none' })
                     .then(reg => {
                         console.log('[PWA] Service Worker active, scope:', reg.scope);
                         reg.update().catch(err => console.warn('[PWA] Update check failed:', err));
