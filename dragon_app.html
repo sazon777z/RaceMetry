@@ -945,10 +945,12 @@
             display: flex;
             align-items: center;
             justify-content: space-between;
-            padding: 14px 0;
+            padding: 12px 0;
             border-bottom: 1px solid var(--border-color);
             gap: 12px;
             min-width: 0;
+            width: 100%;
+            box-sizing: border-box;
         }
 
         .setting-row:last-child {
@@ -962,17 +964,19 @@
             padding-right: 8px;
             flex: 1 1 auto;
             min-width: 0;
+            overflow: hidden;
         }
 
         .setting-name {
-            font-weight: 600;
-            font-size: 14px;
+            font-weight: 700;
+            font-size: 13.5px;
+            color: var(--text-primary);
             white-space: normal;
             word-break: break-word;
         }
 
         .setting-desc {
-            font-size: 12px;
+            font-size: 11.5px;
             color: var(--text-muted);
             line-height: 1.35;
             white-space: normal;
@@ -980,24 +984,52 @@
         }
 
         .setting-row button,
-        .setting-row select {
+        .setting-row select,
+        .setting-row .chip {
             flex-shrink: 0;
-            max-width: 145px;
             box-sizing: border-box;
         }
 
-        .setting-row select.chip,
+        .setting-select,
         .setting-row select {
-            background: #182030;
+            background: #151c28;
             color: var(--text-primary);
             border: 1px solid var(--border-color);
-            padding: 6px 10px;
-            border-radius: var(--radius-sm);
+            padding: 8px 12px;
+            border-radius: 8px;
             font-weight: 600;
-            font-size: 12px;
+            font-size: 12.5px;
+            max-width: 150px;
             text-overflow: ellipsis;
             white-space: nowrap;
             overflow: hidden;
+            box-sizing: border-box;
+            cursor: pointer;
+            outline: none;
+        }
+
+        .setting-select:focus,
+        .setting-row select:focus {
+            border-color: var(--accent-cyan);
+        }
+
+        /* Адаптивный перенос на смартфонах и узких экранах */
+        @media (max-width: 480px) {
+            .setting-row.setting-row-stack {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 8px;
+            }
+            .setting-row.setting-row-stack .setting-label {
+                width: 100%;
+                padding-right: 0;
+            }
+            .setting-row.setting-row-stack select,
+            .setting-row.setting-row-stack .setting-select,
+            .setting-row.setting-row-stack .setting-control-group {
+                width: 100% !important;
+                max-width: 100% !important;
+            }
         }
 
         /* Toggle Switch */
@@ -1468,12 +1500,12 @@
             <div class="card" style="margin-bottom: 16px;">
                 <div class="card-title">ГОНОЧНЫЕ НАСТРОЙКИ</div>
                 
-                <div class="setting-row">
+                <div class="setting-row setting-row-stack">
                     <div class="setting-label">
                         <span class="setting-name">Часовой пояс</span>
                         <span class="setting-desc">Форматирование даты и времени заездов</span>
                     </div>
-                    <select id="setTimezone" class="chip" style="background: #182030; color: var(--text-primary); border: 1px solid var(--border-color); padding: 5px 8px; font-weight: 600; cursor: pointer; max-width: 145px; width: 145px; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; flex-shrink: 0;" onchange="setTimezoneSetting(this.value)">
+                    <select id="setTimezone" class="setting-select" onchange="setTimezoneSetting(this.value)">
                         <option value="auto">🌐 Авто</option>
                         <option value="0">UTC+0 (Гринвич)</option>
                         <option value="2">UTC+2 (Калининград)</option>
@@ -1500,26 +1532,26 @@
                     </label>
                 </div>
 
-                <div class="setting-row">
+                <div class="setting-row setting-row-stack">
                     <div class="setting-label">
                         <span class="setting-name">Звуковые оповещения</span>
                         <span class="setting-desc">Звуковые сигналы или голосовая озвучка заезда</span>
                     </div>
-                    <select id="setSoundMode" class="chip" style="background: #182030; color: var(--text-primary); border: 1px solid var(--border-color); padding: 5px 8px; font-weight: 600; cursor: pointer;" onchange="setSoundMode(this.value)">
+                    <select id="setSoundMode" class="setting-select" onchange="setSoundMode(this.value)">
                         <option value="off">🔇 Без звука</option>
                         <option value="beeps">🔊 Сигналы</option>
                         <option value="voice">🗣️ Голосовая озвучка</option>
-                        <option value="both">⚡ Сигналы + Голосовая озвучка</option>
+                        <option value="both">⚡ Сигналы + Озвучка</option>
                     </select>
                 </div>
 
-                <div class="setting-row" id="voicePresetRow" style="display: none;">
+                <div class="setting-row setting-row-stack" id="voicePresetRow" style="display: none;">
                     <div class="setting-label">
                         <span class="setting-name">Тембр и стиль озвучки</span>
                         <span class="setting-desc">Спортивный штурман, телеметрия или глубокий бас</span>
                     </div>
-                    <div style="display: flex; gap: 6px; align-items: center;">
-                        <select id="voicePresetSelect" class="chip" style="background: #182030; color: var(--text-primary); border: 1px solid var(--border-color); padding: 5px 8px; font-weight: 600; cursor: pointer; max-width: 170px;" onchange="changeVoicePreset(this.value)">
+                    <div class="setting-control-group" style="display: flex; gap: 6px; align-items: center;">
+                        <select id="voicePresetSelect" class="setting-select" style="flex: 1;" onchange="changeVoicePreset(this.value)">
                             <option value="sportsman">🏎️ Спортивный штурман</option>
                             <option value="telemetry">⏱️ Четкая телеметрия</option>
                             <option value="classic">🎙️ Классический диктор</option>
@@ -1532,12 +1564,12 @@
                     </div>
                 </div>
 
-                <div class="setting-row" id="voiceSelectRow" style="display: none;">
+                <div class="setting-row setting-row-stack" id="voiceSelectRow" style="display: none;">
                     <div class="setting-label">
                         <span class="setting-name">Голосовой пакет системы</span>
                         <span class="setting-desc" id="voiceCountDesc">Пакеты речи, установленные в телефоне</span>
                     </div>
-                    <select id="voiceSelect" class="chip" style="background: #182030; color: var(--text-primary); border: 1px solid var(--border-color); padding: 5px 8px; font-weight: 600; cursor: pointer; max-width: 170px;" onchange="changeVoice(this.value)">
+                    <select id="voiceSelect" class="setting-select" onchange="changeVoice(this.value)">
                         <option value="">Поиск пакетов речи...</option>
                     </select>
                 </div>
@@ -1557,12 +1589,12 @@
                     </div>
                 </div>
 
-                <div class="setting-row">
+                <div class="setting-row setting-row-stack">
                     <div class="setting-label">
                         <span class="setting-name">Индикация батареи (двойной клик на приборе)</span>
                         <span class="setting-desc">Цвета (Зел/Желт/Красн) или серия вспышек (1-4 импульса)</span>
                     </div>
-                    <select id="setBatIndMode" class="chip" style="background: #182030; color: var(--text-primary); border: 1px solid var(--border-color); padding: 5px 8px; font-weight: 600; cursor: pointer;" onchange="setBatteryIndMode(this.value)">
+                    <select id="setBatIndMode" class="setting-select" onchange="setBatteryIndMode(this.value)">
                         <option value="0">🎨 Градация цветами</option>
                         <option value="1">⚡ Серия вспышек (1-4)</option>
                     </select>
