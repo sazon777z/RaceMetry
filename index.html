@@ -947,6 +947,8 @@
             justify-content: space-between;
             padding: 14px 0;
             border-bottom: 1px solid var(--border-color);
+            gap: 12px;
+            min-width: 0;
         }
 
         .setting-row:last-child {
@@ -957,23 +959,45 @@
             display: flex;
             flex-direction: column;
             gap: 3px;
-            padding-right: 14px;
-            flex: 1;
+            padding-right: 8px;
+            flex: 1 1 auto;
+            min-width: 0;
         }
 
         .setting-name {
             font-weight: 600;
             font-size: 14px;
+            white-space: normal;
+            word-break: break-word;
         }
 
         .setting-desc {
             font-size: 12px;
             color: var(--text-muted);
             line-height: 1.35;
+            white-space: normal;
+            word-break: break-word;
         }
 
-        .setting-row button {
+        .setting-row button,
+        .setting-row select {
             flex-shrink: 0;
+            max-width: 145px;
+            box-sizing: border-box;
+        }
+
+        .setting-row select.chip,
+        .setting-row select {
+            background: #182030;
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+            padding: 6px 10px;
+            border-radius: var(--radius-sm);
+            font-weight: 600;
+            font-size: 12px;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            overflow: hidden;
         }
 
         /* Toggle Switch */
@@ -1169,11 +1193,11 @@
                     <span style="font-size: 20px;">🏁</span>
                     ГОТОВ К СТАРТУ
                 </button>
-                <button class="action-btn reset-btn" onclick="sendBleCmd('reset')">
+                <button class="action-btn reset-btn" onclick="triggerReset(this)">
                     <span style="font-size: 20px;">🔄</span>
                     СБРОСИТЬ
                 </button>
-                <button class="action-btn calib-btn" onclick="sendBleCmd('calibrate_imu')">
+                <button class="action-btn calib-btn" onclick="triggerCalibrateImu(this)">
                     <span style="font-size: 20px;">⚖️</span>
                     КАЛИБРОВКА
                 </button>
@@ -1449,15 +1473,15 @@
                         <span class="setting-name">Часовой пояс</span>
                         <span class="setting-desc">Форматирование даты и времени заездов</span>
                     </div>
-                    <select id="setTimezone" class="chip" style="background: #182030; color: var(--text-primary); border: 1px solid var(--border-color); padding: 5px 8px; font-weight: 600; cursor: pointer;" onchange="setTimezoneSetting(this.value)">
-                        <option value="auto">🌐 Авто (по устройству)</option>
+                    <select id="setTimezone" class="chip" style="background: #182030; color: var(--text-primary); border: 1px solid var(--border-color); padding: 5px 8px; font-weight: 600; cursor: pointer; max-width: 145px; width: 145px; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; flex-shrink: 0;" onchange="setTimezoneSetting(this.value)">
+                        <option value="auto">🌐 Авто</option>
                         <option value="0">UTC+0 (Гринвич)</option>
                         <option value="2">UTC+2 (Калининград)</option>
-                        <option value="3">UTC+3 (Москва, СПб, Минск)</option>
-                        <option value="4">UTC+4 (Самара, Баку, Тбилиси)</option>
-                        <option value="5">UTC+5 (Екатеринбург, Ташкент, Астана)</option>
-                        <option value="6">UTC+6 (Омск, Алматы)</option>
-                        <option value="7">UTC+7 (Новосибирск, Красноярск)</option>
+                        <option value="3">UTC+3 (Москва, СПб)</option>
+                        <option value="4">UTC+4 (Самара, Баку)</option>
+                        <option value="5">UTC+5 (Екатеринбург)</option>
+                        <option value="6">UTC+6 (Омск, Астана)</option>
+                        <option value="7">UTC+7 (Новосибирск)</option>
                         <option value="8">UTC+8 (Иркутск)</option>
                         <option value="9">UTC+9 (Якутск)</option>
                         <option value="10">UTC+10 (Владивосток)</option>
@@ -2371,6 +2395,19 @@
             showToast("⚖️ Калибровка нуля горизонта IMU (600 сэмплов)...");
             playDragyBeep('split');
             sendBleCmd('calibrate_imu');
+        }
+
+        function triggerReset(btn) {
+            if (!isBleConnected) {
+                showToast("⚠️ Подключите прибор по Bluetooth!");
+                return;
+            }
+            if (btn) {
+                btn.style.opacity = "0.7";
+                setTimeout(() => { if (btn) btn.style.opacity = "1"; }, 300);
+            }
+            showToast("🔄 Сброс текущего замера");
+            sendBleCmd('reset');
         }
 
         function handleIncomingBleData(event) {

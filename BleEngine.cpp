@@ -111,7 +111,7 @@ bool BleEngine::popCommand(BleCommand& cmd) {
 void BleEngine::onConnect(BLEServer* pServer) {
     _deviceConnected = true;
     _oldDeviceConnected = true;
-    _clientReady = false;
+    _clientReady = true;
     s_latestRssi = -55;
     Serial.println("[BLE] Smartphone connected to GATT Server!");
 }
@@ -219,7 +219,7 @@ void BleEngine::_parseIncomingLine(const char* line) {
 }
 
 void BleEngine::sendJson(const char* jsonStr) {
-    if (!_deviceConnected || !_clientReady || !_pTxCharacteristic || !jsonStr) return;
+    if (!_deviceConnected || !_pTxCharacteristic || !jsonStr) return;
 
     size_t len = strlen(jsonStr);
     if (len == 0) return;
