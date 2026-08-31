@@ -42,8 +42,8 @@
 | **GPS u-blox M10Q** | `TX` | `RX (GPIO 44)` ESP32-S3 | Прием скоростных бинарных пакетов UBX 20 Гц |
 | | `RX` | `TX (GPIO 43)` ESP32-S3 | Отправка конфигурационных команд в GPS |
 | | `VCC / GND` | `5V (OUT)` MH-CD42 / `GND` | Питание приемника M10Q со встроенным LDO |
-| **IMU MPU-9250** | `SCL` | `GPIO 12` ESP32-S3 | Шина I2C Clock (400 кГц) |
-| | `SDA` | `GPIO 13` ESP32-S3 | Шина I2C Data (400 кГц) |
+| **IMU MPU-9250** | `SCL` | `GPIO 13` ESP32-S3 | Шина I2C Clock (400 кГц) |
+| | `SDA` | `GPIO 12` ESP32-S3 | Шина I2C Data (400 кГц) |
 | | `VCC / GND` | `3.3V` ESP32-S3 / `GND` | Питание датчика (вывод AD0 подключен к GND) |
 | **RGB LED WS2812B** | `DIN` | `GPIO 10` ESP32-S3 | Управление внешним адресным светодиодом |
 | | `VDD / GND` | `5V (OUT)` MH-CD42 / `GND` | Питание светодиода |

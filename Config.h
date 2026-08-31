@@ -28,8 +28,8 @@
 #define GPS_UPDATE_RATE_HZ      20      // Частота навигации: 20 Гц (каждые 50 мс)
 
 // IMU Акселерометр/Гироскоп MPU-9250/6500 (I2C) — Фактическое подключение
-#define PIN_I2C_SCL             12  // I2C SCL -> GPIO 12
-#define PIN_I2C_SDA             13  // I2C SDA -> GPIO 13
+#define PIN_I2C_SCL             13  // I2C SCL -> GPIO 13
+#define PIN_I2C_SDA             12  // I2C SDA -> GPIO 12
 #define I2C_FREQUENCY           400000  // 400 кГц (Fast Mode)
 #define IMU_I2C_ADDR            0x68    // Адрес 0x68 (если AD0 к GND) или 0x69
 #define IMU_SAMPLE_RATE_HZ      200     // Частота дискретизации акселерометра (200 Гц)
