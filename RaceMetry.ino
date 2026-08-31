@@ -596,8 +596,11 @@ void enterPowerOffDeepSleep() {
  * ============================================================================
  */
 void runSystemDiagnostics() {
+    if (!imuEngine.isReady()) {
+        imuEngine.reinit();
+    }
     bool imuOk = imuEngine.isReady();
-    const char* imuMsg = imuOk ? "IMU MPU-9250 (200 Hz): OK" : "IMU MPU-9250: Ошибка I2C / Не найден";
+    const char* imuMsg = imuEngine.getStatusMessage();
 
     bool gpsOk = gpsEngine.isReceivingBytes();
     const char* gpsMsg = gpsOk ? "GNSS u-blox M10Q (20 Hz, 460800 baud): OK" : "GNSS: Нет входящих данных UART";

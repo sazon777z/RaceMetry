@@ -6,22 +6,26 @@
 
 /**
  * ============================================================================
- *                          DRAGon TELEMETRY METER
- *                    IMU ENGINE (MPU-9250 / MPU-6500)
+ *                          RACEMETRY TELEMETRY METER
+ *                    IMU ENGINE (MPU-9250 / MPU-6500 / MPU-6050)
  * ============================================================================
- * Драйвер скоростного опроса акселерометра и гироскопа (200-500 Гц).
+ * Драйвер скоростного опроса акселерометра и гироскопа (200 Гц).
  * Отвечает за:
  * - Мгновенную фиксацию старта (Launch Jerk Trigger < 1 мс)
  * - Расчет перегрузок (G-Force) во всех плоскостях
  * - Калибровку нуля и фильтрацию вибраций двигателя
+ * - Автоматическое сканирование и авто-определение пинов шины I2C
  */
 
 class ImuEngine {
 public:
     ImuEngine();
 
-    // Инициализация I2C шины и регистров MPU-9250 / MPU-6500 / MPU-6050
+    // Инициализация I2C шины и автоопределение MPU-9250 / MPU-6500 / MPU-6050 / ICM
     bool begin(uint8_t sdaPin = PIN_I2C_SDA, uint8_t sclPin = PIN_I2C_SCL, uint32_t freq = I2C_FREQUENCY);
+
+    // Повторная инициализация / поиск датчика на шине
+    bool reinit();
 
     // Опрос датчика (вызывать в скоростном цикле 200 Гц)
     bool update();
@@ -46,9 +50,18 @@ public:
     // Проверка, есть ли резкий рывок вперед (старт)
     bool isLaunchDetected() const;
 
+    // Диагностические методы
+    const char* getStatusMessage() const { return _statusMsg; }
+    uint8_t getWhoAmI() const { return _whoAmI; }
+    uint8_t getDetectedI2cAddress() const { return _i2cAddr; }
+    uint8_t getActiveSdaPin() const { return _sdaPin; }
+    uint8_t getActiveSclPin() const { return _sclPin; }
+
 private:
     bool _isInitialized;
     uint8_t _i2cAddr;
+    uint8_t _whoAmI;
+    char _statusMsg[80];
     ImuData _data;
 
     float _offsetX;
@@ -72,5 +85,5 @@ private:
     void _recoverI2cBus(uint8_t sda, uint8_t scl);
     bool _writeRegister(uint8_t reg, uint8_t value);
     bool _readRegisters(uint8_t reg, uint8_t* buffer, uint8_t length);
+    uint8_t _probeWhoAmI(uint8_t addr);
 };
-
