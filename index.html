@@ -1170,22 +1170,18 @@
         .modal-backdrop {
             position: fixed;
             top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(8, 10, 15, 0.85);
+            background: rgba(8, 10, 15, 0.88);
             backdrop-filter: blur(8px);
             -webkit-backdrop-filter: blur(8px);
-            z-index: 1000;
-            display: flex;
+            z-index: 9999;
+            display: none;
             align-items: center;
             justify-content: center;
             padding: 16px;
-            opacity: 0;
-            pointer-events: none;
-            transition: opacity 0.25s ease;
             box-sizing: border-box;
         }
         .modal-backdrop.show {
-            opacity: 1;
-            pointer-events: auto;
+            display: flex !important;
         }
         .modal-box {
             background: #141822;
@@ -3478,12 +3474,18 @@
                 `).join('');
             }
             let modal = document.getElementById('timezoneModal');
-            if (modal) modal.classList.add('show');
+            if (modal) {
+                modal.classList.add('show');
+                modal.style.display = 'flex';
+            }
         }
 
         function closeTimezoneModal() {
             let modal = document.getElementById('timezoneModal');
-            if (modal) modal.classList.remove('show');
+            if (modal) {
+                modal.classList.remove('show');
+                modal.style.display = 'none';
+            }
         }
 
         function selectTimezone(id) {
@@ -3615,12 +3617,18 @@
         function openGarageModal() {
             renderGarageModal();
             let modal = document.getElementById('garageModal');
-            if (modal) modal.classList.add('show');
+            if (modal) {
+                modal.classList.add('show');
+                modal.style.display = 'flex';
+            }
         }
 
         function closeGarageModal() {
             let modal = document.getElementById('garageModal');
-            if (modal) modal.classList.remove('show');
+            if (modal) {
+                modal.classList.remove('show');
+                modal.style.display = 'none';
+            }
         }
 
         function confirmCarSelectionAndClose() {
@@ -3697,13 +3705,19 @@
             }
 
             let modal = document.getElementById('carFormModal');
-            if (modal) modal.classList.add('show');
+            if (modal) {
+                modal.classList.add('show');
+                modal.style.display = 'flex';
+            }
             if (makeInput) setTimeout(() => makeInput.focus(), 150);
         }
 
         function closeCarFormModal() {
             let modal = document.getElementById('carFormModal');
-            if (modal) modal.classList.remove('show');
+            if (modal) {
+                modal.classList.remove('show');
+                modal.style.display = 'none';
+            }
         }
 
         function saveCarForm() {
