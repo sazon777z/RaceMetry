@@ -1087,15 +1087,15 @@
             top: 70px;
             left: 50%;
             transform: translateX(-50%);
-            background: rgba(18, 21, 29, 0.95);
+            background: rgba(18, 21, 29, 0.98);
             color: var(--text-primary);
             border: 1px solid var(--accent-cyan);
-            padding: 10px 20px;
+            padding: 12px 24px;
             border-radius: 24px;
-            font-size: 13px;
-            font-weight: 600;
-            z-index: 200;
-            box-shadow: var(--shadow);
+            font-size: 13.5px;
+            font-weight: 700;
+            z-index: 20000;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8);
             opacity: 0;
             pointer-events: none;
             transition: opacity 0.3s ease;
@@ -1992,7 +1992,7 @@
     </div>
 
     <!-- Garage & Profile Selection Modal -->
-    <div id="garageModal" class="modal-backdrop">
+    <div id="garageModal" class="modal-backdrop" style="z-index: 10000;">
         <div class="modal-box">
             <div class="modal-header">
                 <div class="modal-title">🚗 ВЫБОР АВТОМОБИЛЯ</div>
@@ -2018,7 +2018,7 @@
     </div>
 
     <!-- Add / Edit Car Form Modal -->
-    <div id="carFormModal" class="modal-backdrop" style="z-index: 1010;">
+    <div id="carFormModal" class="modal-backdrop" style="z-index: 10500;">
         <div class="modal-box" style="max-width: 380px;">
             <div class="modal-header">
                 <div id="carFormTitle" class="modal-title">ДОБАВИТЬ АВТОМОБИЛЬ</div>
@@ -2053,7 +2053,7 @@
     </div>
 
     <!-- Timezone Selector Modal (Sheet) -->
-    <div id="timezoneModal" class="modal-backdrop">
+    <div id="timezoneModal" class="modal-backdrop" style="z-index: 10000;">
         <div class="modal-box">
             <div class="modal-header">
                 <div class="modal-title">🌐 ВЫБОР ЧАСОВОГО ПОЯСА</div>
@@ -3668,7 +3668,7 @@
                             ${!isActive ? `<button class="chip" style="background: rgba(0,255,204,0.15); color: var(--accent-cyan); font-weight: 700;" onclick="setActiveCar('${car.id}')">Выбрать</button>` : '<div></div>'}
                             <div style="display: flex; gap: 6px;">
                                 <button class="chip" onclick="openCarFormModal('${car.id}')">✏️ Изменить</button>
-                                <button class="chip" style="color: var(--accent-red);" onclick="deleteCar('${car.id}')">🗑️</button>
+                                <button class="chip" style="color: var(--accent-red); opacity: ${cars.length <= 1 ? '0.4' : '1'};" onclick="deleteCar('${car.id}')" title="${cars.length <= 1 ? 'Единственный автомобиль' : 'Удалить'}">🗑️</button>
                             </div>
                         </div>
                     </div>
@@ -3684,7 +3684,7 @@
             let powerInput = document.getElementById('carInputPower');
             let titleEl = document.getElementById('carFormTitle');
 
-            if (carId) {
+            if (carId && carId !== '') {
                 let cars = getCarsList();
                 let car = cars.find(c => c.id === carId);
                 if (car) {
@@ -3769,12 +3769,12 @@
         function deleteCar(carId) {
             let cars = getCarsList();
             if (cars.length <= 1) {
-                showToast("⚠️ Нельзя удалить единственный автомобиль в гараже!");
+                showToast("⚠️ В гараже должен остаться хотя бы один автомобиль! Добавьте новый перед удалением.");
                 return;
             }
 
             let car = cars.find(c => c.id === carId);
-            if (!confirm(`Удалить «${formatCarTitle(car)}» из гаража?`)) return;
+            let title = car ? formatCarTitle(car) : "автомобиль";
 
             cars = cars.filter(c => c.id !== carId);
             saveCarsList(cars);
@@ -3789,7 +3789,7 @@
             renderCarFilters();
             renderHistoryList();
             recalculatePersonalBestsForFilter();
-            showToast("Автомобиль удален из гаража");
+            showToast(`🗑️ Автомобиль «${title}» удален из гаража`);
         }
 
         function renderCarFilters() {
