@@ -1104,6 +1104,278 @@
         .toast.show {
             opacity: 1;
         }
+
+        /* Active Car Bar */
+        .active-car-bar {
+            background: linear-gradient(135deg, rgba(0, 255, 204, 0.08) 0%, rgba(20, 26, 38, 0.95) 100%);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            padding: 10px 14px;
+            margin: 10px 14px 4px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .active-car-bar:hover {
+            border-color: var(--accent-cyan);
+            background: linear-gradient(135deg, rgba(0, 255, 204, 0.12) 0%, rgba(24, 32, 48, 0.98) 100%);
+        }
+        .active-car-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            min-width: 0;
+            flex: 1;
+        }
+        .active-car-icon {
+            font-size: 22px;
+            line-height: 1;
+            flex-shrink: 0;
+        }
+        .active-car-text {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            min-width: 0;
+            overflow: hidden;
+        }
+        .active-car-title {
+            font-size: 14px;
+            font-weight: 800;
+            color: #ffffff;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .active-car-sub {
+            font-size: 11.5px;
+            color: var(--accent-cyan);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .active-car-btn {
+            background: rgba(0, 255, 204, 0.15);
+            color: var(--accent-cyan);
+            border-color: var(--accent-cyan);
+            padding: 5px 12px;
+            font-size: 11px;
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+
+        /* Modal Dialogs */
+        .modal-backdrop {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(8, 10, 15, 0.85);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.25s ease;
+            box-sizing: border-box;
+        }
+        .modal-backdrop.show {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        .modal-box {
+            background: #141822;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg);
+            max-width: 440px;
+            width: 100%;
+            max-height: 88vh;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8);
+            overflow: hidden;
+            animation: modalPop 0.25s ease-out;
+            box-sizing: border-box;
+        }
+        @keyframes modalPop {
+            from { transform: scale(0.92); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border-color);
+            background: #181d2a;
+        }
+        .modal-title {
+            font-size: 15px;
+            font-weight: 800;
+            letter-spacing: 0.5px;
+            color: var(--text-primary);
+        }
+        .modal-close {
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            font-size: 20px;
+            cursor: pointer;
+            line-height: 1;
+            padding: 4px 8px;
+            border-radius: 4px;
+        }
+        .modal-close:hover { color: #fff; background: rgba(255,255,255,0.1); }
+        .modal-body {
+            padding: 18px 20px;
+            overflow-y: auto;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+        .modal-footer {
+            padding: 14px 20px;
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            background: #181d2a;
+        }
+
+        /* Car Profile Cards in Garage */
+        .car-card {
+            background: #19202f;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            padding: 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            transition: all 0.2s;
+            position: relative;
+        }
+        .car-card.active {
+            border-color: var(--accent-green);
+            background: linear-gradient(135deg, rgba(0, 230, 118, 0.08) 0%, #19202f 100%);
+            box-shadow: 0 0 20px rgba(0, 230, 118, 0.15);
+        }
+        .car-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .car-card-title {
+            font-size: 15px;
+            font-weight: 800;
+            color: #ffffff;
+        }
+        .car-card-specs {
+            display: flex;
+            gap: 12px;
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+        .car-card-specs strong { color: var(--text-primary); }
+        .car-card-stats {
+            display: flex;
+            justify-content: space-between;
+            background: #111520;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 11.5px;
+            color: var(--text-muted);
+        }
+        .car-card-actions {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 4px;
+        }
+
+        /* Form Inputs */
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .form-label {
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .form-input {
+            background: #0d1017;
+            border: 1px solid var(--border-color);
+            color: #ffffff;
+            padding: 11px 14px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            outline: none;
+            width: 100%;
+            box-sizing: border-box;
+            transition: border-color 0.2s;
+        }
+        .form-input:focus {
+            border-color: var(--accent-cyan);
+            box-shadow: 0 0 12px rgba(0, 255, 204, 0.2);
+        }
+
+        /* Timezone Sheet Options */
+        .tz-list {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .tz-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 14px;
+            background: #182030;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-primary);
+            transition: all 0.15s;
+        }
+        .tz-item:hover, .tz-item:active {
+            border-color: var(--accent-cyan);
+            background: #1e283c;
+        }
+        .tz-item.active {
+            border-color: var(--accent-cyan);
+            background: rgba(0, 255, 204, 0.12);
+            color: var(--accent-cyan);
+            font-weight: 700;
+        }
+        .setting-btn-val {
+            background: #182030;
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+            padding: 8px 14px;
+            border-radius: 8px;
+            font-weight: 700;
+            font-size: 12.5px;
+            cursor: pointer;
+            text-align: right;
+            max-width: 180px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .setting-btn-val:hover {
+            border-color: var(--accent-cyan);
+        }
     </style>
 </head>
 <body>
@@ -1151,6 +1423,18 @@
             <span>📡 Статус:</span>
             <strong id="statFix">Поиск GPS</strong>
         </div>
+    </div>
+
+    <!-- Active Car Bar -->
+    <div class="active-car-bar" onclick="openGarageModal()" title="Нажмите для смены или добавления автомобиля в Гараж">
+        <div class="active-car-info">
+            <span class="active-car-icon">🚗</span>
+            <div class="active-car-text">
+                <span id="headerCarName" class="active-car-title">BMW M5 F90</span>
+                <span id="headerCarDetails" class="active-car-sub">2021 г. • 625 л.с. • Нажмите для смены авто</span>
+            </div>
+        </div>
+        <button class="chip active-car-btn" onclick="event.stopPropagation(); openGarageModal();">Гараж ➔</button>
     </div>
 
     <!-- Main Content Area -->
@@ -1465,6 +1749,14 @@
                 </div>
             </div>
 
+            <!-- Car Filter Bar -->
+            <div style="margin-bottom: 12px;">
+                <div class="card-title" style="margin-bottom: 6px; font-size: 11px;">ФИЛЬТР ЗАЕЗДОВ ПО АВТОМОБИЛЮ:</div>
+                <div id="carFilterContainer" class="disc-chips" style="margin-bottom: 0;">
+                    <!-- Filled dynamically with [Все авто], [BMW M5], [Toyota Supra]... -->
+                </div>
+            </div>
+
             <!-- Saved Runs List (Previous Runs) -->
             <div class="card-title" style="display: flex; justify-content: space-between; align-items: center;">
                 <span>📋 ПРЕДЫДУЩИЕ ЗАЕЗДЫ</span>
@@ -1487,11 +1779,12 @@
             <!-- Garage / Car Profile Card -->
             <div class="card" style="margin-bottom: 16px; background: linear-gradient(135deg, rgba(0, 255, 204, 0.08) 0%, rgba(20, 26, 38, 0.95) 100%);">
                 <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <div>
+                    <div style="min-width: 0; flex: 1; padding-right: 12px;">
                         <div class="card-title" style="margin-bottom: 2px;">ГАРАЖ АВТОМОБИЛЕЙ</div>
-                        <div id="settingsActiveCarDisplay" style="font-size: 15px; font-weight: 800; color: #fff;">Мой Автомобиль</div>
+                        <div id="settingsActiveCarDisplay" style="font-size: 15px; font-weight: 800; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">BMW M5 F90</div>
+                        <div id="settingsActiveCarStats" style="font-size: 11.5px; color: var(--accent-cyan); margin-top: 2px;">2021 г. • 625 л.с.</div>
                     </div>
-                    <button class="action-btn" style="padding: 6px 14px; font-size: 12px;" onclick="openGarageModal()">
+                    <button class="action-btn" style="padding: 8px 16px; font-size: 12px; flex-shrink: 0;" onclick="openGarageModal()">
                         🚗 Управление
                     </button>
                 </div>
@@ -1500,25 +1793,14 @@
             <div class="card" style="margin-bottom: 16px;">
                 <div class="card-title">ГОНОЧНЫЕ НАСТРОЙКИ</div>
                 
-                <div class="setting-row setting-row-stack">
+                <div class="setting-row">
                     <div class="setting-label">
                         <span class="setting-name">Часовой пояс</span>
                         <span class="setting-desc">Форматирование даты и времени заездов</span>
                     </div>
-                    <select id="setTimezone" class="setting-select" onchange="setTimezoneSetting(this.value)">
-                        <option value="auto">🌐 Авто</option>
-                        <option value="0">UTC+0 (Гринвич)</option>
-                        <option value="2">UTC+2 (Калининград)</option>
-                        <option value="3">UTC+3 (Москва, СПб)</option>
-                        <option value="4">UTC+4 (Самара, Баку)</option>
-                        <option value="5">UTC+5 (Екатеринбург)</option>
-                        <option value="6">UTC+6 (Омск, Астана)</option>
-                        <option value="7">UTC+7 (Новосибирск)</option>
-                        <option value="8">UTC+8 (Иркутск)</option>
-                        <option value="9">UTC+9 (Якутск)</option>
-                        <option value="10">UTC+10 (Владивосток)</option>
-                        <option value="12">UTC+12 (Камчатка)</option>
-                    </select>
+                    <button id="btnTimezoneDisplay" class="setting-btn-val" onclick="openTimezoneModal()">
+                        🌐 Авто (по устройству)
+                    </button>
                 </div>
                 
                 <div class="setting-row">
@@ -1700,6 +1982,82 @@
             <div class="diag-step-item"><span>Спутниковый модуль GNSS (20 Гц):</span> <strong id="toastGps" style="color: var(--accent-green);">OK</strong></div>
             <div class="diag-step-item"><span>Память рекордов NVS:</span> <strong id="toastStorage" style="color: var(--accent-green);">OK</strong></div>
             <div class="diag-step-item"><span>Питание и аккумулятор:</span> <strong id="toastBat" style="color: var(--accent-green);">OK</strong></div>
+        </div>
+    </div>
+
+    <!-- Garage & Profile Selection Modal -->
+    <div id="garageModal" class="modal-backdrop">
+        <div class="modal-box">
+            <div class="modal-header">
+                <div class="modal-title">🚗 ВЫБОР АВТОМОБИЛЯ</div>
+                <button class="modal-close" onclick="closeGarageModal()">✕</button>
+            </div>
+            <div class="modal-body">
+                <div style="font-size: 12.5px; color: var(--text-secondary); line-height: 1.4;">
+                    Выберите автомобиль для проведения текущих замеров или добавьте новый в свой автопарк:
+                </div>
+                <div id="garageCarsList" style="display: flex; flex-direction: column; gap: 10px;">
+                    <!-- Car cards injected dynamically -->
+                </div>
+                <button class="action-btn" style="padding: 12px; width: 100%; border-color: var(--accent-cyan); color: var(--accent-cyan); background: rgba(0,255,204,0.08); font-weight: 700; font-size: 13px;" onclick="openCarFormModal()">
+                    ➕ Добавить автомобиль
+                </button>
+            </div>
+            <div class="modal-footer">
+                <button class="chip" style="background: var(--accent-green); color: #000; font-weight: 800; padding: 10px 20px; font-size: 13px;" onclick="confirmCarSelectionAndClose()">
+                    🚀 Выбрать и перейти к заездам
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add / Edit Car Form Modal -->
+    <div id="carFormModal" class="modal-backdrop" style="z-index: 1010;">
+        <div class="modal-box" style="max-width: 380px;">
+            <div class="modal-header">
+                <div id="carFormTitle" class="modal-title">ДОБАВИТЬ АВТОМОБИЛЬ</div>
+                <button class="modal-close" onclick="closeCarFormModal()">✕</button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="carEditId" value="">
+                <div class="form-group">
+                    <label class="form-label" for="carInputMake">Марка</label>
+                    <input type="text" id="carInputMake" class="form-input" placeholder="например, BMW, Toyota, Audi, ВАЗ..." autocomplete="off">
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="carInputModel">Модель</label>
+                    <input type="text" id="carInputModel" class="form-input" placeholder="например, M5 F90, Supra, 2107..." autocomplete="off">
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="carInputYear">Год выпуска</label>
+                    <input type="number" id="carInputYear" class="form-input" placeholder="например, 2021" min="1950" max="2035">
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="carInputPower">Мощность (л.с.)</label>
+                    <input type="number" id="carInputPower" class="form-input" placeholder="например, 625" min="10" max="3000">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="chip" onclick="closeCarFormModal()">Отмена</button>
+                <button class="chip" style="background: var(--accent-cyan); color: #000; font-weight: 800; padding: 8px 18px;" onclick="saveCarForm()">
+                    💾 Сохранить
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Timezone Selector Modal (Sheet) -->
+    <div id="timezoneModal" class="modal-backdrop">
+        <div class="modal-box">
+            <div class="modal-header">
+                <div class="modal-title">🌐 ВЫБОР ЧАСОВОГО ПОЯСА</div>
+                <button class="modal-close" onclick="closeTimezoneModal()">✕</button>
+            </div>
+            <div class="modal-body" style="max-height: 60vh;">
+                <div class="tz-list" id="timezoneOptionsList">
+                    <!-- Populated by JS -->
+                </div>
+            </div>
         </div>
     </div>
 
@@ -2906,19 +3264,30 @@
                 currentRunSamples = [];
             }
 
+            // Tag with active car profile
+            let activeCar = getActiveCar();
+            run.carId = activeCar.id;
+            run.carMake = activeCar.make || "";
+            run.carModel = activeCar.model || "";
+            run.carYear = activeCar.year || "";
+            run.carPower = activeCar.power || "";
+            run.carName = formatCarTitle(activeCar);
 
             // Deduplicate run in savedRuns
             let exists = savedRuns.some(r => (r.id === run.id && r.ts === run.ts) || (r.ts === run.ts && Math.abs(r.dur - run.dur) < 0.05));
             if (!exists) {
                 savedRuns.unshift(run);
                 try {
-                    localStorage.setItem('racemetry_runs', JSON.stringify(savedRuns.slice(0, 50)));
+                    localStorage.setItem('racemetry_runs', JSON.stringify(savedRuns.slice(0, 100)));
                 } catch(e) {}
             }
 
             displayRunDetail(run);
+            updateActiveCarUI();
+            renderCarFilters();
             renderHistoryList();
-            showToast("Заезд успешно сохранен!");
+            recalculatePersonalBestsForFilter();
+            showToast("Заезд сохранен за " + formatCarTitle(activeCar) + "!");
         }
 
         function displayRunDetail(run) {
@@ -3070,57 +3439,394 @@
             }
         }
 
-        function setTimezoneSetting(val) {
-            localStorage.setItem('racemetry_tz', val);
+        let activeCarFilterId = 'all';
+
+        const TIMEZONE_OPTIONS = [
+            { id: 'auto', name: '🌐 Авто (по устройству)' },
+            { id: '0',    name: 'UTC+0 — Лондон, Гринвич' },
+            { id: '2',    name: 'UTC+2 — Калининград' },
+            { id: '3',    name: 'UTC+3 — Москва, Санкт-Петербург, Минск' },
+            { id: '4',    name: 'UTC+4 — Самара, Баку, Тбилиси' },
+            { id: '5',    name: 'UTC+5 — Екатеринбург, Ташкент, Астана' },
+            { id: '6',    name: 'UTC+6 — Омск, Алматы' },
+            { id: '7',    name: 'UTC+7 — Новосибирск, Красноярск' },
+            { id: '8',    name: 'UTC+8 — Иркутск' },
+            { id: '9',    name: 'UTC+9 — Якутск' },
+            { id: '10',   name: 'UTC+10 — Владивосток, Хабаровск' },
+            { id: '12',   name: 'UTC+12 — Камчатка, Магадан' }
+        ];
+
+        function openTimezoneModal() {
+            let currentTz = localStorage.getItem('racemetry_tz') || 'auto';
+            let list = document.getElementById('timezoneOptionsList');
+            if (list) {
+                list.innerHTML = TIMEZONE_OPTIONS.map(opt => `
+                    <div class="tz-item ${opt.id === currentTz ? 'active' : ''}" onclick="selectTimezone('${opt.id}')">
+                        <span>${opt.name}</span>
+                        ${opt.id === currentTz ? '<span>✓</span>' : ''}
+                    </div>
+                `).join('');
+            }
+            let modal = document.getElementById('timezoneModal');
+            if (modal) modal.classList.add('show');
+        }
+
+        function closeTimezoneModal() {
+            let modal = document.getElementById('timezoneModal');
+            if (modal) modal.classList.remove('show');
+        }
+
+        function selectTimezone(id) {
+            localStorage.setItem('racemetry_tz', id);
+            let opt = TIMEZONE_OPTIONS.find(o => o.id === id);
+            let btn = document.getElementById('btnTimezoneDisplay');
+            if (btn) btn.innerText = opt ? opt.name.split('—')[0].trim() : id;
+            closeTimezoneModal();
             renderHistoryList();
-            showToast("Часовой пояс обновлен");
+            showToast("Часовой пояс обновлен: " + (opt ? opt.name : id));
+        }
+
+        function formatRaceTimestamp(ts) {
+            if (!ts || ts === 0) return "Заезд без метки времени";
+            try {
+                let d = new Date(ts * 1000);
+                let tz = localStorage.getItem('racemetry_tz') || 'auto';
+                if (tz === 'auto') {
+                    return d.toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                } else {
+                    let offsetHours = parseInt(tz, 10);
+                    let utc = d.getTime() + (d.getTimezoneOffset() * 60000);
+                    let nd = new Date(utc + (3600000 * offsetHours));
+                    let day = String(nd.getDate()).padStart(2, '0');
+                    let month = String(nd.getMonth() + 1).padStart(2, '0');
+                    let year = nd.getFullYear();
+                    let hours = String(nd.getHours()).padStart(2, '0');
+                    let minutes = String(nd.getMinutes()).padStart(2, '0');
+                    let seconds = String(nd.getSeconds()).padStart(2, '0');
+                    return `${day}.${month}.${year} ${hours}:${minutes}:${seconds}`;
+                }
+            } catch (e) {
+                return new Date(ts * 1000).toLocaleString();
+            }
+        }
+
+        // ============================================================================
+        //                   СИСТЕМА ПРОФИЛЕЙ АВТОМОБИЛЕЙ (ГАРАЖ)
+        // ============================================================================
+
+        function getCarsList() {
+            try {
+                let stored = localStorage.getItem('racemetry_cars');
+                if (stored) {
+                    let parsed = JSON.parse(stored);
+                    if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+                }
+            } catch(e) {}
+            let defaultCar = {
+                id: 'car_1',
+                make: 'BMW',
+                model: 'M5 F90',
+                year: '2021',
+                power: '625',
+                createdAt: Date.now()
+            };
+            saveCarsList([defaultCar]);
+            return [defaultCar];
+        }
+
+        function saveCarsList(cars) {
+            try {
+                localStorage.setItem('racemetry_cars', JSON.stringify(cars));
+            } catch(e) {}
+        }
+
+        function formatCarTitle(car) {
+            if (!car) return "Мой Автомобиль";
+            let title = `${car.make || ''} ${car.model || ''}`.trim();
+            if (!title) title = car.name || "Мой Автомобиль";
+            return title;
+        }
+
+        function formatCarSubtitle(car) {
+            if (!car) return "";
+            let parts = [];
+            if (car.year) parts.push(`${car.year} г.`);
+            if (car.power) parts.push(`${car.power} л.с.`);
+            return parts.length > 0 ? parts.join(' • ') : "Нажмите для смены авто";
         }
 
         function getActiveCar() {
-            try {
-                let cars = JSON.parse(localStorage.getItem('racemetry_cars') || '[]');
-                let activeId = localStorage.getItem('racemetry_active_car');
-                let car = cars.find(c => c.id === activeId);
-                if (car) return car;
-            } catch(e) {}
-            return { id: 'car_default', name: 'Мой Автомобиль', engine: '' };
+            let cars = getCarsList();
+            let activeId = localStorage.getItem('racemetry_active_car');
+            let found = cars.find(c => c.id === activeId);
+            if (found) return found;
+            if (cars.length > 0) {
+                setActiveCar(cars[0].id, false);
+                return cars[0];
+            }
+            return { id: 'car_default', make: 'Мой', model: 'Автомобиль', year: '', power: '' };
+        }
+
+        function setActiveCar(id, updateUI = true) {
+            localStorage.setItem('racemetry_active_car', id);
+            if (updateUI) {
+                updateActiveCarUI();
+                renderCarFilters();
+                renderHistoryList();
+                renderGarageModal();
+                recalculatePersonalBestsForFilter();
+                showToast("🚗 Выбран автомобиль: " + formatCarTitle(getActiveCar()));
+            }
+        }
+
+        function updateActiveCarUI() {
+            let car = getActiveCar();
+            let title = formatCarTitle(car);
+            let sub = formatCarSubtitle(car);
+            
+            let headName = document.getElementById('headerCarName');
+            if (headName) headName.innerText = title;
+            
+            let headSub = document.getElementById('headerCarDetails');
+            if (headSub) headSub.innerText = sub ? `${sub} • Нажмите для смены авто` : "Нажмите для смены авто";
+            
+            let setCar = document.getElementById('settingsActiveCarDisplay');
+            if (setCar) setCar.innerText = title;
+            
+            let setStats = document.getElementById('settingsActiveCarStats');
+            if (setStats) {
+                let carRuns = savedRuns.filter(r => r.carId === car.id);
+                let best0_100 = carRuns.filter(r => r.s0_100 > 0).reduce((min, r) => Math.min(min, r.s0_100), 999);
+                let bestStr = best0_100 < 900 ? ` • Лучшее 0-100: ${best0_100.toFixed(2)}с` : '';
+                setStats.innerText = `${sub ? sub + ' • ' : ''}Заездов: ${carRuns.length}${bestStr}`;
+            }
         }
 
         function openGarageModal() {
-            showToast("🚗 Активный автомобиль: " + getActiveCar().name);
+            renderGarageModal();
+            let modal = document.getElementById('garageModal');
+            if (modal) modal.classList.add('show');
+        }
+
+        function closeGarageModal() {
+            let modal = document.getElementById('garageModal');
+            if (modal) modal.classList.remove('show');
+        }
+
+        function confirmCarSelectionAndClose() {
+            closeGarageModal();
+            showToast("🚗 Активен: " + formatCarTitle(getActiveCar()));
+        }
+
+        function renderGarageModal() {
+            let container = document.getElementById('garageCarsList');
+            if (!container) return;
+
+            let cars = getCarsList();
+            let activeCar = getActiveCar();
+
+            container.innerHTML = cars.map(car => {
+                let isActive = (car.id === activeCar.id);
+                let carRuns = savedRuns.filter(r => r.carId === car.id);
+                let validRuns = carRuns.filter(r => r.valid);
+                let best0_100 = validRuns.filter(r => r.s0_100 > 0).reduce((min, r) => Math.min(min, r.s0_100), 999);
+                let bestStr = best0_100 < 900 ? `${best0_100.toFixed(2)} с` : '--';
+
+                return `
+                    <div class="car-card ${isActive ? 'active' : ''}">
+                        <div class="car-card-header">
+                            <span class="car-card-title">🚗 ${formatCarTitle(car)}</span>
+                            ${isActive ? '<span class="chip" style="background: var(--accent-green); color: #000; font-weight: 800; font-size: 11px;">✓ Активен</span>' : ''}
+                        </div>
+                        <div class="car-card-specs">
+                            <span>Год: <strong>${car.year || '--'}</strong></span>
+                            <span>Мощность: <strong>${car.power ? car.power + ' л.с.' : '--'}</strong></span>
+                        </div>
+                        <div class="car-card-stats">
+                            <span>Всего заездов: <strong>${carRuns.length}</strong></span>
+                            <span>Лучшее 0-100: <strong style="color: var(--accent-green);">${bestStr}</strong></span>
+                        </div>
+                        <div class="car-card-actions">
+                            ${!isActive ? `<button class="chip" style="background: rgba(0,255,204,0.15); color: var(--accent-cyan); font-weight: 700;" onclick="setActiveCar('${car.id}')">Выбрать</button>` : '<div></div>'}
+                            <div style="display: flex; gap: 6px;">
+                                <button class="chip" onclick="openCarFormModal('${car.id}')">✏️ Изменить</button>
+                                <button class="chip" style="color: var(--accent-red);" onclick="deleteCar('${car.id}')">🗑️</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function openCarFormModal(carId = null) {
+            let editIdInput = document.getElementById('carEditId');
+            let makeInput = document.getElementById('carInputMake');
+            let modelInput = document.getElementById('carInputModel');
+            let yearInput = document.getElementById('carInputYear');
+            let powerInput = document.getElementById('carInputPower');
+            let titleEl = document.getElementById('carFormTitle');
+
+            if (carId) {
+                let cars = getCarsList();
+                let car = cars.find(c => c.id === carId);
+                if (car) {
+                    if (titleEl) titleEl.innerText = "РЕДАКТИРОВАТЬ АВТОМОБИЛЬ";
+                    if (editIdInput) editIdInput.value = car.id;
+                    if (makeInput) makeInput.value = car.make || '';
+                    if (modelInput) modelInput.value = car.model || '';
+                    if (yearInput) yearInput.value = car.year || '';
+                    if (powerInput) powerInput.value = car.power || '';
+                }
+            } else {
+                if (titleEl) titleEl.innerText = "ДОБАВИТЬ АВТОМОБИЛЬ";
+                if (editIdInput) editIdInput.value = '';
+                if (makeInput) makeInput.value = '';
+                if (modelInput) modelInput.value = '';
+                if (yearInput) yearInput.value = '';
+                if (powerInput) powerInput.value = '';
+            }
+
+            let modal = document.getElementById('carFormModal');
+            if (modal) modal.classList.add('show');
+            if (makeInput) setTimeout(() => makeInput.focus(), 150);
+        }
+
+        function closeCarFormModal() {
+            let modal = document.getElementById('carFormModal');
+            if (modal) modal.classList.remove('show');
+        }
+
+        function saveCarForm() {
+            let editId = document.getElementById('carEditId').value;
+            let make = document.getElementById('carInputMake').value.trim();
+            let model = document.getElementById('carInputModel').value.trim();
+            let year = document.getElementById('carInputYear').value.trim();
+            let power = document.getElementById('carInputPower').value.trim();
+
+            if (!make || !model) {
+                showToast("⚠️ Укажите марку и модель автомобиля!");
+                return;
+            }
+
+            let cars = getCarsList();
+
+            if (editId) {
+                let car = cars.find(c => c.id === editId);
+                if (car) {
+                    car.make = make;
+                    car.model = model;
+                    car.year = year;
+                    car.power = power;
+                }
+                showToast("Автомобиль обновлен!");
+            } else {
+                let newCar = {
+                    id: 'car_' + Date.now(),
+                    make: make,
+                    model: model,
+                    year: year,
+                    power: power,
+                    createdAt: Date.now()
+                };
+                cars.push(newCar);
+                setActiveCar(newCar.id, false);
+                showToast("Новый автомобиль добавлен в Гараж!");
+            }
+
+            saveCarsList(cars);
+            closeCarFormModal();
+            updateActiveCarUI();
+            renderGarageModal();
+            renderCarFilters();
+            renderHistoryList();
+            recalculatePersonalBestsForFilter();
+        }
+
+        function deleteCar(carId) {
+            let cars = getCarsList();
+            if (cars.length <= 1) {
+                showToast("⚠️ Нельзя удалить единственный автомобиль в гараже!");
+                return;
+            }
+
+            let car = cars.find(c => c.id === carId);
+            if (!confirm(`Удалить «${formatCarTitle(car)}» из гаража?`)) return;
+
+            cars = cars.filter(c => c.id !== carId);
+            saveCarsList(cars);
+
+            let activeId = localStorage.getItem('racemetry_active_car');
+            if (activeId === carId) {
+                setActiveCar(cars[0].id, false);
+            }
+
+            updateActiveCarUI();
+            renderGarageModal();
+            renderCarFilters();
+            renderHistoryList();
+            recalculatePersonalBestsForFilter();
+            showToast("Автомобиль удален из гаража");
         }
 
         function renderCarFilters() {
             let container = document.getElementById('carFilterContainer');
-            if (container) {
-                container.innerHTML = `<button class="chip active" onclick="setCarFilter('all')">Все авто</button>`;
-            }
+            if (!container) return;
+
+            let cars = getCarsList();
+            let html = `<button class="chip ${activeCarFilterId === 'all' ? 'active' : ''}" onclick="setCarFilter('all')">Все авто (${savedRuns.length})</button>`;
+
+            cars.forEach(car => {
+                let count = savedRuns.filter(r => r.carId === car.id).length;
+                let isActive = (activeCarFilterId === car.id);
+                html += `<button class="chip ${isActive ? 'active' : ''}" onclick="setCarFilter('${car.id}')">${formatCarTitle(car)} (${count})</button>`;
+            });
+
+            container.innerHTML = html;
         }
 
         function setCarFilter(id) {
             activeCarFilterId = id;
+            renderCarFilters();
             renderHistoryList();
+            recalculatePersonalBestsForFilter();
         }
 
         function recalculatePersonalBestsForFilter() {
-            // Личные рекорды обновляются с устройства
+            let runs = (activeCarFilterId === 'all')
+                ? savedRuns
+                : savedRuns.filter(r => r.carId === activeCarFilterId);
+
+            let validRuns = runs.filter(r => r.valid);
+
+            let b0_60 = validRuns.filter(r => r.s0_60 > 0).reduce((m, r) => Math.min(m, r.s0_60), 0);
+            let b0_100 = validRuns.filter(r => r.s0_100 > 0).reduce((m, r) => Math.min(m, r.s0_100), 0);
+            let b100_200 = validRuns.filter(r => r.s100_200 > 0).reduce((m, r) => Math.min(m, r.s100_200), 0);
+            let b1_4mi = validRuns.filter(r => r.s1_4mi > 0).reduce((m, r) => Math.min(m, r.s1_4mi), 0);
+
+            let el0_60 = document.getElementById('pb0_60');
+            let el0_100 = document.getElementById('pb0_100');
+            let el100_200 = document.getElementById('pb100_200');
+            let el1_4mi = document.getElementById('pb1_4mi');
+
+            if (el0_60) el0_60.innerText = b0_60 > 0 ? b0_60.toFixed(2) + " с" : "--";
+            if (el0_100) el0_100.innerText = b0_100 > 0 ? b0_100.toFixed(2) + " с" : "--";
+            if (el100_200) el100_200.innerText = b100_200 > 0 ? b100_200.toFixed(2) + " с" : "--";
+            if (el1_4mi) el1_4mi.innerText = b1_4mi > 0 ? b1_4mi.toFixed(2) + " с" : "--";
         }
 
         function renderHistoryList() {
             let container = document.getElementById('historyListContainer');
             if (!container) return;
 
-
             let filtered = (activeCarFilterId === 'all') 
                 ? savedRuns 
-                : savedRuns.filter(r => r.carId === activeCarFilterId || (!r.carId && activeCarFilterId === 'car_default'));
+                : savedRuns.filter(r => r.carId === activeCarFilterId);
 
             if (filtered.length === 0) {
                 container.innerHTML = '<div style="text-align: center; color: var(--text-muted); padding: 30px;">Нет сохраненных заездов для выбранного авто</div>';
                 return;
             }
 
-            // Also make sure latest featured run is displayed
             if (savedRuns.length > 0 && !lastRunData) {
                 displayRunDetail(savedRuns[0]);
             }
@@ -3200,7 +3906,6 @@
 
             let data = run.samples;
             if (!data || data.length < 2) {
-                // Synthesize smooth realistic curve from checkpoints
                 data = [];
                 let totalT = run.dur || 6;
                 let maxV = run.max_spd || 100;
@@ -3280,6 +3985,7 @@
                 return;
             }
             let text = `🏎️ RaceMetry Pro Telemetry Report\n` +
+                       `Автомобиль: ${lastRunData.carName || "Мой Автомобиль"}\n` +
                        (lastRunData.s0_60 > 0 ? `0-60 km/h: ${lastRunData.s0_60.toFixed(2)}s\n` : ``) +
                        (lastRunData.s0_100 > 0 ? `0-100 km/h: ${lastRunData.s0_100.toFixed(2)}s\n` : ``) +
                        (lastRunData.s100_200 > 0 ? `100-200 km/h: ${lastRunData.s100_200.toFixed(2)}s\n` : ``) +
@@ -3293,7 +3999,7 @@
             });
         }
 
-        // Init: Load saved runs from localStorage on startup
+        // Init: Load saved runs and initialize UI on startup
         try {
             let cached = localStorage.getItem('racemetry_runs');
             if (cached) {
@@ -3301,7 +4007,7 @@
                 renderHistoryList();
             }
 
-            // Загрузка состояния звуковых оповещений (по умолчанию 'off')
+            // Загрузка состояния звуковых оповещений
             let soundModeSaved = localStorage.getItem('racemetry_sound_mode') || 'off';
             let soundSel = document.getElementById('setSoundMode');
             if (soundSel) soundSel.value = soundModeSaved;
@@ -3326,18 +4032,20 @@
             }
 
             let tzSaved = localStorage.getItem('racemetry_tz') || 'auto';
-            let tzSel = document.getElementById('setTimezone');
-            if (tzSel) tzSel.value = tzSaved;
+            let opt = TIMEZONE_OPTIONS.find(o => o.id === tzSaved);
+            let tzBtn = document.getElementById('btnTimezoneDisplay');
+            if (tzBtn) tzBtn.innerText = opt ? opt.name.split('—')[0].trim() : tzSaved;
 
-            let activeCar = getActiveCar();
-            let headerCar = document.getElementById('headerCarName');
-            if (headerCar) headerCar.innerText = activeCar.name;
-            let settingsCar = document.getElementById('settingsActiveCarDisplay');
-            if (settingsCar) settingsCar.innerText = activeCar.name + (activeCar.engine ? ` (${activeCar.engine})` : '');
-
+            // Инициализация активного автомобиля и Гаража
+            updateActiveCarUI();
             renderCarFilters();
             renderHistoryList();
             recalculatePersonalBestsForFilter();
+
+            // При первом открытии приложения предлагаем выбрать авто
+            setTimeout(() => {
+                openGarageModal();
+            }, 300);
         } catch(e) {}
 
         // Progressive Web App (PWA) & Service Worker
