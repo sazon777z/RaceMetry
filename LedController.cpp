@@ -17,19 +17,7 @@ LedController::LedController()
 
 void LedController::begin(uint8_t pin) {
     _pin = pin;
-
-    // Инициализируем все возможные пины светодиодов плат ESP32-S3
-    const uint8_t candidatePins[] = { 48, 38, 21, 8, 47, 33, 10 };
-    for (uint8_t p : candidatePins) {
-        pinMode(p, OUTPUT);
-    }
-
-    // Включение шины питания RGB (на платах с пином NeoPixel Power)
-    pinMode(34, OUTPUT);
-    digitalWrite(34, HIGH);
-    pinMode(39, OUTPUT);
-    digitalWrite(39, HIGH);
-
+    pinMode(_pin, OUTPUT);
     setMode(LedMode::GPS_SEARCH);
 }
 
@@ -220,37 +208,11 @@ void LedController::update() {
 extern "C" void neopixelWrite(uint8_t pin, uint8_t red_val, uint8_t green_val, uint8_t blue_val);
 
 void LedController::_writeLed(uint8_t r, uint8_t g, uint8_t b) {
-    // 1. Посылаем WS2812 RMT сигнал на все типичные пины адресных RGB светодиодов ESP32-S3
     neopixelWrite(_pin, r, g, b);
-    neopixelWrite(48, r, g, b);
-    neopixelWrite(38, r, g, b);
-    neopixelWrite(21, r, g, b);
-    neopixelWrite(47, r, g, b);
-    neopixelWrite(8,  r, g, b);
-
-    // 2. Если на плате установлен обычный одноцветный светодиод (синий на GPIO 8 / GPIO 21 / GPIO 38)
-    uint8_t brightness = (r > g) ? ((r > b) ? r : b) : ((g > b) ? g : b);
-    if (brightness > 20) {
-        digitalWrite(8, LOW);   // Active LOW на большинстве плат SuperMini
-        digitalWrite(21, LOW);  // Active LOW на Xiao S3
-        digitalWrite(38, HIGH); // Active HIGH на некоторых S3
-    } else {
-        digitalWrite(8, HIGH);  // Выключение
-        digitalWrite(21, HIGH);
-        digitalWrite(38, LOW);
-    }
 }
 
 void LedController::turnOff() {
     neopixelWrite(_pin, 0, 0, 0);
-    neopixelWrite(48, 0, 0, 0);
-    neopixelWrite(38, 0, 0, 0);
-    neopixelWrite(21, 0, 0, 0);
-    neopixelWrite(47, 0, 0, 0);
-    neopixelWrite(8,  0, 0, 0);
-    digitalWrite(8, HIGH);
-    digitalWrite(21, HIGH);
-    digitalWrite(38, LOW);
 }
 
 void LedController::showPowerOnAnimation() {
