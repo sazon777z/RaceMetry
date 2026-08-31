@@ -2371,14 +2371,14 @@
             } else if (pkt.t === 'diag') {
                 updateDiagnostics(pkt);
             } else if (pkt.t === 'shutdown') {
-                showToast("Прибор DRAGon выключен (Deep Sleep)");
+                showToast("Прибор RaceMetry выключен");
                 speak("Прибор выключен");
                 updateBleUi(false);
             }
         }
 
         function powerOffDevice() {
-            if (confirm("Выключить прибор DRAGon и перевести его в режим энергосбережения (Deep Sleep)?")) {
+            if (confirm("Выключить прибор RaceMetry?")) {
                 sendBleCmd('power_off');
                 showToast("Выключение прибора...");
             }
