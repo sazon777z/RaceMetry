@@ -1549,8 +1549,8 @@
                         <span class="setting-name">Калибровка горизонта IMU</span>
                         <span class="setting-desc">Поставьте авто на ровную плоскость перед калибровкой</span>
                     </div>
-                    <button class="chip" style="background: var(--accent-gold); color: #000;" onclick="sendBleCmd('calibrate_imu')">
-                        Откалибровать
+                    <button class="chip" id="btnCalibrateImu" style="background: var(--accent-gold); color: #000; font-weight: 700;" onclick="triggerCalibrateImu(this)">
+                        ⚖️ Откалибровать
                     </button>
                 </div>
 
@@ -1569,7 +1569,7 @@
             <div class="card" style="margin-bottom: 16px;">
                 <div class="card-title" style="display: flex; justify-content: space-between; align-items: center;">
                     <span>САМОДИАГНОСТИКА ОБОРУДОВАНИЯ</span>
-                    <button class="chip" onclick="sendBleCmd('run_diag')">🔄 Запустить тест</button>
+                    <button class="chip" id="btnRunDiag" style="background: rgba(0, 255, 204, 0.15); color: var(--accent-cyan); border: 1px solid var(--accent-cyan);" onclick="triggerRunDiag(this)">🔄 Запустить тест</button>
                 </div>
                 <div class="g-metrics-list">
                     <div class="g-metric-row">
@@ -2318,18 +2318,59 @@
 
         async function sendBleCmd(cmd, val = null) {
             if (!rxCharacteristic || !isBleConnected) {
-                showToast("Прибор не подключен по BLE!");
+                showToast("⚠️ Прибор не подключен по Bluetooth!");
                 return;
             }
 
             try {
                 let payload = JSON.stringify({ cmd: cmd, val: val }) + "\n";
-                let encoder = new TextEncoder();
-                await rxCharacteristic.writeValue(encoder.encode(payload));
-                console.log("Sent BLE cmd:", payload);
+                let data = new TextEncoder().encode(payload);
+
+                if (rxCharacteristic.writeValueWithoutResponse) {
+                    await rxCharacteristic.writeValueWithoutResponse(data);
+                } else if (rxCharacteristic.writeValueWithResponse) {
+                    await rxCharacteristic.writeValueWithResponse(data);
+                } else {
+                    await rxCharacteristic.writeValue(data);
+                }
+                console.log("[BLE TX]", payload.trim());
             } catch (err) {
-                console.error("Send error:", err);
+                console.warn("[BLE TX Fallback]", err);
+                try {
+                    let payload = JSON.stringify({ cmd: cmd, val: val }) + "\n";
+                    await rxCharacteristic.writeValue(new TextEncoder().encode(payload));
+                } catch (e2) {
+                    console.error("[BLE TX Failed]", e2);
+                    showToast("Ошибка связи: " + (e2.message || e2));
+                }
             }
+        }
+
+        function triggerRunDiag(btn) {
+            if (!isBleConnected) {
+                showToast("⚠️ Подключите прибор по Bluetooth!");
+                return;
+            }
+            if (btn) {
+                btn.innerText = "⏳ Тестирование...";
+                setTimeout(() => { if (btn) btn.innerText = "🔄 Запустить тест"; }, 1500);
+            }
+            showToast("🔄 Запуск самодиагностики...");
+            sendBleCmd('run_diag');
+        }
+
+        function triggerCalibrateImu(btn) {
+            if (!isBleConnected) {
+                showToast("⚠️ Подключите прибор по Bluetooth!");
+                return;
+            }
+            if (btn) {
+                btn.innerText = "⏳ Калибровка...";
+                setTimeout(() => { if (btn) btn.innerText = "⚖️ Откалибровать"; }, 2000);
+            }
+            showToast("⚖️ Калибровка нуля горизонта IMU (600 сэмплов)...");
+            playDragyBeep('split');
+            sendBleCmd('calibrate_imu');
         }
 
         function handleIncomingBleData(event) {

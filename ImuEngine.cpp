@@ -111,7 +111,7 @@ bool ImuEngine::begin(uint8_t sdaPin, uint8_t sclPin, uint32_t freq) {
     // Пары пинов для автоопределения:
     // 1) Заданные пины (sdaPin, sclPin)
     // 2) Реверсивные пины (sclPin, sdaPin)
-    // 3) Альтернативные пины ESP32-S3 (12, 13)
+    // 3) Стандартная пара (12, 13)
     uint8_t pinPairs[3][2] = {
         { sdaPin, sclPin },
         { sclPin, sdaPin },
@@ -219,7 +219,7 @@ bool ImuEngine::begin(uint8_t sdaPin, uint8_t sclPin, uint32_t freq) {
     Wire.setClock(freq);
     delay(10);
 
-    // 6. Проверочное считывание ускорений
+    // 6. Проверочное считывание ускорений (6 байт: X, Y, Z)
     uint8_t testBuf[6] = {0};
     if (!_readRegisters(MPU_REG_ACCEL_XOUT_H, testBuf, 6)) {
         snprintf(_statusMsg, sizeof(_statusMsg), "IMU: Ошибка чтения регистров 0x3B");
@@ -243,12 +243,15 @@ bool ImuEngine::reinit() {
 }
 
 bool ImuEngine::update() {
-    if (!_isInitialized) return false;
+    if (!_isInitialized) {
+        return false;
+    }
 
-    uint8_t rawBuf[14];
-    if (!_readRegisters(MPU_REG_ACCEL_XOUT_H, rawBuf, 14)) {
+    // Считываем 6 байт акселерометра (X, Y, Z) — быстро и надежно
+    uint8_t rawBuf[6];
+    if (!_readRegisters(MPU_REG_ACCEL_XOUT_H, rawBuf, 6)) {
         _errorCount++;
-        if (_errorCount > 80) {
+        if (_errorCount > 100) {
             _isInitialized = false;
             snprintf(_statusMsg, sizeof(_statusMsg), "IMU: Потеряна связь I2C");
         }
@@ -260,11 +263,6 @@ bool ImuEngine::update() {
     int16_t rawAx = (int16_t)((rawBuf[0] << 8) | rawBuf[1]);
     int16_t rawAy = (int16_t)((rawBuf[2] << 8) | rawBuf[3]);
     int16_t rawAz = (int16_t)((rawBuf[4] << 8) | rawBuf[5]);
-
-    // Разбор гироскопа
-    int16_t rawGx = (int16_t)((rawBuf[8] << 8) | rawBuf[9]);
-    int16_t rawGy = (int16_t)((rawBuf[10] << 8) | rawBuf[11]);
-    int16_t rawGz = (int16_t)((rawBuf[12] << 8) | rawBuf[13]);
 
     // Перевод в физические величины G
     float ax = (float)rawAx / ACCEL_SCALE - _offsetX;
@@ -281,18 +279,14 @@ bool ImuEngine::update() {
         _filtAy = ay;
         _filtAz = az;
     } else {
-        _filtAx += 0.28f * (ax - _filtAx);
-        _filtAy += 0.28f * (ay - _filtAy);
-        _filtAz += 0.28f * (az - _filtAz);
+        _filtAx += 0.35f * (ax - _filtAx);
+        _filtAy += 0.35f * (ay - _filtAy);
+        _filtAz += 0.35f * (az - _filtAz);
     }
 
     _data.accelX = _filtAx;
     _data.accelY = _filtAy;
     _data.accelZ = _filtAz;
-
-    _data.gyroX = (float)rawGx / GYRO_SCALE;
-    _data.gyroY = (float)rawGy / GYRO_SCALE;
-    _data.gyroZ = (float)rawGz / GYRO_SCALE;
 
     // Продольное (разгон/торможение) и поперечное (повороты) ускорение
     _data.gLongitudinal = _data.accelX;
@@ -343,6 +337,9 @@ bool ImuEngine::calibrateZero(uint16_t sampleCount) {
     _offsetY = sumY / (float)validCount;
     _offsetZ = (sumZ / (float)validCount) - 1.0f; // Вычитаем 1.0G земного притяжения
     _data.isCalibrated = true;
+    _filtAx = 0.0f;
+    _filtAy = 0.0f;
+    _filtAz = 1.0f;
     Serial.printf("[IMU] Calibration success: OffX=%.3f, OffY=%.3f, OffZ=%.3f (%u samples)\n", _offsetX, _offsetY, _offsetZ, validCount);
     return true;
 }
