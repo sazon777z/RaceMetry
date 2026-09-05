@@ -53,12 +53,12 @@
             background-image: radial-gradient(circle at 50% 0%, #171d2b 0%, #0a0c10 70%);
         }
 
-        /* Top Header */
+        /* Top Header (Row 1) */
         header {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            padding: 10px 14px;
+            padding: 8px 12px;
             background: rgba(18, 21, 29, 0.95);
             backdrop-filter: blur(12px);
             border-bottom: 1px solid var(--border-color);
@@ -67,35 +67,45 @@
             z-index: 100;
         }
 
-        .brand {
+        .header-left {
             display: flex;
             align-items: center;
-            gap: 8px;
-        }
-
-        .brand-logo {
-            font-size: 20px;
-            font-weight: 900;
-            letter-spacing: 0.5px;
-            background: linear-gradient(135deg, #00ffcc, #2979ff);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
         }
 
         .header-right {
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 6px;
         }
 
-        /* Smartphone-style Header Widgets: BLE Button, Signal & Battery */
-        .signal-widget, .bat-widget, .ble-btn {
+        /* Brand Row (Row 2) */
+        .brand-row {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 5px 12px 2px;
+            text-align: center;
+        }
+
+        .brand-row .brand-logo {
+            font-size: 18px;
+            font-weight: 900;
+            letter-spacing: 1.2px;
+            text-transform: uppercase;
+            background: linear-gradient(135deg, #00ffcc 0%, #2979ff 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            filter: drop-shadow(0 0 10px rgba(0, 255, 204, 0.25));
+        }
+
+        /* Smartphone-style Header Widgets: BLE Button, Satellite, Signal & Battery */
+        .signal-widget, .bat-widget, .sat-widget, .ble-btn {
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            gap: 6px;
+            gap: 5px;
             height: 30px;
-            padding: 0 10px;
+            padding: 0 8px;
             background: rgba(255, 255, 255, 0.05);
             border-radius: 15px;
             border: 1px solid var(--border-color);
@@ -105,6 +115,16 @@
             box-sizing: border-box;
             white-space: nowrap;
             transition: all 0.25s ease;
+        }
+
+        .sat-widget {
+            cursor: default;
+        }
+
+        .sat-icon {
+            font-size: 11px;
+            line-height: 1;
+            display: inline-block;
         }
 
         .ble-btn {
@@ -397,8 +417,8 @@
         /* Main Container */
         main {
             flex: 1;
-            padding: 16px;
-            padding-bottom: 90px;
+            padding: 8px 12px;
+            padding-bottom: 80px;
             max-width: 900px;
             width: 100%;
             margin: 0 auto;
@@ -426,15 +446,15 @@
             gap: 8px;
             background: var(--bg-card);
             border: 1px solid var(--border-color);
-            padding: 10px 14px;
-            border-radius: var(--radius-md);
-            margin-bottom: 16px;
+            padding: 6px 12px;
+            border-radius: var(--radius-sm);
+            margin-bottom: 8px;
             overflow: hidden;
         }
 
         .state-label {
-            font-size: 11px;
-            font-weight: 700;
+            font-size: 10px;
+            font-weight: 800;
             color: var(--text-muted);
             letter-spacing: 0.8px;
             text-transform: uppercase;
@@ -444,11 +464,11 @@
 
         .state-badge {
             font-size: 11px;
-            font-weight: 800;
-            padding: 5px 12px;
+            font-weight: 900;
+            padding: 4px 12px;
             border-radius: 20px;
             text-transform: uppercase;
-            letter-spacing: 0.5px;
+            letter-spacing: 0.8px;
             background: #182030;
             color: var(--text-secondary);
             white-space: nowrap;
@@ -458,86 +478,53 @@
         }
 
         .state-badge.waiting-gps {
-            background: rgba(255, 179, 0, 0.15);
-            color: var(--accent-gold);
-            border-color: rgba(255, 179, 0, 0.4);
+            background: rgba(255, 179, 0, 0.22);
+            color: #ffd54f;
+            border-color: var(--accent-gold);
+            box-shadow: 0 0 12px rgba(255, 179, 0, 0.35);
         }
 
         .state-badge.waiting-stop {
-            background: rgba(138, 153, 173, 0.15);
-            color: var(--text-secondary);
-            border-color: var(--border-color);
+            background: rgba(138, 153, 173, 0.2);
+            color: #e2e8f0;
+            border-color: rgba(138, 153, 173, 0.5);
         }
 
         .state-badge.armed {
-            background: rgba(0, 230, 118, 0.2);
-            color: var(--accent-green);
+            background: rgba(0, 230, 118, 0.25);
+            color: #00ff7f;
             border-color: var(--accent-green);
             box-shadow: var(--glow-green);
         }
 
         .state-badge.measuring {
-            background: rgba(0, 255, 204, 0.2);
-            color: var(--accent-cyan);
+            background: rgba(0, 255, 204, 0.25);
+            color: #00ffcc;
             border-color: var(--accent-cyan);
             box-shadow: var(--glow-cyan);
             animation: pulse 1s infinite;
         }
 
         .state-badge.finished {
-            background: rgba(41, 121, 255, 0.2);
-            color: var(--accent-blue);
+            background: rgba(41, 121, 255, 0.25);
+            color: #64b5f6;
             border-color: var(--accent-blue);
         }
 
         .hero-speed-box {
             background: var(--bg-card);
             border: 1px solid var(--border-color);
-            border-radius: var(--radius-lg);
-            padding: 24px 20px;
+            border-radius: var(--radius-md);
+            padding: 10px 14px;
             text-align: center;
             position: relative;
             box-shadow: var(--shadow);
-            margin-bottom: 16px;
+            margin-bottom: 8px;
             overflow: hidden;
         }
 
-        header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 10px 14px;
-            background: rgba(18, 21, 29, 0.95);
-            border-bottom: 1px solid var(--border-color);
-            position: sticky;
-            top: 0;
-            z-index: 100;
-            backdrop-filter: blur(10px);
-        }
-
-        .brand {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .brand-logo {
-            font-size: 20px;
-            font-weight: 900;
-            letter-spacing: 0.5px;
-            background: linear-gradient(135deg, #00ffcc, #2979ff);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-
-        .header-right {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
         .hero-speed-val {
-            font-size: 88px;
+            font-size: clamp(52px, 10vh, 74px);
             font-weight: 900;
             line-height: 1;
             font-variant-numeric: tabular-nums;
@@ -548,48 +535,48 @@
         }
 
         .hero-speed-unit {
-            font-size: 16px;
+            font-size: 13px;
             font-weight: 700;
             color: var(--accent-cyan);
             letter-spacing: 2px;
-            margin-top: 4px;
+            margin-top: 2px;
         }
 
         /* G-Force & Secondary Gauges */
         .gauges-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 14px;
-            margin-bottom: 16px;
+            gap: 8px;
+            margin-bottom: 8px;
         }
 
         .card {
             background: var(--bg-card);
             border: 1px solid var(--border-color);
             border-radius: var(--radius-md);
-            padding: 16px;
+            padding: 10px 12px;
             box-shadow: var(--shadow);
         }
 
         .card-title {
-            font-size: 12px;
+            font-size: 11px;
             font-weight: 700;
             text-transform: uppercase;
-            letter-spacing: 1px;
+            letter-spacing: 0.8px;
             color: var(--text-muted);
-            margin-bottom: 10px;
+            margin-bottom: 6px;
             display: flex;
             align-items: center;
             justify-content: space-between;
         }
 
         .g-bowl-container {
-            width: 140px;
-            height: 140px;
+            width: 104px;
+            height: 104px;
             margin: 0 auto;
             position: relative;
             border-radius: 50%;
-            border: 2px dashed var(--border-color);
+            border: 1.5px dashed var(--border-color);
             background: radial-gradient(circle, rgba(0,255,204,0.03) 0%, transparent 70%);
             display: flex;
             align-items: center;
@@ -604,8 +591,8 @@
         .g-cross-v { height: 100%; width: 1px; }
 
         .g-dot {
-            width: 16px;
-            height: 16px;
+            width: 12px;
+            height: 12px;
             background: var(--accent-cyan);
             border-radius: 50%;
             position: absolute;
@@ -617,28 +604,29 @@
         .g-metrics-list {
             display: flex;
             flex-direction: column;
-            gap: 8px;
+            gap: 4px;
             justify-content: center;
+            min-height: 104px;
         }
 
         .g-metric-row {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            font-size: 12px;
-            gap: 6px;
+            font-size: 11px;
+            gap: 4px;
         }
 
         .g-metric-row span:first-child {
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
-            font-size: 11.5px;
+            font-size: 11px;
         }
 
         .g-metric-val {
             font-weight: 800;
-            font-size: 15px;
+            font-size: 13px;
             font-variant-numeric: tabular-nums;
             white-space: nowrap;
             flex-shrink: 0;
@@ -648,17 +636,17 @@
         .btn-row {
             display: grid;
             grid-template-columns: 1fr 1fr 1fr;
-            gap: 10px;
-            margin-bottom: 16px;
+            gap: 8px;
+            margin-bottom: 8px;
         }
 
         .action-btn {
             background: var(--bg-card);
             border: 1px solid var(--border-color);
             color: var(--text-primary);
-            padding: 14px 8px;
-            border-radius: var(--radius-md);
-            font-size: 13px;
+            padding: 8px 4px;
+            border-radius: var(--radius-sm);
+            font-size: 11px;
             font-weight: 700;
             cursor: pointer;
             transition: all 0.15s ease;
@@ -666,7 +654,7 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 6px;
+            gap: 3px;
         }
 
         .action-btn:active {
@@ -694,10 +682,10 @@
         /* Discipline Selector */
         .disc-chips {
             display: flex;
-            gap: 8px;
+            gap: 6px;
             overflow-x: auto;
-            padding-bottom: 6px;
-            margin-bottom: 16px;
+            padding-bottom: 2px;
+            margin-bottom: 8px;
             scrollbar-width: none;
         }
 
@@ -708,9 +696,9 @@
             background: var(--bg-card);
             border: 1px solid var(--border-color);
             color: var(--text-secondary);
-            padding: 8px 14px;
-            border-radius: 20px;
-            font-size: 12px;
+            padding: 6px 12px;
+            border-radius: 14px;
+            font-size: 11px;
             font-weight: 700;
             cursor: pointer;
             transition: all 0.2s;
@@ -1105,13 +1093,13 @@
             opacity: 1;
         }
 
-        /* Active Car Bar */
+        /* Active Car Bar (Row 3) */
         .active-car-bar {
             background: linear-gradient(135deg, rgba(0, 255, 204, 0.08) 0%, rgba(20, 26, 38, 0.95) 100%);
             border: 1px solid var(--border-color);
-            border-radius: var(--radius-md);
-            padding: 10px 14px;
-            margin: 10px 14px 4px;
+            border-radius: var(--radius-sm);
+            padding: 6px 12px;
+            margin: 4px 12px 6px;
             display: flex;
             align-items: center;
             justify-content: space-between;
@@ -1376,7 +1364,7 @@
 </head>
 <body>
 
-    <!-- Header -->
+    <!-- Header (Строка 1: Кнопка подключения слева, виджеты справа) -->
     <header>
         <div class="header-left">
             <button id="bleConnectBtn" class="ble-btn" onclick="toggleBleConnection()">
@@ -1384,10 +1372,17 @@
                 <span id="bleBtnText">Подключить BLE</span>
             </button>
         </div>
-        <div class="brand">
-            <span class="brand-logo">RaceMetry</span>
-        </div>
         <div class="header-right">
+            <div class="sat-widget" id="statSatWidget" title="Спутники GNSS 20Hz">
+                <span class="sat-icon">🛰️</span>
+                <strong id="statSats">0</strong>
+                <svg class="signal-bars-icon" viewBox="0 0 24 24" id="satSignalBars">
+                    <rect x="2" y="16" width="3.8" height="6" rx="1" id="satBar1" fill="currentColor" opacity="0.2"/>
+                    <rect x="7.5" y="11.5" width="3.8" height="10.5" rx="1" id="satBar2" fill="currentColor" opacity="0.2"/>
+                    <rect x="13" y="7" width="3.8" height="15" rx="1" id="satBar3" fill="currentColor" opacity="0.2"/>
+                    <rect x="18.5" y="2" width="3.8" height="20" rx="1" id="satBar4" fill="currentColor" opacity="0.2"/>
+                </svg>
+            </div>
             <div class="signal-widget" id="statSignalWidget" title="Уровень связи Bluetooth">
                 <svg class="signal-bars-icon" viewBox="0 0 24 24">
                     <rect x="2" y="16" width="3.8" height="6" rx="1" id="sigBar1" fill="currentColor" opacity="0.2"/>
@@ -1405,23 +1400,12 @@
         </div>
     </header>
 
-    <!-- Top GPS & System Status Bar -->
-    <div class="status-strip">
-        <div class="status-item">
-            <span>🛰️ Спутники:</span>
-            <strong id="statSats">0</strong>
-        </div>
-        <div class="status-item">
-            <span>🎯 Точность:</span>
-            <strong id="statAcc">-- м</strong>
-        </div>
-        <div class="status-item">
-            <span>📡 Статус:</span>
-            <strong id="statFix">Поиск GPS</strong>
-        </div>
+    <!-- Строка 2: RaceMetry -->
+    <div class="brand-row">
+        <span class="brand-logo">RaceMetry</span>
     </div>
 
-    <!-- Active Car Bar -->
+    <!-- Строка 3: Active Car Bar -->
     <div class="active-car-bar" onclick="openGarageModal()" title="Нажмите для смены или добавления автомобиля в Гараж">
         <div class="active-car-info">
             <span class="active-car-icon">🚗</span>
@@ -1442,7 +1426,7 @@
             <!-- State Banner -->
             <div class="state-banner">
                 <div class="state-label">РЕЖИМ ГОНКИ:</div>
-                <div id="cockpitStateBadge" class="state-badge">ОЖИДАНИЕ СТАРТА</div>
+                <div id="cockpitStateBadge" class="state-badge waiting-gps">ОЖИДАНИЕ GPS</div>
             </div>
 
             <!-- Discipline Selector -->
@@ -2682,6 +2666,8 @@
                 btn.classList.remove('connected');
                 txt.innerText = "Подключить BLE";
                 renderSignalStatus(undefined);
+                renderSatelliteStatus(0, 0);
+                renderBatteryStatus(0, 0);
             }
         }
 
@@ -2868,6 +2854,51 @@
             speak("Все системы инициализированы. GPS настроен на двадцать герц. Прибор готов к замерам.");
         }
 
+        function renderSatelliteStatus(sats, fix) {
+            let satsEl = document.getElementById('statSats');
+            if (satsEl) satsEl.innerText = (sats !== undefined) ? sats : 0;
+
+            let sb1 = document.getElementById('satBar1');
+            let sb2 = document.getElementById('satBar2');
+            let sb3 = document.getElementById('satBar3');
+            let sb4 = document.getElementById('satBar4');
+            if (!sb1 || !sb2 || !sb3 || !sb4) return;
+
+            if (!isBleConnected || !fix || fix < 2 || sats === undefined || sats < 4) {
+                sb1.style.opacity = "0.2"; sb1.style.fill = "currentColor";
+                sb2.style.opacity = "0.2"; sb2.style.fill = "currentColor";
+                sb3.style.opacity = "0.2"; sb3.style.fill = "currentColor";
+                sb4.style.opacity = "0.2"; sb4.style.fill = "currentColor";
+                return;
+            }
+
+            // 4 bars: отличный 3D Fix (18+ спутников)
+            if (sats >= 18 && fix >= 3) {
+                sb1.style.opacity = "1"; sb1.style.fill = "var(--accent-green)";
+                sb2.style.opacity = "1"; sb2.style.fill = "var(--accent-green)";
+                sb3.style.opacity = "1"; sb3.style.fill = "var(--accent-green)";
+                sb4.style.opacity = "1"; sb4.style.fill = "var(--accent-green)";
+            } else if (sats >= 12 && fix >= 3) {
+                // 3 bars: хороший 3D Fix (12-17 спутников)
+                sb1.style.opacity = "1"; sb1.style.fill = "var(--accent-cyan)";
+                sb2.style.opacity = "1"; sb2.style.fill = "var(--accent-cyan)";
+                sb3.style.opacity = "1"; sb3.style.fill = "var(--accent-cyan)";
+                sb4.style.opacity = "0.2"; sb4.style.fill = "currentColor";
+            } else if (sats >= 8) {
+                // 2 bars: средний Fix (8-11 спутников)
+                sb1.style.opacity = "1"; sb1.style.fill = "var(--accent-gold)";
+                sb2.style.opacity = "1"; sb2.style.fill = "var(--accent-gold)";
+                sb3.style.opacity = "0.2"; sb3.style.fill = "currentColor";
+                sb4.style.opacity = "0.2"; sb4.style.fill = "currentColor";
+            } else {
+                // 1 bar: слабый Fix (4-7 спутников)
+                sb1.style.opacity = "1"; sb1.style.fill = "var(--accent-red)";
+                sb2.style.opacity = "0.2"; sb2.style.fill = "currentColor";
+                sb3.style.opacity = "0.2"; sb3.style.fill = "currentColor";
+                sb4.style.opacity = "0.2"; sb4.style.fill = "currentColor";
+            }
+        }
+
         function renderSignalStatus(rssi) {
             let widget = document.getElementById('statSignalWidget');
             let b1 = document.getElementById('sigBar1');
@@ -2980,18 +3011,24 @@
             }
             document.getElementById('cockpitSpeedVal').innerText = dispSpd;
             
-            // 2. Top Status Strip (Clean, without duplicate satellites in status)
-            document.getElementById('statSats').innerText = d.sats;
-            if (d.fix >= 2 && d.hacc < 500.0 && d.hacc > 0) {
-                document.getElementById('statAcc').innerText = "±" + d.hacc.toFixed(1) + " м";
-            } else {
-                document.getElementById('statAcc').innerText = "-- м";
+            // 2. GNSS Satellite Status and Bars
+            renderSatelliteStatus(d.sats, d.fix);
+            let accEl = document.getElementById('statAcc');
+            if (accEl) {
+                if (d.fix >= 2 && d.hacc < 500.0 && d.hacc > 0) {
+                    accEl.innerText = "±" + d.hacc.toFixed(1) + " м";
+                } else {
+                    accEl.innerText = "-- м";
+                }
             }
             
-            let fixText = "Поиск GPS";
-            if (d.fix === 3) fixText = "3D Fix";
-            else if (d.fix === 2) fixText = "2D Fix";
-            document.getElementById('statFix').innerText = fixText;
+            let fixEl = document.getElementById('statFix');
+            if (fixEl) {
+                let fixText = "Поиск GPS";
+                if (d.fix === 3) fixText = "3D Fix";
+                else if (d.fix === 2) fixText = "2D Fix";
+                fixEl.innerText = fixText;
+            }
 
             // 3. Detailed GPS / GNSS Tab
             if (d.gps !== undefined) document.getElementById('gpsCountGps').innerText = d.gps;
@@ -4161,7 +4198,7 @@
 
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js?v=5.5', { updateViaCache: 'none' })
+                navigator.serviceWorker.register('./sw.js?v=5.6', { updateViaCache: 'none' })
                     .then(reg => {
                         console.log('[PWA] Service Worker active, scope:', reg.scope);
                         reg.update().catch(err => console.warn('[PWA] Update check failed:', err));
