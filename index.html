@@ -1638,8 +1638,11 @@
 
             <!-- 1. FEATURED / PINNED LATEST RUN CARD (ALWAYS AT TOP) -->
             <div id="latestRunFeaturedSection" style="margin-bottom: 18px;">
-                <div class="card-title" style="color: var(--accent-cyan); margin-bottom: 8px;">
-                    ПОСЛЕДНИЙ ЗАЕЗД
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                    <div class="card-title" style="color: var(--accent-cyan); margin-bottom: 0;">ПОСЛЕДНИЙ ЗАЕЗД</div>
+                    <button class="chip" id="historyActiveCarBadge" style="padding: 3px 10px; font-size: 11px; background: rgba(0, 255, 204, 0.12); color: var(--accent-cyan); border: 1px solid var(--accent-cyan);" onclick="openGarageModal()" title="Нажмите для смены авто">
+                        🚗 Авто ▾
+                    </button>
                 </div>
                 <div class="dragy-card" id="latestRunCard">
                     <div class="dragy-header">
@@ -1704,7 +1707,7 @@
 
             <!-- Saved Runs List (Previous Runs) -->
             <div class="card-title" style="display: flex; justify-content: space-between; align-items: center;">
-                <span>📋 ПРЕДЫДУЩИЕ ЗАЕЗДЫ</span>
+                <span>📋 ПРЕДЫДУЩИЕ ЗАЕЗДЫ <span id="historyRunsCount" style="color: var(--text-muted); font-size: 11px; font-weight: normal;">(0)</span></span>
                 <div style="display: flex; gap: 6px;">
                     <button class="chip" onclick="sendBleCmd('get_history')">🔄 Синхр.</button>
                     <button class="chip" style="color: var(--accent-red);" onclick="clearHistory()">🗑️ Очистить</button>
@@ -3586,11 +3589,18 @@
             localStorage.setItem('racemetry_active_car', id);
             if (updateUI) {
                 updateActiveCarUI();
-                renderCarFilters();
                 renderHistoryList();
                 renderGarageModal();
-                recalculatePersonalBestsForFilter();
                 showToast("🚗 Выбран автомобиль: " + formatCarTitle(getActiveCar()));
+            }
+        }
+
+        function selectCarAndGoToHistory(carId) {
+            setActiveCar(carId, true);
+            closeGarageModal();
+            let tabButtons = document.querySelectorAll('.tab-btn');
+            if (tabButtons && tabButtons[2]) {
+                switchTab('tabHistory', tabButtons[2]);
             }
         }
 
@@ -3605,6 +3615,9 @@
             let headSub = document.getElementById('headerCarDetails');
             if (headSub) headSub.innerText = sub ? `${sub} • Нажмите для смены авто` : "Нажмите для смены авто";
             
+            let histBadge = document.getElementById('historyActiveCarBadge');
+            if (histBadge) histBadge.innerText = `🚗 ${title} ▾`;
+
             let setCar = document.getElementById('settingsActiveCarDisplay');
             if (setCar) setCar.innerText = title;
             
@@ -3668,9 +3681,10 @@
                             <span>Лучшее 0-100: <strong style="color: var(--accent-green);">${bestStr}</strong></span>
                         </div>
                         <div class="car-card-actions">
+                            <button class="chip" style="background: ${isActive ? 'rgba(0,255,204,0.18)' : 'rgba(255,255,255,0.08)'}; color: ${isActive ? 'var(--accent-cyan)' : 'var(--text-primary)'}; font-weight: 700;" onclick="selectCarAndGoToHistory('${car.id}')">📜 Заезды</button>
                             ${!isActive ? `<button class="chip" style="background: rgba(0,255,204,0.15); color: var(--accent-cyan); font-weight: 700;" onclick="setActiveCar('${car.id}')">Выбрать</button>` : '<div></div>'}
                             <div style="display: flex; gap: 6px;">
-                                <button class="chip" onclick="openCarFormModal('${car.id}')">✏️ Изменить</button>
+                                <button class="chip" onclick="openCarFormModal('${car.id}')">✏️</button>
                                 <button class="chip" style="color: var(--accent-red); opacity: ${cars.length <= 1 ? '0.4' : '1'};" onclick="deleteCar('${car.id}')" title="${cars.length <= 1 ? 'Единственный автомобиль' : 'Удалить'}">🗑️</button>
                             </div>
                         </div>
@@ -3845,10 +3859,29 @@
             let container = document.getElementById('historyListContainer');
             if (!container) return;
 
-            // Display latest run in the top card
-            if (savedRuns.length > 0) {
-                if (!lastRunData) {
-                    displayRunDetail(savedRuns[0]);
+            let activeCar = getActiveCar();
+            let cars = getCarsList();
+
+            // Update car badge in History header
+            let histBadge = document.getElementById('historyActiveCarBadge');
+            if (histBadge) {
+                histBadge.innerText = `🚗 ${formatCarTitle(activeCar)} ▾`;
+            }
+
+            // Filter runs strictly for this active car
+            let carRuns = savedRuns.filter(r => {
+                if (r.carId) return r.carId === activeCar.id;
+                return cars.length === 1;
+            });
+
+            // Update runs counter in title
+            let countEl = document.getElementById('historyRunsCount');
+            if (countEl) countEl.innerText = `(${carRuns.length})`;
+
+            // Display latest run of this car in the top card
+            if (carRuns.length > 0) {
+                if (!lastRunData || !carRuns.some(r => r.ts === lastRunData.ts && r.dur === lastRunData.dur)) {
+                    displayRunDetail(carRuns[0]);
                 } else {
                     displayRunDetail(lastRunData);
                 }
@@ -3856,12 +3889,17 @@
                 displayRunDetail(null);
             }
 
-            if (savedRuns.length === 0) {
-                container.innerHTML = '<div style="text-align: center; color: var(--text-muted); padding: 30px;">История заездов пуста</div>';
+            if (carRuns.length === 0) {
+                container.innerHTML = `
+                    <div style="text-align: center; color: var(--text-muted); padding: 35px 20px;">
+                        <div style="font-size: 32px; margin-bottom: 8px;">🏎️</div>
+                        <div style="font-weight: 700; color: var(--text-secondary); margin-bottom: 4px;">У автомобиля «${formatCarTitle(activeCar)}» пока нет сохраненных заездов</div>
+                        <div style="font-size: 12px; color: var(--text-muted);">Перейдите на экран «Заезды» и выполните замер!</div>
+                    </div>`;
                 return;
             }
 
-            container.innerHTML = savedRuns.map((r, idx) => {
+            container.innerHTML = carRuns.map((r, idx) => {
                 let discName = "0-100 км/ч";
                 let mainTime = r.s0_100;
                 if (r.disc === 1 || (r.s0_60 > 0 && (r.s0_100 === 0 || r.s0_100 === undefined))) {
@@ -3879,15 +3917,11 @@
                 }
 
                 let dateStr = formatRaceTimestamp(r.ts);
-                let carTag = r.carName || "Мой Автомобиль";
 
                 return `
                     <div class="history-item" onclick="viewHistoricalRun(${idx})">
                         <div class="history-main">
-                            <div style="display: flex; align-items: center; gap: 6px;">
-                                <span class="history-disc">${discName}</span>
-                                <span class="car-pill" style="font-size: 9px; padding: 1px 6px;">🚗 ${carTag}</span>
-                            </div>
+                            <span class="history-disc">${discName}</span>
                             <span class="history-date">${dateStr} • ${r.valid ? "🟢 Валиден" : "🔴 Уклон"}</span>
                         </div>
                         <div class="history-result">
@@ -3900,10 +3934,13 @@
         }
 
         function viewHistoricalRun(idx) {
-            let r = savedRuns[idx];
+            let activeCar = getActiveCar();
+            let cars = getCarsList();
+            let carRuns = savedRuns.filter(r => r.carId === activeCar.id || (!r.carId && cars.length === 1));
+            let r = carRuns[idx];
             if (r) {
                 displayRunDetail(r);
-                showToast(`Выбран заезд: ${(r.carName ? r.carName + ' • ' : '')}${formatRaceTimestamp(r.ts)}`);
+                showToast(`Выбран заезд: ${formatRaceTimestamp(r.ts)}`);
                 let section = document.getElementById('latestRunFeaturedSection');
                 if (section) {
                     section.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -4127,7 +4164,7 @@
 
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js?v=5.3', { updateViaCache: 'none' })
+                navigator.serviceWorker.register('./sw.js?v=5.4', { updateViaCache: 'none' })
                     .then(reg => {
                         console.log('[PWA] Service Worker active, scope:', reg.scope);
                         reg.update().catch(err => console.warn('[PWA] Update check failed:', err));
