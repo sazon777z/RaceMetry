@@ -1636,19 +1636,10 @@
         <!-- 3. TAB: HISTORY & RUN ANALYSIS -->
         <div id="tabHistory" class="tab-content">
 
-            <!-- Car Filter Bar -->
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                <span style="font-size: 11px; font-weight: 700; color: var(--text-muted); letter-spacing: 1px;">ФИЛЬТР ПО АВТОМОБИЛЯМ:</span>
-                <button class="chip" style="padding: 2px 10px; font-size: 11px;" onclick="openGarageModal()">🚗 Гараж</button>
-            </div>
-            <div class="car-filter-bar" id="historyCarFilterBar">
-                <!-- Dynamically populated by renderCarFilters() -->
-            </div>
-
             <!-- 1. FEATURED / PINNED LATEST RUN CARD (ALWAYS AT TOP) -->
             <div id="latestRunFeaturedSection" style="margin-bottom: 18px;">
-                <div class="card-title" style="color: var(--accent-cyan); display: flex; align-items: center; gap: 6px; margin-bottom: 8px;">
-                    <span>🔥</span> ПОСЛЕДНИЙ ЗАЕЗД
+                <div class="card-title" style="color: var(--accent-cyan); margin-bottom: 8px;">
+                    ПОСЛЕДНИЙ ЗАЕЗД
                 </div>
                 <div class="dragy-card" id="latestRunCard">
                     <div class="dragy-header">
@@ -1707,40 +1698,6 @@
                         <button class="action-btn" style="flex: 1; padding: 8px 12px; font-size: 12px;" onclick="copyRunSummary()">
                             📋 Скопировать отчет
                         </button>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Personal Bests Podium (Filtered by active car) -->
-            <div class="card" style="margin-bottom: 16px;">
-                <div class="card-title" style="display: flex; justify-content: space-between; align-items: center;">
-                    <span>🏆 РЕКОРДЫ АВТОМОБИЛЯ</span>
-                    <span id="pbCarNameLabel" style="font-size: 11px; color: var(--accent-cyan); font-weight: normal;">(Все авто)</span>
-                </div>
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-                    <div class="history-item" style="margin: 0;">
-                        <div class="history-main">
-                            <span class="history-disc">0 - 60 км/ч</span>
-                        </div>
-                        <div class="history-time" id="pb0_60">--</div>
-                    </div>
-                    <div class="history-item" style="margin: 0;">
-                        <div class="history-main">
-                            <span class="history-disc">0 - 100 км/ч</span>
-                        </div>
-                        <div class="history-time" id="pb0_100">--</div>
-                    </div>
-                    <div class="history-item" style="margin: 0;">
-                        <div class="history-main">
-                            <span class="history-disc">100 - 200 км/ч</span>
-                        </div>
-                        <div class="history-time" id="pb100_200">--</div>
-                    </div>
-                    <div class="history-item" style="margin: 0;">
-                        <div class="history-main">
-                            <span class="history-disc">1/4 Мили (402м)</span>
-                        </div>
-                        <div class="history-time" id="pb1_4mi">--</div>
                     </div>
                 </div>
             </div>
@@ -4187,7 +4144,7 @@
 
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js?v=5.1', { updateViaCache: 'none' })
+                navigator.serviceWorker.register('./sw.js?v=5.2', { updateViaCache: 'none' })
                     .then(reg => {
                         console.log('[PWA] Service Worker active, scope:', reg.scope);
                         reg.update().catch(err => console.warn('[PWA] Update check failed:', err));
