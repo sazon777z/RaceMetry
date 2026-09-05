@@ -1648,7 +1648,7 @@
             <!-- 1. FEATURED / PINNED LATEST RUN CARD (ALWAYS AT TOP) -->
             <div id="latestRunFeaturedSection" style="margin-bottom: 18px;">
                 <div class="card-title" style="color: var(--accent-cyan); display: flex; align-items: center; gap: 6px; margin-bottom: 8px;">
-                    <span>🔥</span> ПОСЛЕДНИЙ ЗАЕЗД (ГЛАВНЫЙ)
+                    <span>🔥</span> ПОСЛЕДНИЙ ЗАЕЗД
                 </div>
                 <div class="dragy-card" id="latestRunCard">
                     <div class="dragy-header">
@@ -3264,6 +3264,23 @@
             console.log("Run finished:", run);
             lastRunData = run;
 
+            // Audio and voice announcement on live run completion
+            if (run.valid) {
+                playDragyBeep('finish_valid');
+                if (run.s0_100 > 0) {
+                    speak(`Финиш! Ноль сто: ${formatSportsTime(run.s0_100)}`);
+                } else if (run.s1_4mi > 0) {
+                    speak(`Финиш! Четверть мили: ${formatSportsTime(run.s1_4mi)}`);
+                } else if (run.s0_60 > 0) {
+                    speak(`Финиш! Ноль шестьдесят: ${formatSportsTime(run.s0_60)}`);
+                } else {
+                    speak("Финиш! Заезд завершен.");
+                }
+            } else {
+                playDragyBeep('finish_invalid');
+                speak("Внимание! Уклон превышает норму.");
+            }
+
             // Associate telemetry points with this run and reset buffer
             if (currentRunSamples.length > 0) {
                 run.samples = currentRunSamples.slice();
@@ -3297,70 +3314,107 @@
         }
 
         function displayRunDetail(run) {
-            let card = document.getElementById('dragyCertCard');
-            if (!card) return;
-            card.style.display = 'block';
+            lastRunData = run;
 
-            let dateStr = (run.ts > 1700000000) ? new Date(run.ts * 1000).toLocaleString('ru-RU') : new Date().toLocaleString('ru-RU');
-            document.getElementById('certDate').innerText = dateStr;
+            let dateEl = document.getElementById('featuredDate');
+            let carBadge = document.getElementById('featuredCarBadge');
+            let slopeBadge = document.getElementById('featuredSlopeBadge');
+            let discEl = document.getElementById('featuredDiscipline');
+            let heroLabelEl = document.getElementById('featuredHeroLabel');
+            let heroValEl = document.getElementById('featuredHeroVal');
+            let rollEl = document.getElementById('featuredRollout');
+            let gEl = document.getElementById('featuredMaxG');
+            let spdEl = document.getElementById('featuredMaxSpd');
+            let slpEl = document.getElementById('featuredSlopeVal');
+            let distEl = document.getElementById('featuredDist');
+            let durEl = document.getElementById('featuredDur');
 
-            let slopeBadge = document.getElementById('certSlopeBadge');
-            if (run.valid) {
-                slopeBadge.className = 'slope-badge valid';
-                slopeBadge.innerText = "VALID " + (run.slope !== undefined ? run.slope.toFixed(1) : "0.0") + "%";
-                playDragyBeep('finish_valid');
-                if (run.s0_100 > 0) {
-                    speak(`Финиш! Ноль сто: ${formatSportsTime(run.s0_100)}`);
-                } else if (run.s1_4mi > 0) {
-                    speak(`Финиш! Четверть мили: ${formatSportsTime(run.s1_4mi)}`);
-                } else if (run.s0_60 > 0) {
-                    speak(`Финиш! Ноль шестьдесят: ${formatSportsTime(run.s0_60)}`);
-                } else {
-                    speak("Финиш! Заезд завершен.");
+            if (!run) {
+                if (dateEl) dateEl.innerText = "--:--:--";
+                if (carBadge) carBadge.innerText = "🚗 Нет заездов";
+                if (slopeBadge) {
+                    slopeBadge.className = 'slope-badge valid';
+                    slopeBadge.innerText = "VALID 0.0%";
                 }
-            } else {
-                slopeBadge.className = 'slope-badge invalid';
-                slopeBadge.innerText = "INVALID SLOPE " + (run.slope !== undefined ? run.slope.toFixed(1) : "0.0") + "%";
-                playDragyBeep('finish_invalid');
-                speak("Внимание! Уклон превышает норму.");
+                if (discEl) discEl.innerText = "НЕТ ЗАЕЗДОВ";
+                if (heroLabelEl) heroLabelEl.innerText = "0 - 100 КМ/Ч";
+                if (heroValEl) heroValEl.innerText = "-- s";
+                if (rollEl) rollEl.innerText = "--";
+                if (gEl) gEl.innerText = "0.00 G";
+                if (spdEl) spdEl.innerText = "0.0 км/ч";
+                if (slpEl) slpEl.innerText = "0.0%";
+                if (distEl) distEl.innerText = "0.0 м";
+                if (durEl) durEl.innerText = "0.00 с";
+
+                let canvas = document.getElementById('runChartCanvas');
+                if (canvas) {
+                    let ctx = canvas.getContext('2d');
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                }
+                return;
             }
 
-            if (run.s0_60 > 0 && run.disc === 1) {
-                document.getElementById('certDiscipline').innerText = "0 - 60 KM/H";
-                document.getElementById('certHeroLabel').innerText = "0 - 60 КМ/Ч";
-                document.getElementById('certHeroVal').innerText = run.s0_60.toFixed(2) + " s";
+            if (dateEl) dateEl.innerText = formatRaceTimestamp(run.ts);
+            if (carBadge) {
+                let carName = run.carName || (run.carMake && run.carModel ? `${run.carMake} ${run.carModel}` : "Автомобиль");
+                carBadge.innerText = `🚗 ${carName}`;
+            }
+
+            if (slopeBadge) {
+                let slopeVal = (run.slope !== undefined ? run.slope.toFixed(1) : "0.0");
+                if (run.valid) {
+                    slopeBadge.className = 'slope-badge valid';
+                    slopeBadge.innerText = `VALID ${slopeVal}%`;
+                } else {
+                    slopeBadge.className = 'slope-badge invalid';
+                    slopeBadge.innerText = `INVALID ${slopeVal}%`;
+                }
+            }
+
+            // Determine discipline & hero metric
+            let discTitle = "0 - 100 КМ/Ч";
+            let heroLabel = "0 - 100 КМ/Ч";
+            let heroVal = "-- s";
+
+            if (run.disc === 1 || (run.s0_60 > 0 && (run.s0_100 === 0 || run.s0_100 === undefined))) {
+                discTitle = "0 - 60 КМ/Ч";
+                heroLabel = "0 - 60 КМ/Ч";
+                heroVal = (run.s0_60 > 0 ? run.s0_60.toFixed(2) : (run.dur || 0).toFixed(2)) + " s";
+            } else if (run.disc === 5 || (run.s1_4mi > 0 && (run.s0_100 === 0 || run.s0_100 === undefined))) {
+                discTitle = "1/4 МИЛИ (402М)";
+                heroLabel = "1/4 МИЛИ (402м)";
+                heroVal = (run.s1_4mi > 0 ? run.s1_4mi.toFixed(2) : (run.dur || 0).toFixed(2)) + " s";
             } else if (run.s0_100 > 0) {
-                document.getElementById('certDiscipline').innerText = "0 - 100 KM/H";
-                document.getElementById('certHeroLabel').innerText = "0 - 100 КМ/Ч";
-                document.getElementById('certHeroVal').innerText = run.s0_100.toFixed(2) + " s";
-            } else if (run.s1_4mi > 0) {
-                document.getElementById('certDiscipline').innerText = "1/4 MILE (402M)";
-                document.getElementById('certHeroLabel').innerText = "1/4 МИЛИ (402м)";
-                document.getElementById('certHeroVal').innerText = run.s1_4mi.toFixed(2) + " s";
+                discTitle = "0 - 100 КМ/Ч";
+                heroLabel = "0 - 100 КМ/Ч";
+                heroVal = run.s0_100.toFixed(2) + " s";
             } else if (run.s0_60 > 0) {
-                document.getElementById('certDiscipline').innerText = "0 - 60 KM/H";
-                document.getElementById('certHeroLabel').innerText = "0 - 60 КМ/Ч";
-                document.getElementById('certHeroVal').innerText = run.s0_60.toFixed(2) + " s";
+                discTitle = "0 - 60 КМ/Ч";
+                heroLabel = "0 - 60 КМ/Ч";
+                heroVal = run.s0_60.toFixed(2) + " s";
             } else {
-                document.getElementById('certDiscipline').innerText = "ЗАЕЗД";
-                document.getElementById('certHeroLabel').innerText = "ВРЕМЯ";
-                document.getElementById('certHeroVal').innerText = (run.dur || 0).toFixed(2) + " s";
+                discTitle = "ЗАЕЗД";
+                heroLabel = "ВРЕМЯ";
+                heroVal = (run.dur || 0).toFixed(2) + " s";
             }
 
-            document.getElementById('certRollout').innerText = run.rollout ? "Да (1 фут / 0.30м)" : "Нет (0.0м)";
-            document.getElementById('certMaxG').innerText = (run.max_g || 0).toFixed(2) + " G";
-            document.getElementById('certMaxSpd').innerText = (run.max_spd || 0).toFixed(1) + " км/ч";
-            document.getElementById('certSlopeVal').innerText = (run.slope || 0).toFixed(2) + "%";
-            document.getElementById('certDist').innerText = (run.dist || 0).toFixed(1) + " м";
-            document.getElementById('certDur').innerText = (run.dur || 0).toFixed(2) + " с";
+            if (discEl) discEl.innerText = discTitle;
+            if (heroLabelEl) heroLabelEl.innerText = heroLabel;
+            if (heroValEl) heroValEl.innerText = heroVal;
 
-            // Render Chart
+            if (rollEl) rollEl.innerText = run.rollout ? "Да (1 фут / 0.30м)" : "Нет (0.0м)";
+            if (gEl) gEl.innerText = (run.max_g !== undefined ? run.max_g.toFixed(2) : "0.00") + " G";
+            if (spdEl) spdEl.innerText = (run.max_spd !== undefined ? run.max_spd.toFixed(1) : "0.0") + " км/ч";
+            if (slpEl) slpEl.innerText = (run.slope !== undefined ? run.slope.toFixed(2) : "0.00") + "%";
+            if (distEl) distEl.innerText = (run.dist !== undefined ? run.dist.toFixed(1) : "0.0") + " м";
+            if (durEl) durEl.innerText = (run.dur !== undefined ? run.dur.toFixed(2) : "0.00") + " с";
+
+            // Render interactive chart
             renderChartForRun(run);
         }
 
         function closeRunDetail() {
-            let card = document.getElementById('dragyCertCard');
-            if (card) card.style.display = 'none';
+            displayRunDetail(null);
         }
 
         function updatePersonalBests(pb) {
@@ -3846,19 +3900,28 @@
                 ? savedRuns 
                 : savedRuns.filter(r => r.carId === activeCarFilterId);
 
+            // Display latest run in the top card
+            if (filtered.length > 0) {
+                if (!lastRunData || !filtered.some(r => r.ts === lastRunData.ts && r.dur === lastRunData.dur)) {
+                    displayRunDetail(filtered[0]);
+                } else {
+                    displayRunDetail(lastRunData);
+                }
+            } else if (savedRuns.length > 0 && activeCarFilterId === 'all') {
+                displayRunDetail(savedRuns[0]);
+            } else {
+                displayRunDetail(null);
+            }
+
             if (filtered.length === 0) {
                 container.innerHTML = '<div style="text-align: center; color: var(--text-muted); padding: 30px;">Нет сохраненных заездов для выбранного авто</div>';
                 return;
             }
 
-            if (savedRuns.length > 0 && !lastRunData) {
-                displayRunDetail(savedRuns[0]);
-            }
-
             container.innerHTML = filtered.map((r, idx) => {
                 let discName = "0-100 км/ч";
                 let mainTime = r.s0_100;
-                if (r.disc === 1 || (r.s0_60 > 0 && r.s0_100 === 0)) {
+                if (r.disc === 1 || (r.s0_60 > 0 && (r.s0_100 === 0 || r.s0_100 === undefined))) {
                     discName = "0-60 км/ч";
                     mainTime = r.s0_60;
                 } else if (r.s1_4mi > 0 && r.disc === 5) {
@@ -3894,10 +3957,17 @@
         }
 
         function viewHistoricalRun(idx) {
-            let r = savedRuns[idx];
+            let filtered = (activeCarFilterId === 'all') 
+                ? savedRuns 
+                : savedRuns.filter(r => r.carId === activeCarFilterId);
+            let r = filtered[idx];
             if (r) {
                 displayRunDetail(r);
-                window.scrollTo({ top: 0, behavior: 'smooth' });
+                showToast(`Выбран заезд: ${(r.carName ? r.carName + ' • ' : '')}${formatRaceTimestamp(r.ts)}`);
+                let section = document.getElementById('latestRunFeaturedSection');
+                if (section) {
+                    section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
             }
         }
 
@@ -4117,7 +4187,7 @@
 
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js?v=5.0', { updateViaCache: 'none' })
+                navigator.serviceWorker.register('./sw.js?v=5.1', { updateViaCache: 'none' })
                     .then(reg => {
                         console.log('[PWA] Service Worker active, scope:', reg.scope);
                         reg.update().catch(err => console.warn('[PWA] Update check failed:', err));
