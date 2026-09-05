@@ -43,18 +43,30 @@
             -webkit-tap-highlight-color: transparent;
         }
 
+        html, body {
+            height: 100%;
+            height: 100dvh;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            overscroll-behavior: none;
+            -webkit-overflow-scrolling: touch;
+        }
+
         body {
             background-color: var(--bg-primary);
             color: var(--text-primary);
-            min-height: 100vh;
+            height: 100%;
+            height: 100dvh;
             display: flex;
             flex-direction: column;
-            overflow-x: hidden;
+            overflow: hidden;
             background-image: radial-gradient(circle at 50% 0%, #171d2b 0%, #0a0c10 70%);
         }
 
         /* Top Header (Row 1) */
         header {
+            flex-shrink: 0;
             display: flex;
             align-items: center;
             justify-content: space-between;
@@ -62,8 +74,6 @@
             background: rgba(18, 21, 29, 0.95);
             backdrop-filter: blur(12px);
             border-bottom: 1px solid var(--border-color);
-            position: sticky;
-            top: 0;
             z-index: 100;
         }
 
@@ -80,6 +90,7 @@
 
         /* Brand Row (Row 2) */
         .brand-row {
+            flex-shrink: 0;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -370,15 +381,14 @@
             color: var(--text-secondary);
         }
 
-        /* Navigation Tabs */
+        /* Navigation Tabs (Pinned to bottom of flex viewport) */
         .tab-bar {
+            flex-shrink: 0;
             display: flex;
-            background: rgba(18, 21, 29, 0.95);
+            background: rgba(18, 21, 29, 0.98);
+            backdrop-filter: blur(16px);
             border-top: 1px solid var(--border-color);
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
+            position: relative;
             z-index: 100;
             padding-bottom: env(safe-area-inset-bottom);
         }
@@ -417,20 +427,56 @@
         /* Main Container */
         main {
             flex: 1;
-            padding: 8px 12px;
-            padding-bottom: 80px;
-            max-width: 900px;
+            min-height: 0;
             width: 100%;
+            max-width: 900px;
             margin: 0 auto;
+            padding: 0 12px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            position: relative;
         }
 
         .tab-content {
             display: none;
+            height: 100%;
+            min-height: 0;
+            width: 100%;
             animation: fadeIn 0.25s ease;
         }
 
         .tab-content.active {
             display: block;
+        }
+
+        #tabCockpit.active {
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            height: 100%;
+            min-height: 0;
+            overflow: hidden;
+            padding: 2px 0 6px;
+            gap: 6px;
+        }
+
+        @media (max-height: 540px) {
+            #tabCockpit.active {
+                overflow-y: auto;
+                justify-content: flex-start;
+            }
+        }
+
+        #tabHistory.active,
+        #tabGps.active,
+        #tabSettings.active {
+            display: block;
+            height: 100%;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+            overscroll-behavior-y: contain;
+            padding: 8px 2px 24px;
         }
 
         @keyframes fadeIn {
@@ -440,20 +486,21 @@
 
         /* Hero Speedometer & State Badge */
         .state-banner {
+            flex-shrink: 0;
             display: flex;
             align-items: center;
             justify-content: space-between;
             gap: 8px;
             background: var(--bg-card);
             border: 1px solid var(--border-color);
-            padding: 6px 12px;
-            border-radius: var(--radius-sm);
-            margin-bottom: 8px;
+            padding: 8px 14px;
+            border-radius: var(--radius-md);
+            margin-bottom: 0;
             overflow: hidden;
         }
 
         .state-label {
-            font-size: 10px;
+            font-size: 11px;
             font-weight: 800;
             color: var(--text-muted);
             letter-spacing: 0.8px;
@@ -463,9 +510,9 @@
         }
 
         .state-badge {
-            font-size: 11px;
+            font-size: 12px;
             font-weight: 900;
-            padding: 4px 12px;
+            padding: 5px 14px;
             border-radius: 20px;
             text-transform: uppercase;
             letter-spacing: 0.8px;
@@ -511,72 +558,87 @@
             border-color: var(--accent-blue);
         }
 
+        /* Big Digital Speedometer */
         .hero-speed-box {
+            flex: 1.1;
+            min-height: 95px;
+            max-height: 180px;
             background: var(--bg-card);
             border: 1px solid var(--border-color);
-            border-radius: var(--radius-md);
-            padding: 10px 14px;
+            border-radius: var(--radius-lg);
+            padding: 12px 20px;
             text-align: center;
             position: relative;
             box-shadow: var(--shadow);
-            margin-bottom: 8px;
+            margin-bottom: 0;
             overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
         }
 
         .hero-speed-val {
-            font-size: clamp(52px, 10vh, 74px);
+            font-size: clamp(68px, 12vh, 88px);
             font-weight: 900;
             line-height: 1;
             font-variant-numeric: tabular-nums;
             background: linear-gradient(180deg, #ffffff 40%, #8a99ad 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
-            text-shadow: 0 0 30px rgba(0, 255, 204, 0.2);
+            text-shadow: 0 0 30px rgba(0, 255, 204, 0.25);
         }
 
         .hero-speed-unit {
-            font-size: 13px;
+            font-size: 15px;
             font-weight: 700;
             color: var(--accent-cyan);
-            letter-spacing: 2px;
-            margin-top: 2px;
+            letter-spacing: 2.5px;
+            margin-top: 4px;
         }
 
         /* G-Force & Secondary Gauges */
         .gauges-grid {
+            flex: 1.3;
+            min-height: 140px;
+            max-height: 200px;
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 8px;
-            margin-bottom: 8px;
+            gap: 10px;
+            margin-bottom: 0;
         }
 
-        .card {
+        .gauges-grid .card {
             background: var(--bg-card);
             border: 1px solid var(--border-color);
             border-radius: var(--radius-md);
-            padding: 10px 12px;
+            padding: 10px 14px;
             box-shadow: var(--shadow);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            overflow: hidden;
         }
 
         .card-title {
-            font-size: 11px;
+            font-size: 11.5px;
             font-weight: 700;
             text-transform: uppercase;
             letter-spacing: 0.8px;
             color: var(--text-muted);
-            margin-bottom: 6px;
+            margin-bottom: 4px;
             display: flex;
             align-items: center;
             justify-content: space-between;
         }
 
         .g-bowl-container {
-            width: 104px;
-            height: 104px;
-            margin: 0 auto;
+            width: clamp(100px, 16vh, 134px);
+            height: clamp(100px, 16vh, 134px);
+            margin: auto;
             position: relative;
             border-radius: 50%;
-            border: 1.5px dashed var(--border-color);
+            border: 2px dashed var(--border-color);
             background: radial-gradient(circle, rgba(0,255,204,0.03) 0%, transparent 70%);
             display: flex;
             align-items: center;
@@ -591,8 +653,8 @@
         .g-cross-v { height: 100%; width: 1px; }
 
         .g-dot {
-            width: 12px;
-            height: 12px;
+            width: 15px;
+            height: 15px;
             background: var(--accent-cyan);
             border-radius: 50%;
             position: absolute;
@@ -604,29 +666,29 @@
         .g-metrics-list {
             display: flex;
             flex-direction: column;
-            gap: 4px;
-            justify-content: center;
-            min-height: 104px;
+            justify-content: space-around;
+            height: 100%;
+            gap: 2px;
         }
 
         .g-metric-row {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            font-size: 11px;
-            gap: 4px;
+            font-size: 12px;
+            gap: 6px;
         }
 
         .g-metric-row span:first-child {
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
-            font-size: 11px;
+            font-size: 11.5px;
         }
 
         .g-metric-val {
             font-weight: 800;
-            font-size: 13px;
+            font-size: 14.5px;
             font-variant-numeric: tabular-nums;
             white-space: nowrap;
             flex-shrink: 0;
@@ -634,19 +696,20 @@
 
         /* Action Buttons */
         .btn-row {
+            flex-shrink: 0;
             display: grid;
             grid-template-columns: 1fr 1fr 1fr;
-            gap: 8px;
-            margin-bottom: 8px;
+            gap: 10px;
+            margin-bottom: 0;
         }
 
         .action-btn {
             background: var(--bg-card);
             border: 1px solid var(--border-color);
             color: var(--text-primary);
-            padding: 8px 4px;
-            border-radius: var(--radius-sm);
-            font-size: 11px;
+            padding: 12px 8px;
+            border-radius: var(--radius-md);
+            font-size: 12px;
             font-weight: 700;
             cursor: pointer;
             transition: all 0.15s ease;
@@ -654,11 +717,16 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 3px;
+            gap: 5px;
         }
 
         .action-btn:active {
             transform: scale(0.96);
+        }
+
+        .action-btn span {
+            font-size: 20px !important;
+            line-height: 1;
         }
 
         .action-btn.arm-btn {
@@ -681,11 +749,12 @@
 
         /* Discipline Selector */
         .disc-chips {
+            flex-shrink: 0;
             display: flex;
-            gap: 6px;
+            gap: 8px;
             overflow-x: auto;
-            padding-bottom: 2px;
-            margin-bottom: 8px;
+            padding: 2px 0 4px;
+            margin-bottom: 0;
             scrollbar-width: none;
         }
 
@@ -696,9 +765,9 @@
             background: var(--bg-card);
             border: 1px solid var(--border-color);
             color: var(--text-secondary);
-            padding: 6px 12px;
-            border-radius: 14px;
-            font-size: 11px;
+            padding: 7px 14px;
+            border-radius: 18px;
+            font-size: 12px;
             font-weight: 700;
             cursor: pointer;
             transition: all 0.2s;
@@ -1095,10 +1164,11 @@
 
         /* Active Car Bar (Row 3) */
         .active-car-bar {
+            flex-shrink: 0;
             background: linear-gradient(135deg, rgba(0, 255, 204, 0.08) 0%, rgba(20, 26, 38, 0.95) 100%);
             border: 1px solid var(--border-color);
-            border-radius: var(--radius-sm);
-            padding: 6px 12px;
+            border-radius: var(--radius-md);
+            padding: 8px 14px;
             margin: 4px 12px 6px;
             display: flex;
             align-items: center;
@@ -1910,6 +1980,26 @@
 
     </main>
 
+    <!-- Bottom Tab Navigation -->
+    <nav class="tab-bar">
+        <button class="tab-btn active" onclick="switchTab('tabCockpit', this)">
+            <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+            Замер
+        </button>
+        <button class="tab-btn" onclick="switchTab('tabGps', this)">
+            <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>
+            GPS
+        </button>
+        <button class="tab-btn" onclick="switchTab('tabHistory', this)">
+            <svg viewBox="0 0 24 24"><path d="M13 3c-4.97 0-9 4.03-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42C8.27 19.99 10.51 21 13 21c4.97 0 9-4.03 9-9s-4.03-9-9-9zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z"/></svg>
+            История
+        </button>
+        <button class="tab-btn" onclick="switchTab('tabSettings', this)">
+            <svg viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>
+            Настройки
+        </button>
+    </nav>
+
     <!-- Diagnostics Floating Toast / HUD -->
     <div id="diagToast" class="diag-toast">
         <div class="diag-toast-header">
@@ -1999,26 +2089,6 @@
             </div>
         </div>
     </div>
-
-    <!-- Bottom Tab Navigation -->
-    <nav class="tab-bar">
-        <button class="tab-btn active" onclick="switchTab('tabCockpit', this)">
-            <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
-            Замер
-        </button>
-        <button class="tab-btn" onclick="switchTab('tabGps', this)">
-            <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>
-            GPS
-        </button>
-        <button class="tab-btn" onclick="switchTab('tabHistory', this)">
-            <svg viewBox="0 0 24 24"><path d="M13 3c-4.97 0-9 4.03-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42C8.27 19.99 10.51 21 13 21c4.97 0 9-4.03 9-9s-4.03-9-9-9zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z"/></svg>
-            История
-        </button>
-        <button class="tab-btn" onclick="switchTab('tabSettings', this)">
-            <svg viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>
-            Настройки
-        </button>
-    </nav>
 
     <!-- Toast Notification -->
     <div id="toast" class="toast">Готово</div>
@@ -4198,7 +4268,7 @@
 
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js?v=5.6', { updateViaCache: 'none' })
+                navigator.serviceWorker.register('./sw.js?v=5.7', { updateViaCache: 'none' })
                     .then(reg => {
                         console.log('[PWA] Service Worker active, scope:', reg.scope);
                         reg.update().catch(err => console.warn('[PWA] Update check failed:', err));
