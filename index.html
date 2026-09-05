@@ -1638,11 +1638,8 @@
 
             <!-- 1. FEATURED / PINNED LATEST RUN CARD (ALWAYS AT TOP) -->
             <div id="latestRunFeaturedSection" style="margin-bottom: 18px;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                    <div class="card-title" style="color: var(--accent-cyan); margin-bottom: 0;">ПОСЛЕДНИЙ ЗАЕЗД</div>
-                    <button class="chip" id="historyActiveCarBadge" style="padding: 3px 10px; font-size: 11px; background: rgba(0, 255, 204, 0.12); color: var(--accent-cyan); border: 1px solid var(--accent-cyan);" onclick="openGarageModal()" title="Нажмите для смены авто">
-                        🚗 Авто ▾
-                    </button>
+                <div class="card-title" style="color: var(--accent-cyan); margin-bottom: 8px;">
+                    ПОСЛЕДНИЙ ЗАЕЗД
                 </div>
                 <div class="dragy-card" id="latestRunCard">
                     <div class="dragy-header">
@@ -4164,7 +4161,7 @@
 
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js?v=5.4', { updateViaCache: 'none' })
+                navigator.serviceWorker.register('./sw.js?v=5.5', { updateViaCache: 'none' })
                     .then(reg => {
                         console.log('[PWA] Service Worker active, scope:', reg.scope);
                         reg.update().catch(err => console.warn('[PWA] Update check failed:', err));
