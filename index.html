@@ -1702,14 +1702,6 @@
                 </div>
             </div>
 
-            <!-- Car Filter Bar -->
-            <div style="margin-bottom: 12px;">
-                <div class="card-title" style="margin-bottom: 6px; font-size: 11px;">ФИЛЬТР ЗАЕЗДОВ ПО АВТОМОБИЛЮ:</div>
-                <div id="carFilterContainer" class="disc-chips" style="margin-bottom: 0;">
-                    <!-- Filled dynamically with [Все авто], [BMW M5], [Toyota Supra]... -->
-                </div>
-            </div>
-
             <!-- Saved Runs List (Previous Runs) -->
             <div class="card-title" style="display: flex; justify-content: space-between; align-items: center;">
                 <span>📋 ПРЕДЫДУЩИЕ ЗАЕЗДЫ</span>
@@ -3853,29 +3845,23 @@
             let container = document.getElementById('historyListContainer');
             if (!container) return;
 
-            let filtered = (activeCarFilterId === 'all') 
-                ? savedRuns 
-                : savedRuns.filter(r => r.carId === activeCarFilterId);
-
             // Display latest run in the top card
-            if (filtered.length > 0) {
-                if (!lastRunData || !filtered.some(r => r.ts === lastRunData.ts && r.dur === lastRunData.dur)) {
-                    displayRunDetail(filtered[0]);
+            if (savedRuns.length > 0) {
+                if (!lastRunData) {
+                    displayRunDetail(savedRuns[0]);
                 } else {
                     displayRunDetail(lastRunData);
                 }
-            } else if (savedRuns.length > 0 && activeCarFilterId === 'all') {
-                displayRunDetail(savedRuns[0]);
             } else {
                 displayRunDetail(null);
             }
 
-            if (filtered.length === 0) {
-                container.innerHTML = '<div style="text-align: center; color: var(--text-muted); padding: 30px;">Нет сохраненных заездов для выбранного авто</div>';
+            if (savedRuns.length === 0) {
+                container.innerHTML = '<div style="text-align: center; color: var(--text-muted); padding: 30px;">История заездов пуста</div>';
                 return;
             }
 
-            container.innerHTML = filtered.map((r, idx) => {
+            container.innerHTML = savedRuns.map((r, idx) => {
                 let discName = "0-100 км/ч";
                 let mainTime = r.s0_100;
                 if (r.disc === 1 || (r.s0_60 > 0 && (r.s0_100 === 0 || r.s0_100 === undefined))) {
@@ -3914,10 +3900,7 @@
         }
 
         function viewHistoricalRun(idx) {
-            let filtered = (activeCarFilterId === 'all') 
-                ? savedRuns 
-                : savedRuns.filter(r => r.carId === activeCarFilterId);
-            let r = filtered[idx];
+            let r = savedRuns[idx];
             if (r) {
                 displayRunDetail(r);
                 showToast(`Выбран заезд: ${(r.carName ? r.carName + ' • ' : '')}${formatRaceTimestamp(r.ts)}`);
@@ -4144,7 +4127,7 @@
 
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js?v=5.2', { updateViaCache: 'none' })
+                navigator.serviceWorker.register('./sw.js?v=5.3', { updateViaCache: 'none' })
                     .then(reg => {
                         console.log('[PWA] Service Worker active, scope:', reg.scope);
                         reg.update().catch(err => console.warn('[PWA] Update check failed:', err));
